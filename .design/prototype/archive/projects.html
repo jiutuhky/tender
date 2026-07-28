@@ -1,0 +1,1935 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prose · 工作台 — 在投项目</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500;1,8..60,600&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   Shared tokens — identical to existing pages
+   ============================================================ */
+:root {
+  --bg:        oklch(98% 0.004 80);
+  --surface:   oklch(100% 0 0);
+  --surface-2: oklch(96% 0.005 80);
+  --surface-3: oklch(93% 0.006 70);
+  --fg:        oklch(20% 0.015 60);
+  --fg-2:      oklch(36% 0.015 60);
+  --muted:     oklch(54% 0.012 60);
+  --faint:     oklch(72% 0.008 60);
+  --border:    oklch(90% 0.008 70);
+  --border-2:  oklch(84% 0.010 70);
+  --accent:    oklch(55% 0.12 50);
+  --accent-soft: oklch(94% 0.025 60);
+  --clay:      #D97757;
+  --clay-deep: #C86442;
+  --success:   oklch(50% 0.10 150);
+  --success-soft: oklch(94% 0.04 150);
+  --warn:      oklch(58% 0.15 30);
+  --warn-soft: oklch(94% 0.04 30);
+  --danger:    oklch(54% 0.18 25);
+  --danger-soft: oklch(94% 0.04 25);
+
+  --font-sans:  "Geist", "Inter", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-text:  "Geist", "Inter", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-serif: "Source Serif 4", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --font-mono:  "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --radius-sm: 3px;
+  --radius:    4px;
+  --radius-lg: 6px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-text);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "ss03", "cv11";
+  font-variant-numeric: lining-nums tabular-nums;
+}
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+.app {
+  display: grid;
+  grid-template-rows: 52px 1fr;
+  min-height: 100vh;
+}
+
+/* ============================================================
+   Top bar (matches other pages exactly)
+   ============================================================ */
+.topbar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  padding: 0 20px;
+  gap: 16px;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  font-size: 17px;
+}
+.brand-mark {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: 3px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 15px;
+  padding-bottom: 1px;
+}
+.topbar-divider { width: 1px; height: 18px; background: var(--border-2); }
+.breadcrumb {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  color: var(--muted);
+  flex: 1; min-width: 0;
+}
+.breadcrumb .crumb-current {
+  color: var(--fg); font-weight: 500;
+  white-space: nowrap;
+}
+.breadcrumb-sep { color: var(--faint); font-style: italic; }
+
+.nav-tabs { display: flex; gap: 2px; }
+.nav-tabs a {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--muted);
+  border-radius: 3px;
+  transition: background .15s, color .15s;
+}
+.nav-tabs a:hover { background: var(--surface-2); color: var(--fg); }
+.nav-tabs a.active { color: var(--fg); background: var(--surface-2); }
+.nav-tabs a.dimmed { color: var(--faint); }
+.nav-tabs a.dimmed:hover { color: var(--muted); }
+
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
+.icon-btn {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--fg); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* primary CTA — Anthropic warm-glow style */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: var(--clay);
+  color: #FAF9F5;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  user-select: none;
+  outline: none;
+  position: relative;
+  box-shadow:
+    0 1px 3px rgba(180, 90, 30, 0.35),
+    0 2px 6px rgba(180, 90, 30, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, oklch(100% 0 0 / 0.16), oklch(100% 0 0 / 0) 46%);
+  pointer-events: none;
+}
+.btn-primary:hover {
+  background: var(--clay-deep);
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(180, 90, 30, 0.40),
+    0 5px 12px rgba(180, 90, 30, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-primary svg { width: 13px; height: 13px; position: relative; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface);
+  color: var(--fg-2);
+  border: 1px solid rgba(15, 12, 8, 0.10);
+  padding: 5px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: rgba(20, 20, 19, 0.04) 0 1px 2px;
+  transition: border-color .14s, box-shadow .14s, color .14s;
+  cursor: pointer;
+}
+.btn-ghost:hover {
+  border-color: rgba(15, 12, 8, 0.18);
+  color: var(--fg);
+}
+.btn-ghost svg { width: 13px; height: 13px; }
+
+.avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, oklch(70% 0.06 60), oklch(55% 0.10 50));
+  color: white;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+  margin-left: 4px;
+}
+
+/* ============================================================
+   Page layout: icon rail + context panel + content (V2 two-rail)
+   ============================================================ */
+.page-wrap {
+  display: grid;
+  grid-template-columns: 56px 232px 1fr;
+}
+
+/* ---- icon rail ---- */
+.nav-rail {
+  border-right: 1px solid var(--border);
+  background: oklch(97% 0.004 80);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 12px 0 18px;
+  gap: 4px;
+  position: sticky;
+  top: 52px;
+  height: calc(100vh - 52px);
+}
+.rail-brand {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  background: var(--fg); color: var(--bg);
+  border-radius: 6px;
+  font-family: var(--font-serif);
+  font-style: italic; font-weight: 500;
+  font-size: 18px;
+  padding-bottom: 1px;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+.rail-cta {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 7px;
+  background: var(--clay);
+  color: white;
+  border: 1px solid rgba(0,0,0,0.12);
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px rgba(180, 90, 30, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  margin-bottom: 8px;
+  position: relative;
+  transition: transform .14s, background .14s, box-shadow .14s;
+}
+.rail-cta::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, oklch(100% 0 0 / 0.14), oklch(100% 0 0 / 0) 50%);
+  pointer-events: none;
+}
+.rail-cta:hover {
+  background: var(--clay-deep);
+  box-shadow:
+    0 1px 3px rgba(180, 90, 30, 0.28),
+    0 3px 8px rgba(180, 90, 30, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.rail-cta svg { width: 13px; height: 13px; position: relative; }
+.rail-cta .tip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 11.5px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s;
+  z-index: 50;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+.rail-cta .tip .k {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.65;
+  margin-left: 6px;
+  font-weight: 400;
+}
+.rail-cta:hover .tip { opacity: 0.94; }
+
+.rail-item {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  position: relative;
+  transition: background .14s, color .14s;
+  text-decoration: none;
+}
+.rail-item:hover { background: var(--surface-2); color: var(--fg); }
+.rail-item.active {
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border-2);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.rail-item.active::before {
+  content: "";
+  position: absolute;
+  left: -10px; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 18px;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.rail-item svg { width: 17px; height: 17px; }
+.rail-item .badge-dot {
+  position: absolute;
+  top: 5px; right: 5px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid oklch(97% 0.004 80);
+}
+.rail-item .tip {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 11.5px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s;
+  z-index: 50;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+.rail-item .tip .k {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.65;
+  margin-left: 6px;
+  font-weight: 400;
+}
+.rail-item:hover .tip { opacity: 0.94; }
+
+.rail-spacer { flex: 1; }
+.rail-divider {
+  width: 22px; height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+.rail-user {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, oklch(70% 0.06 60), oklch(55% 0.10 50));
+  color: white;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+  margin-top: 6px;
+  cursor: pointer;
+  border: 0;
+}
+
+/* ---- context panel ---- */
+.nav-panel {
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  padding: 22px 14px 28px;
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  min-height: calc(100vh - 52px);
+}
+.panel-head {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  margin: 0 4px 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.2;
+}
+.panel-head .pct {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+.panel-sub {
+  margin: 0 4px 14px;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.panel-sub strong { color: var(--fg-2); font-weight: 500; }
+
+.panel-cta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--fg-2);
+  border: 1px solid var(--border-2);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin: 0 4px 4px;
+  transition: background .14s, color .14s, border-color .14s;
+}
+.panel-cta:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+  border-color: var(--fg-2);
+}
+.panel-cta svg { width: 13px; height: 13px; color: var(--muted); }
+.panel-cta:hover svg { color: var(--fg); }
+.panel-cta .kbd {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+
+.nav-panel h5 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin: 18px 10px 6px;
+  font-weight: 500;
+  display: flex;
+  align-items: baseline;
+}
+.nav-panel h5 .more {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  font-weight: 400;
+}
+.nav-panel h5 .more:hover { color: var(--fg-2); }
+
+.recent-row {
+  display: flex; align-items: baseline;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.recent-row:hover { background: var(--surface-2); color: var(--fg-2); }
+.recent-row .rt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-row .when {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--faint);
+  flex-shrink: 0;
+}
+
+.panel-sys-extra { display: none; }
+.panel-sys-extra.is-open { display: block; }
+
+/* responsive collapse — must come after the base .nav-panel / .nav-rail rules
+   so the source-order override wins (media queries add no specificity). */
+@media (max-width: 860px) {
+  .page-wrap { grid-template-columns: 56px 1fr; }
+  .nav-panel { display: none; }
+}
+@media (max-width: 640px) {
+  .page-wrap { grid-template-columns: 1fr; }
+  .nav-rail { display: none; }
+}
+.nav-side-pin {
+  margin: 0 10px 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background .14s;
+  white-space: nowrap;
+}
+.nav-item:hover { background: var(--surface-2); }
+.nav-item.active {
+  background: var(--surface-2);
+  color: var(--fg);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.nav-item .count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.nav-item.active .count { color: var(--muted); }
+.nav-item svg {
+  width: 13px; height: 13px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.nav-item .dot-status {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-status.s-draft     { background: var(--faint); }
+.dot-status.s-writing   { background: var(--accent); }
+.dot-status.s-review    { background: oklch(60% 0.13 240); }
+.dot-status.s-bid       { background: var(--warn); }
+.dot-status.s-delivered { background: var(--success); }
+.dot-status.s-won       { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+.dot-status.s-lost      { background: var(--faint); }
+
+.team-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background .14s;
+  white-space: nowrap;
+}
+.team-pill:hover { background: var(--surface-2); }
+.team-pill .ava-sm {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.team-pill .count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* ============================================================
+   Content
+   ============================================================ */
+.content {
+  padding: 36px 40px 80px;
+  overflow-x: hidden;
+  max-width: 1340px;
+}
+@media (max-width: 980px) {
+  .content { padding: 24px 20px 60px; }
+}
+
+.page-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.page-header .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.page-header .eyebrow .pubdate {
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.page-header h1 {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  margin: 0 0 10px;
+  line-height: 1.15;
+}
+.page-header h1 em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+}
+.page-header .deck {
+  font-family: var(--font-sans);
+  color: var(--fg-2);
+  font-size: 14px;
+  max-width: 640px;
+  line-height: 1.6;
+}
+.page-header-actions {
+  display: flex; gap: 8px;
+  flex-shrink: 0;
+}
+
+/* KPI strip */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 40px;
+}
+.kpi {
+  background: var(--surface);
+  padding: 16px 18px 18px;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 96px;
+}
+.kpi .label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 12px;
+}
+.kpi .value {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  color: var(--fg);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  align-self: end;
+}
+.kpi .value .unit {
+  font-size: 14px;
+  color: var(--muted);
+  margin-left: 4px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  font-style: normal;
+  letter-spacing: 0;
+}
+.kpi .value em {
+  font-style: normal;
+  font-weight: 600;
+}
+.kpi .delta {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.kpi .delta.up { color: var(--success); }
+.kpi .delta.warn { color: var(--warn); }
+.kpi .delta svg { width: 10px; height: 10px; }
+.kpi.alert::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 6px; height: 100%;
+  background: linear-gradient(to right, transparent, oklch(58% 0.15 30 / 0.12));
+}
+@media (max-width: 900px) {
+  .kpi-strip { grid-template-columns: 1fr 1fr; }
+}
+
+/* ============================================================
+   Section header (used across opp / projects / archive)
+   ============================================================ */
+.section {
+  margin-bottom: 44px;
+}
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.section-eyebrow .pulse-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 var(--accent);
+  animation: pulse 1.8s infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 oklch(55% 0.12 50 / 0.5); }
+  70%  { box-shadow: 0 0 0 6px oklch(55% 0.12 50 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(55% 0.12 50 / 0); }
+}
+.section-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  margin: 0;
+  flex: 1;
+}
+.section-title em {
+  font-style: normal;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 18px;
+  margin-left: 6px;
+}
+  font-size: 18px;
+  margin-left: 6px;
+}
+.section-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
+}
+.section-meta a {
+  color: var(--accent);
+  margin-left: 10px;
+}
+
+/* ============================================================
+   在投项目 — list rows
+   ============================================================ */
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.list-toolbar .search {
+  flex: 1;
+  max-width: 320px;
+  min-width: 200px;
+  position: relative;
+}
+.list-toolbar .search input {
+  width: 100%;
+  padding: 7px 10px 7px 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 13px;
+  color: var(--fg);
+  font-family: inherit;
+  outline: none;
+}
+.list-toolbar .search input:focus { border-color: var(--border-2); }
+.list-toolbar .search svg {
+  width: 14px; height: 14px;
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
+.filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg-2);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.chip:hover { background: var(--surface-2); }
+.chip.active {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+.chip .n {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 2px;
+  margin-left: auto;
+}
+.view-toggle button {
+  background: transparent;
+  border: 0;
+  padding: 4px 9px;
+  border-radius: 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.view-toggle button.active {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.view-toggle button svg { width: 11px; height: 11px; }
+
+.list-head {
+  display: grid;
+  grid-template-columns: 1fr 122px 96px 126px 122px;
+  gap: 18px;
+  padding: 0 18px 8px 22px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+}
+.list-head .col-team { text-align: right; padding-right: 0; }
+/* list-head visibility now controlled by V2 block (hidden under 880px) */
+
+.project-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.project-row {
+  display: grid;
+  grid-template-columns: 1fr 122px 96px 126px 122px;
+  gap: 18px;
+  align-items: center;
+  padding: 16px 18px 16px 22px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background .14s;
+  text-decoration: none;
+  color: inherit;
+}
+.project-row:last-child { border-bottom: 0; }
+.project-row:hover { background: var(--surface-2); }
+.project-row::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background .14s;
+}
+.project-row:hover::before { background: var(--accent); }
+
+.pr-status-rail {
+  position: absolute;
+  left: 9px; top: 18px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+.pr-status-rail.s-draft     { background: var(--faint); }
+.pr-status-rail.s-writing   { background: var(--accent); box-shadow: 0 0 0 3px oklch(55% 0.12 50 / 0.12); }
+.pr-status-rail.s-review    { background: oklch(60% 0.13 240); box-shadow: 0 0 0 3px oklch(60% 0.13 240 / 0.12); }
+.pr-status-rail.s-bid       { background: var(--warn); box-shadow: 0 0 0 3px oklch(58% 0.15 30 / 0.12); }
+.pr-status-rail.s-delivered { background: var(--success); box-shadow: 0 0 0 3px oklch(50% 0.10 150 / 0.14); }
+
+.pr-main { min-width: 0; }
+.pr-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 5px;
+  min-width: 0;
+}
+.pr-title {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  color: var(--fg);
+  line-height: 1.35;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.pr-status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.pr-status .sb-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+}
+.pr-status.s-draft     { background: var(--surface-3); color: var(--muted); }
+.pr-status.s-draft .sb-dot { background: var(--faint); }
+.pr-status.s-writing   { background: var(--accent-soft); color: var(--accent); }
+.pr-status.s-writing .sb-dot { background: var(--accent); animation: pulse 1.8s infinite; }
+.pr-status.s-review    { background: oklch(94% 0.025 240); color: oklch(50% 0.13 240); }
+.pr-status.s-review .sb-dot { background: oklch(60% 0.13 240); }
+.pr-status.s-bid       { background: var(--warn-soft); color: var(--warn); }
+.pr-status.s-bid .sb-dot { background: var(--warn); }
+.pr-status.s-delivered { background: var(--success-soft); color: var(--success); }
+.pr-status.s-delivered .sb-dot { background: var(--success); }
+.pr-status.s-won       { background: var(--fg); color: var(--bg); }
+.pr-status.s-won .sb-dot { background: var(--bg); }
+.pr-status.s-lost      { background: var(--surface-3); color: var(--muted); }
+.pr-status.s-lost .sb-dot { background: var(--faint); }
+
+.pr-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.pr-meta .buyer {
+  color: var(--fg-2);
+}
+.pr-meta .sep {
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: var(--border-2);
+}
+.pr-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.pr-amount {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  font-style: normal;
+  white-space: nowrap;
+}
+.pr-amount .unit {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 1px;
+}
+
+/* col cells */
+.pr-progress-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.pr-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pr-progress-label strong {
+  color: var(--fg);
+  font-weight: 500;
+}
+.pr-progress-track {
+  height: 3px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.pr-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.pr-progress-fill.s-review { background: oklch(60% 0.13 240); }
+.pr-progress-fill.s-delivered { background: var(--success); }
+
+.pr-scoring-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.pr-scoring-num {
+  font-size: 14px;
+  color: var(--fg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pr-scoring-num .denom {
+  color: var(--muted);
+}
+.pr-scoring-warn {
+  font-size: 10.5px;
+  color: var(--warn);
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.pr-scoring-warn svg { width: 9px; height: 9px; }
+.pr-scoring-warn.ok { color: var(--success); }
+.pr-scoring-warn.pending { color: var(--faint); }
+
+.pr-deadline-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pr-deadline-date {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.pr-deadline-count {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.008em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.pr-deadline-count em {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+.pr-deadline-count.urgent { color: var(--warn); }
+.pr-deadline-count.urgent em { color: var(--warn); opacity: 0.8; }
+.pr-deadline-count.critical { color: var(--danger); }
+.pr-deadline-count.critical em { color: var(--danger); opacity: 0.8; }
+
+.pr-team-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.pr-team-stack {
+  display: flex;
+}
+.pr-team-stack .ava {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  border: 2px solid var(--surface);
+  margin-left: -7px;
+}
+.project-row:hover .pr-team-stack .ava { border-color: var(--surface-2); }
+.pr-team-stack .ava:first-child { margin-left: 0; }
+.pr-team-stack .ava.more {
+  background: var(--surface-3);
+  color: var(--fg-2);
+  font-family: var(--font-mono);
+}
+.pr-team-lead {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* compact mode under 1200 — superseded by V2 simplification block below */
+@media (max-width: 1200px) and (min-width: 881px) {
+  /* keep the 4-col V2 layout; no compact override */
+}
+
+/* ============================================================
+   已交付 archive — collapsed table
+   ============================================================ */
+.archive-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 13px;
+}
+.archive-table th {
+  text-align: left;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.archive-table th.num { text-align: right; }
+.archive-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.archive-table tr:last-child td { border-bottom: 0; }
+.archive-table tr {
+  cursor: pointer;
+  transition: background .14s;
+}
+.archive-table tbody tr:hover { background: var(--surface-2); }
+.archive-table td.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-2);
+}
+.archive-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--fg);
+  letter-spacing: -0.005em;
+}
+.archive-sub {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.archive-trophy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.archive-trophy svg { width: 11px; height: 11px; }
+
+.archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color .14s;
+}
+.archive-toggle:hover { color: var(--fg); }
+.archive-toggle svg {
+  width: 11px; height: 11px;
+  transition: transform .2s;
+}
+.archive-toggle.is-open svg { transform: rotate(180deg); }
+.archive-body {
+  display: none;
+  margin-top: 14px;
+}
+.archive-body.is-open { display: block; }
+
+/* ============================================================
+   Misc
+   ============================================================ */
+.empty-hint {
+  margin-top: 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* scrollbar fine */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(78% 0.008 60) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: oklch(82% 0.008 60);
+  border-radius: 99px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+}
+
+/* responsive */
+@media (max-width: 760px) {
+  .topbar { padding: 0 12px; gap: 10px; }
+  .topbar-divider,
+  .topbar-actions .icon-btn:not(:last-child) { display: none; }
+  .breadcrumb span:not(.crumb-current):not(.breadcrumb-sep) { display: none; }
+  .breadcrumb .breadcrumb-sep { display: none; }
+  .nav-tabs { display: none; }
+  .page-header { grid-template-columns: 1fr; }
+  .page-header h1 { font-size: 28px; }
+  .kpi-strip { grid-template-columns: 1fr 1fr; }
+}
+
+/* ============================================================
+   V2 main-content simplification — flat editorial layout
+   ============================================================ */
+
+/* slimmer page header */
+.page-header { padding-bottom: 18px; margin-bottom: 24px; }
+.page-header h1 { font-size: 30px; }
+.page-header .deck { font-size: 13.5px; line-height: 1.55; max-width: 620px; }
+
+/* KPI strip → flat inline stats, no boxes */
+.kpi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 44px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 32px;
+  overflow: visible;
+}
+.kpi {
+  background: transparent;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+.kpi.alert::after { display: none; }
+.kpi .label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin: 0;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.kpi .value {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.020em;
+  line-height: 1;
+  align-self: flex-start;
+}
+.kpi .value .unit { font-size: 13px; }
+.kpi .delta { margin-top: 6px; font-size: 11px; }
+
+/* section heads — slimmer */
+.section-head { margin-bottom: 14px; padding-bottom: 9px; }
+.section-title { font-size: 19px; }
+.section-title em { font-size: 14px; }
+
+/* toolbar — drop view toggle */
+.view-toggle { display: none; }
+.list-toolbar { margin-bottom: 12px; }
+
+/* 4-column project rows */
+.list-head {
+  grid-template-columns: 1fr 140px 88px 88px;
+  gap: 20px;
+  padding: 0 18px 8px 22px;
+}
+.list-head .col-team { display: none; }
+
+.project-row {
+  grid-template-columns: 1fr 140px 88px 88px;
+  gap: 20px;
+  padding: 14px 18px 14px 22px;
+}
+
+/* hide status pill, tags, team avatars, deadline date */
+.pr-status,
+.pr-tag,
+.pr-team-cell { display: none !important; }
+.pr-deadline-date { display: none; }
+
+/* tighten meta line */
+.pr-title-row { margin-bottom: 4px; }
+.pr-title { font-size: 14px; }
+.pr-meta { gap: 8px; font-size: 12px; }
+/* hide the separator that used to sit between amount and tags */
+.pr-meta .pr-amount + .sep { display: none; }
+
+/* deadline count: make the day number the focal */
+.pr-deadline-count { font-size: 18px; line-height: 1.1; }
+
+/* compact stack under 880 */
+@media (max-width: 880px) {
+  .list-head { display: none; }
+  .project-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 10px 14px;
+  }
+  .pr-main { grid-column: 1 / -1; }
+  .pr-progress-cell { grid-column: 1; grid-row: 2; }
+  .pr-scoring-cell  { grid-column: 1; grid-row: 3; }
+  .pr-deadline-cell { grid-column: 2; grid-row: 1; align-items: flex-end; }
+}
+
+/* ============================================================
+   V2 strict — page header + ghost rows
+   ============================================================ */
+.page-header {
+  display: block;
+  grid-template-columns: none;
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin-bottom: 26px;
+}
+.page-header .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: inline-block;
+}
+.page-header h1 {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  margin: 0 0 6px;
+  line-height: 1.15;
+}
+.page-header h1 em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+}
+.page-header .deck {
+  font-family: var(--font-sans);
+  color: var(--fg-2);
+  font-size: 13.5px;
+  margin: 0;
+  line-height: 1.55;
+  max-width: 600px;
+}
+
+/* override .project-row for V2 ghost simplicity */
+.project-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 88px 88px;
+  gap: 18px;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .14s;
+  text-decoration: none;
+  color: inherit;
+  position: static;
+}
+.project-row::before { display: none; }
+.project-row:hover { background: var(--surface-2); }
+
+.pr-main { min-width: 0; }
+.pr-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.005em;
+  line-height: 1.4;
+}
+.pr-sub {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.pr-cell {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.pr-progress .pct {
+  color: var(--fg-2);
+  font-weight: 500;
+}
+.pr-progress .pct.dim { color: var(--faint); }
+.pr-bar {
+  height: 3px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+.pr-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+}
+.pr-bar > i.s-review { background: oklch(60% 0.13 240); }
+.pr-bar > i.s-draft { background: var(--faint); }
+.pr-bar > i.s-bid { background: var(--warn); }
+.pr-days {
+  color: var(--fg-2);
+}
+
+@media (max-width: 720px) {
+  .project-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 8px 16px;
+  }
+  .pr-main { grid-column: 1 / -1; }
+  .pr-progress { grid-column: 1; grid-row: 2; }
+  .project-row > .pr-cell:not(.pr-progress):not(.pr-days) {
+    grid-column: 2; grid-row: 2;
+    text-align: right;
+  }
+  .pr-days { grid-column: 2; grid-row: 1; text-align: right; align-self: start; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============================================================
+       Top bar — slimmed: breadcrumb + utilities only
+       ============================================================ -->
+  <header class="topbar">
+    <a href="#" class="brand" title="Prose · 华信智库">
+      <span class="brand-mark">P</span>
+    </a>
+    <span class="topbar-divider"></span>
+    <div class="breadcrumb">
+      <span>工作台</span>
+      <span class="breadcrumb-sep">/</span>
+      <span class="crumb-current">在投项目</span>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="icon-btn" title="搜索 ⌘K">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      </button>
+      <button class="icon-btn" title="通知">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <div class="avatar">LH</div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       Body
+       ============================================================ -->
+  <div class="page-wrap">
+
+    <!-- ===== Icon rail ===== -->
+    <aside class="nav-rail">
+      <button class="rail-cta" title="新建项目 ⌘N">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3.5v9M3.5 8h9"/></svg>
+        <span class="tip">新建项目<span class="k">⌘N</span></span>
+      </button>
+
+      <a href="#" class="rail-item active">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 9.5h2M5.5 11.5h4"/></svg>
+        <span class="tip">工作台<span class="k">G W</span></span>
+      </a>
+      <a href="knowledge.html" class="rail-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3.5a1 1 0 011-1h5l3 3v7a1 1 0 01-1 1H4a1 1 0 01-1-1v-9z"/><path d="M9 2.5v3h3M5.5 9h5M5.5 11h3"/></svg>
+        <span class="tip">知识库<span class="k">G K</span></span>
+      </a>
+      <a href="#" class="rail-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5h10v6H8.5L5.5 13v-2.5H3v-6z"/></svg>
+        <span class="badge-dot"></span>
+        <span class="tip">对话 / 智能体<span class="k">⌘K</span></span>
+      </a>
+      <a href="#" class="rail-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 12.5l4-6 3 4 4-6"/><path d="M2.5 2.5v11h11"/></svg>
+        <span class="tip">洞察 · 复盘</span>
+      </a>
+
+      <div class="rail-spacer"></div>
+
+      <a href="#" class="rail-item" title="搜索 ⌘K">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M13 13l-2.7-2.7"/></svg>
+        <span class="tip">搜索<span class="k">⌘K</span></span>
+      </a>
+      <a href="#" class="rail-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v3M8 10.5v.5"/></svg>
+        <span class="tip">帮助</span>
+      </a>
+      <a href="#" class="rail-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.8 3.8l1 1M11.2 11.2l1 1M3.8 12.2l1-1M11.2 4.8l1-1"/></svg>
+        <span class="tip">设置</span>
+      </a>
+      <button class="rail-user" title="李慧 · 售前总监">LH</button>
+    </aside>
+
+    <!-- ===== Context panel ===== -->
+    <aside class="nav-panel">
+      <h2 class="panel-head">工作台 <span class="pct">12 在投</span></h2>
+      <p class="panel-sub">
+        本周到期 <strong>3</strong> · 等审 <strong>2</strong> · 待决策 <strong>2</strong>
+      </p>
+
+      <button class="panel-cta">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4.5h10v6H8.5L5.5 13v-2.5H3v-6z"/></svg>
+        <span>新对话</span>
+        <span class="kbd">⌘K</span>
+      </button>
+
+      <h5>最近对话</h5>
+      <a href="#" class="recent-row"><span class="rt">浦东一网通办 · 偏离项澄清</span><span class="when">12m</span></a>
+      <a href="#" class="recent-row"><span class="rt">税务 V4 · 终轮合稿</span><span class="when">2h</span></a>
+      <a href="#" class="recent-row"><span class="rt">华润 ERP · 招标文件解析</span><span class="when">昨</span></a>
+
+      <h5>视图</h5>
+      <div class="nav-item active">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="2.5" width="11" height="3" rx="0.5"/><rect x="2.5" y="6.5" width="11" height="3" rx="0.5"/><rect x="2.5" y="10.5" width="11" height="3" rx="0.5"/></svg>
+        <span>全部在投</span>
+        <span class="count">12</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4l6 4 6-4"/><rect x="2" y="3.5" width="12" height="9" rx="1"/></svg>
+        <span>我负责的</span>
+        <span class="count">9</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/></svg>
+        <span>本周到期</span>
+        <span class="count">3</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        <span>等我审阅</span>
+        <span class="count">2</span>
+      </div>
+
+      <h5>按状态</h5>
+      <div class="nav-item">
+        <span class="dot-status s-bid"></span>
+        <span>Bid/No-Bid 待决策</span>
+        <span class="count">2</span>
+      </div>
+      <div class="nav-item">
+        <span class="dot-status s-draft"></span>
+        <span>立项中 · 解析</span>
+        <span class="count">1</span>
+      </div>
+      <div class="nav-item">
+        <span class="dot-status s-draft"></span>
+        <span>草稿</span>
+        <span class="count">1</span>
+      </div>
+      <div class="nav-item">
+        <span class="dot-status s-writing"></span>
+        <span>撰写中</span>
+        <span class="count">6</span>
+      </div>
+      <div class="nav-item">
+        <span class="dot-status s-review"></span>
+        <span>评审中</span>
+        <span class="count">2</span>
+      </div>
+
+      <h5>按系统类型 <span class="more" id="sys-toggle">+6 更多</span></h5>
+      <div class="nav-item">
+        <span>政务中台 / 一网通办</span>
+        <span class="count">2</span>
+      </div>
+      <div class="nav-item">
+        <span>数据中台 / 数据治理</span>
+        <span class="count">2</span>
+      </div>
+      <div class="nav-item">
+        <span>电信 BOSS / 业务支撑</span>
+        <span class="count">1</span>
+      </div>
+      <div class="nav-item">
+        <span>金融 · 保险业务系统</span>
+        <span class="count">1</span>
+      </div>
+      <div class="nav-item">
+        <span>信创 · 国产化适配</span>
+        <span class="count">1</span>
+      </div>
+      <div class="panel-sys-extra" id="sys-extra">
+        <div class="nav-item">
+          <span>数据安全 · 合规科技</span>
+          <span class="count">1</span>
+        </div>
+        <div class="nav-item">
+          <span>ERP · 财务共享</span>
+          <span class="count">1</span>
+        </div>
+        <div class="nav-item">
+          <span>工控软件 · SCADA</span>
+          <span class="count">1</span>
+        </div>
+        <div class="nav-item">
+          <span>ITOM · 运维一体化</span>
+          <span class="count">1</span>
+        </div>
+        <div class="nav-item">
+          <span>智能客服 · 大模型</span>
+          <span class="count">1</span>
+        </div>
+        <div class="nav-item">
+          <span>医疗信息化 · HIS / EMR</span>
+          <span class="count">1</span>
+        </div>
+      </div>
+
+      <h5>团队</h5>
+      <div class="team-pill">
+        <div class="ava-sm" style="background: linear-gradient(135deg, oklch(70% 0.08 50), oklch(55% 0.13 30));">LH</div>
+        <span>李慧</span>
+        <span class="count">4</span>
+      </div>
+      <div class="team-pill">
+        <div class="ava-sm" style="background: linear-gradient(135deg, oklch(70% 0.08 240), oklch(50% 0.13 250));">WJ</div>
+        <span>王健</span>
+        <span class="count">3</span>
+      </div>
+      <div class="team-pill">
+        <div class="ava-sm" style="background: linear-gradient(135deg, oklch(70% 0.10 150), oklch(50% 0.13 160));">ZT</div>
+        <span>张涛</span>
+        <span class="count">3</span>
+      </div>
+      <div class="team-pill">
+        <div class="ava-sm" style="background: linear-gradient(135deg, oklch(70% 0.08 300), oklch(50% 0.13 290));">ZM</div>
+        <span>周明</span>
+        <span class="count">2</span>
+      </div>
+
+      <p class="nav-side-pin" style="margin-top: 24px;">
+        在「<a href="knowledge.html" style="color: var(--accent);">知识库</a>」沉淀过的方案章节、技术架构图与人员资质，会自动进入新立项的应答框架。
+      </p>
+    </aside>
+
+    <!-- ===== Content ===== -->
+    <main class="content">
+
+      <!-- Page header — V2 minimal -->
+      <header class="page-header">
+        <div class="eyebrow">Bids · Week 05 · 2026</div>
+        <h1>在投项目 <em>—— 12 项</em></h1>
+        <p class="deck">3 份本周到期 · 2 份等你判断 Bid/No-Bid · 1 份评审进入终轮</p>
+      </header>
+
+      <!-- Project list -->
+      <div class="project-list">
+        <a class="project-row" href="index.html">
+          <div class="pr-main">
+            <div class="pr-title">浦东"一网通办" 3.0 政务中台</div>
+            <div class="pr-sub">上海市浦东新区数据局 · ¥2.4 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">78%</span><div class="pr-bar"><i class="s-writing" style="width:78%"></i></div></div>
+          <div class="pr-cell">38/42</div>
+          <div class="pr-cell pr-days">14 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">国家税务总局 V4 征管系统数据中台（一期）</div>
+            <div class="pr-sub">国家税务总局信息中心 · ¥5.2 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">92%</span><div class="pr-bar"><i class="s-review" style="width:92%"></i></div></div>
+          <div class="pr-cell">48/52</div>
+          <div class="pr-cell pr-days">8 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">中国移动 BOSS 系统重构（一期 · 计费域）</div>
+            <div class="pr-sub">中国移动通信集团信息技术中心 · ¥6.2 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">34%</span><div class="pr-bar"><i class="s-writing" style="width:34%"></i></div></div>
+          <div class="pr-cell">17/56</div>
+          <div class="pr-cell pr-days">28 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">海南自贸港跨境数据流动监管沙盒平台</div>
+            <div class="pr-sub">海南省委网信办 · 自贸港工委办公室 · ¥2.4 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct dim">—</span></div>
+          <div class="pr-cell">—</div>
+          <div class="pr-cell pr-days">56 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">中国人保车险定损 AI 平台（理赔域）</div>
+            <div class="pr-sub">中国人民财产保险股份有限公司总部 · ¥1.2 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">52%</span><div class="pr-bar"><i class="s-writing" style="width:52%"></i></div></div>
+          <div class="pr-cell">26/48</div>
+          <div class="pr-cell pr-days">20 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">教育部高校信创替代试点（30 所部属高校）</div>
+            <div class="pr-sub">教育部教育信息化中心 · ¥3.4 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">67%</span><div class="pr-bar"><i class="s-writing" style="width:67%"></i></div></div>
+          <div class="pr-cell">22/30</div>
+          <div class="pr-cell pr-days">17 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">国家管网集团油气 SCADA 系统升级</div>
+            <div class="pr-sub">国家石油天然气管网集团运行调度中心 · ¥2.1 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">46%</span><div class="pr-bar"><i class="s-writing" style="width:46%"></i></div></div>
+          <div class="pr-cell">19/40</div>
+          <div class="pr-cell pr-days">32 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">华润集团财务共享中心建设（二期 · ERP 替换）</div>
+            <div class="pr-sub">华润（集团）有限公司总部 · 财务部 · ¥1.6 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">14%</span><div class="pr-bar"><i class="s-draft" style="width:14%"></i></div></div>
+          <div class="pr-cell">—</div>
+          <div class="pr-cell pr-days">51 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">北医三院 HIS / EMR 平台升级（含信创版本）</div>
+            <div class="pr-sub">北京大学第三医院信息中心 · ¥0.86 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">12%</span><div class="pr-bar"><i class="s-draft" style="width:12%"></i></div></div>
+          <div class="pr-cell">5/28</div>
+          <div class="pr-cell pr-days">33 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">中国铁塔运维一体化平台（ITOM）</div>
+            <div class="pr-sub">中国铁塔股份有限公司 · ¥2.8 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">84%</span><div class="pr-bar"><i class="s-review" style="width:84%"></i></div></div>
+          <div class="pr-cell">36/40</div>
+          <div class="pr-cell pr-days">12 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">国家管网集团数据治理平台（二期）</div>
+            <div class="pr-sub">国家石油天然气管网集团数智部 · ¥1.6 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct">29%</span><div class="pr-bar"><i class="s-writing" style="width:29%"></i></div></div>
+          <div class="pr-cell">11/34</div>
+          <div class="pr-cell pr-days">38 天</div>
+        </a>
+        <a class="project-row" href="#">
+          <div class="pr-main">
+            <div class="pr-title">上海 12345 市民热线智能受理（大模型升级）</div>
+            <div class="pr-sub">上海市民信箱办公室 · ¥0.86 亿</div>
+          </div>
+          <div class="pr-cell pr-progress"><span class="pct dim">—</span></div>
+          <div class="pr-cell">—</div>
+          <div class="pr-cell pr-days">46 天</div>
+        </a>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  // 简易筛选 chip 切换
+  document.querySelectorAll('.filter-chips .chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chips .chip').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+    });
+  });
+
+  // view-toggle
+  document.querySelectorAll('.view-toggle button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.view-toggle button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+
+  // nav-panel single-select
+  document.querySelectorAll('.nav-panel .nav-item, .nav-panel .team-pill').forEach(n => {
+    n.addEventListener('click', () => {
+      document.querySelectorAll('.nav-panel .nav-item, .nav-panel .team-pill').forEach(x => x.classList.remove('active'));
+      n.classList.add('active');
+    });
+  });
+
+  // rail single-select
+  document.querySelectorAll('.nav-rail .rail-item').forEach(n => {
+    n.addEventListener('click', (e) => {
+      // allow real links to navigate
+      if (n.getAttribute('href') && n.getAttribute('href') !== '#') return;
+      e.preventDefault();
+      document.querySelectorAll('.nav-rail .rail-item').forEach(x => x.classList.remove('active'));
+      n.classList.add('active');
+    });
+  });
+
+  // 按系统类型 "+6 更多" toggle
+  const sysToggle = document.getElementById('sys-toggle');
+  const sysExtra = document.getElementById('sys-extra');
+  if (sysToggle && sysExtra) {
+    sysToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = sysExtra.classList.toggle('is-open');
+      sysToggle.textContent = open ? '收起' : '+6 更多';
+    });
+  }
+</script>
+
+</body>
+</html>

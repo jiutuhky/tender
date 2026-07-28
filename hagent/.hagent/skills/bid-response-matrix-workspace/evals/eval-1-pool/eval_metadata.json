@@ -1,0 +1,18 @@
+{
+  "eval_id": 1,
+  "eval_name": "信保体系数据资源池(506135819)",
+  "prompt": "解析项目 eval-1-pool 的招标文件，生成四个应答矩阵并发布。project_id 是 eval-1-pool，源文件在 project workspace 的 docs/tender.md。",
+  "doc_key": "pool",
+  "source_md": "/home/han/workplace/tender/data/MinerU_markdown_信保体系建设数据资源池项目招标文件（506135819）_2046069358795751424.md",
+  "assertions": [
+    "[schema] 四矩阵均 published 且全套校验（结构/一致性/源文保真）pass",
+    "[完整][P0] 资格性条目（category=qualification 或 compliance_overview.qualification_review 行）≥ 6",
+    "[完整][P0] business 符合性条目（category=conformity 或 compliance_overview.conformity_review 行）≥ 4",
+    "[完整] scoring 条目 max_score 合计=100 且各维度=（商务19/技术56/价格25）",
+    "[完整] technical items ≥ 20",
+    "[完整] business items ≥ 5",
+    "[忠实] basic_info meta：budget.amount=2700000、project.number=2025-JQ04-F1054",
+    "[忠实] 带 ★/否则视为无效 等强信号的条目 ≥80% 标记 mandatory=true",
+    "[忠实] requirement_text 抽样 ≥80% 逐字命中源文（grade.py 直读源文，独立于校验器）"
+  ]
+}

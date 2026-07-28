@@ -1,0 +1,58 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Feedback — Badge, ToolChip, Toast, Tooltip" subtitle="Status pills, agent chips, toasts, tooltips" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../../styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+  body { background: var(--canvas); padding: 22px; }
+  .cell { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+  .cell h4 { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--label-3); }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script type="text/babel">
+  const { Badge, ToolChip, Toast, Tooltip, IconButton } = window.FrostDesignSystemProse_5680eb;
+  function Demo() {
+    return (
+      <div>
+        <div className="cell">
+          <h4>Badge</h4>
+          <div className="row">
+            <Badge tone="green">已生成</Badge>
+            <Badge tone="orange" dot>待确认</Badge>
+            <Badge tone="red" dot>偏差</Badge>
+            <Badge tone="blue" solid>进行中</Badge>
+            <Badge tone="neutral">草稿</Badge>
+          </div>
+        </div>
+        <div className="cell">
+          <h4>ToolChip</h4>
+          <div className="row">
+            <ToolChip icon="file-text" label="已读取" mono="招标文件.md" />
+            <ToolChip running label="正在比对需求条目" />
+            <ToolChip done label="技术需求解析完成" />
+          </div>
+        </div>
+        <div className="cell" style={{ background: "var(--surface-2)" }}>
+          <h4>Toast &amp; Tooltip</h4>
+          <div className="row" style={{ alignItems: "flex-start" }}>
+            <Toast tone="success" title="技术需求清单已生成" detail="已归档至右侧大纲的「技术偏差表」" onClose={() => {}} />
+            <Tooltip label="切换侧栏"><IconButton icon="sidebar-simple" label="侧栏" /></Tooltip>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>

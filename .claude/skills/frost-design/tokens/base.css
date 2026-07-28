@@ -1,0 +1,28 @@
+/* ===========================================================================
+   Frost · Base
+   Minimal element resets + the document defaults from the brand spec.
+   =========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--canvas);
+  color: var(--label);
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: var(--tracking-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* Monospace inline run — datums, file names, keyboard hints */
+.frost-mono {
+  font-family: var(--font-mono);
+  font-size: .82em;
+  letter-spacing: 0;
+}

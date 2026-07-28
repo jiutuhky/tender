@@ -1,0 +1,24 @@
+<!-- @dsCard group="Brand" viewport="700x150" name="Motion" subtitle="Short, small, transform+opacity only, always cancellable" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; background: var(--canvas); padding: 18px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cell { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 14px 16px; display: grid; grid-template-columns: 92px 1fr; gap: 12px; align-items: baseline; }
+  .k { font-size: 12px; font-weight: 700; color: var(--label); }
+  .v { font-size: 12px; color: var(--label-2); }
+  .mono { font-family: var(--font-mono); font-size: 11px; color: var(--label-3); }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="cell"><span class="k">时长 Duration</span><span class="v">微交互 <span class="mono">120ms</span> · 浮层 <span class="mono">200ms</span> · 面板 <span class="mono">320ms</span></span></div>
+  <div class="cell"><span class="k">缓动 Easing</span><span class="v">标准 <span class="mono">(.32,.72,0,1)</span></span></div>
+  <div class="cell"><span class="k">约束</span><span class="v">只动 transform / opacity · 位移 ≤ 8px · 无限循环禁用</span></div>
+  <div class="cell"><span class="k">可关闭</span><span class="v">「减弱动态效果」时退化为瞬时切换</span></div>
+</div>
+</body>
+</html>

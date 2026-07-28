@@ -1,0 +1,138 @@
+<!doctype html>
+<!--
+  Prose · Frost 画布范式探索 — 入口
+  ================================
+  三版低保真交互原型，对应「把标书生成流程放进画布」的三种核心范式。
+  目的：用可点的原型对比骨架，而非文字描述。每版都：
+    · 沿用 Frost 玻璃语言（冷灰画布 + 系统蓝 + 玻璃材质 + 投影层级）
+    · 底部 Lovart 式提示栏驱动智能体
+    · 画布可拖拽平移 / 滚轮缩放
+  低保真：结构与交互为主，内容为真实标书域素材（5 维提取 / ★实质性 ▲重要 / 270万预算）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prose · 画布范式探索</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+:root{
+  --canvas:#eef0f3; --surface:#fff; --surface-2:#f5f6f8;
+  --label:#1d1d1f; --label-2:#55555e; --label-3:#6b6b76;
+  --separator:rgba(60,60,67,.12);
+  --blue:#0064e1; --blue-press:#0052bc; --blue-soft:rgba(0,100,225,.10);
+  --green-text:#1d8f45;
+  --font-ui:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Noto Sans SC",system-ui,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,Menlo,"JetBrains Mono",monospace;
+  --r-card:14px; --r-panel:18px;
+  --elev-1:0 1px 2px rgba(18,24,38,.10),0 0 0 .5px rgba(18,24,38,.07);
+  --elev-2:0 10px 30px rgba(18,24,38,.12),0 2px 8px rgba(18,24,38,.06),0 0 0 .5px rgba(18,24,38,.05);
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:var(--font-ui);background:var(--canvas);color:var(--label);
+  font-size:15px;line-height:1.7;letter-spacing:-.008em;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1000px 600px at 18% -8%,#e4ecf6 0%,transparent 60%),
+                   radial-gradient(900px 600px at 92% 4%,#e7eaf0 0%,transparent 55%);}
+.wrap{max-width:1080px;margin:0 auto;padding:72px 32px 80px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;margin-bottom:40px}
+.brand .mk{width:30px;height:30px;border-radius:7px;background:linear-gradient(150deg,#5fb0ff,#0a3fa8);
+  display:grid;place-items:center;color:#fff;font-size:15px;box-shadow:var(--elev-1)}
+h1{font-size:38px;font-weight:800;letter-spacing:-.03em;line-height:1.1;margin:0 0 16px}
+.lead{font-size:17px;color:var(--label-2);max-width:60ch;margin:0 0 14px}
+.note{font-size:13px;color:var(--label-3);max-width:62ch;margin:0 0 48px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+@media(max-width:880px){.grid{grid-template-columns:1fr}}
+.card{display:flex;flex-direction:column;background:var(--surface);border-radius:var(--r-panel);
+  box-shadow:var(--elev-1);overflow:hidden;text-decoration:none;color:inherit;
+  transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+.card:hover{transform:translateY(-4px);box-shadow:var(--elev-2)}
+.card .thumb{height:150px;background:var(--surface-2);border-bottom:1px solid var(--separator);
+  position:relative;overflow:hidden}
+.card .thumb svg{position:absolute;inset:0;width:100%;height:100%}
+.card .body{padding:18px 20px 22px}
+.tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--blue);
+  background:var(--blue-soft);padding:3px 9px;border-radius:999px;margin-bottom:10px}
+.tag.rec{color:#fff;background:linear-gradient(180deg,#1979f2,var(--blue))}
+.card h3{margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-.015em}
+.card p{margin:0;font-size:13.5px;color:var(--label-2);line-height:1.65}
+.foot{margin-top:48px;font-size:12px;color:var(--label-3)}
+.foot code{font-family:var(--font-mono);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="mk"><i class="ph ph-stack"></i></span>Prose</div>
+  <h1>画布范式探索</h1>
+  <p class="lead">把整个标书生成流程「放进画布」，有三种不同的骨架。下面是三版可点的低保真原型，先体验交互再决定方向。</p>
+  <p class="note">三版都沿用 Frost 玻璃语言、底部提示栏驱动智能体、画布可拖拽平移与滚轮缩放。内容为真实标书域素材（5 维提取 / ★实质性 ▲重要 / 270 万预算）。</p>
+
+  <div class="grid">
+    <a class="card" href="a-flow.html">
+      <div class="thumb">
+        <svg viewBox="0 0 320 150" fill="none">
+          <rect x="14" y="62" width="48" height="26" rx="6" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="84" y="62" width="48" height="26" rx="6" fill="#e7f0fd" stroke="#0064e1"/>
+          <path d="M62 75h22" stroke="#0064e1" stroke-width="1.5"/>
+          <g stroke="#cfd6e0" stroke-width="1.5">
+            <path d="M132 75c14 0 14 -33 28 -33"/><path d="M132 75h28"/><path d="M132 75c14 0 14 33 28 33"/>
+          </g>
+          <rect x="160" y="30" width="42" height="22" rx="6" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="160" y="64" width="42" height="22" rx="6" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="160" y="98" width="42" height="22" rx="6" fill="#fff" stroke="#cfd6e0"/>
+          <path d="M202 75h22" stroke="#cfd6e0" stroke-width="1.5"/>
+          <rect x="224" y="62" width="48" height="26" rx="6" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="120" y="124" width="80" height="16" rx="8" fill="#fff" stroke="#cfd6e0"/>
+        </svg>
+      </div>
+      <div class="body">
+        <span class="tag rec">推荐</span>
+        <h3>流程画布</h3>
+        <p>全生命周期 = 一条可见的生产线，节点用连线串起，智能体沿流程点亮、填充节点。既是「流程」又是「画布」。</p>
+      </div>
+    </a>
+
+    <a class="card" href="b-board.html">
+      <div class="thumb">
+        <svg viewBox="0 0 320 150" fill="none">
+          <rect x="22" y="26" width="70" height="44" rx="8" fill="#fff" stroke="#cfd6e0" transform="rotate(-3 57 48)"/>
+          <rect x="120" y="20" width="78" height="50" rx="8" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="216" y="34" width="64" height="40" rx="8" fill="#fff" stroke="#cfd6e0" transform="rotate(4 248 54)"/>
+          <rect x="60" y="86" width="78" height="46" rx="8" fill="#e7f0fd" stroke="#0064e1"/>
+          <rect x="160" y="90" width="80" height="46" rx="8" fill="#fff" stroke="#cfd6e0" transform="rotate(-2 200 113)"/>
+        </svg>
+      </div>
+      <div class="body">
+        <span class="tag">自由</span>
+        <h3>自由制品板</h3>
+        <p>智能体产出的每个制品（解析卡 / 大纲 / 章节 / 图表）作为可拖拽卡片落到板上，你自由摆放、圈选、追问。最接近 Lovart 本体。</p>
+      </div>
+    </a>
+
+    <a class="card" href="c-rail.html">
+      <div class="thumb">
+        <svg viewBox="0 0 320 150" fill="none">
+          <rect x="14" y="18" width="96" height="114" rx="8" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="26" y="32" width="60" height="8" rx="4" fill="#e7f0fd"/>
+          <rect x="26" y="48" width="72" height="6" rx="3" fill="#eef0f3"/>
+          <rect x="26" y="60" width="50" height="6" rx="3" fill="#eef0f3"/>
+          <rect x="26" y="110" width="72" height="12" rx="6" fill="#eef0f3"/>
+          <rect x="128" y="26" width="78" height="44" rx="8" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="218" y="26" width="78" height="44" rx="8" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="128" y="84" width="78" height="44" rx="8" fill="#fff" stroke="#cfd6e0"/>
+          <rect x="218" y="84" width="78" height="44" rx="8" fill="#fff" stroke="#cfd6e0"/>
+        </svg>
+      </div>
+      <div class="body">
+        <span class="tag">稳健</span>
+        <h3>轨道 + 画布双栏</h3>
+        <p>保留左侧智能体对话流，右侧单文档面板升级为可缩放画布。改动最小、最稳，是对现状的增强。</p>
+      </div>
+    </a>
+  </div>
+
+  <p class="foot">低保真交互研究 · 非生产代码 · 存放于 <code>.design/prototype/frost/canvas/</code></p>
+</div>
+</body>
+</html>

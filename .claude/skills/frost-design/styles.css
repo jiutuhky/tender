@@ -1,0 +1,16 @@
+/* ===========================================================================
+   Frost — the macOS-style design language of Prose (AI 原生标书编制平台)
+   ---------------------------------------------------------------------------
+   Single entry point for consumers. Link THIS file; everything below is shipped.
+   No webfonts (system stack). Icons: Phosphor Icons via CDN — see readme.md.
+   This file is @import lines only — never add rules here.
+   =========================================================================== */
+@import "tokens/colors.css";
+@import "tokens/typography.css";
+@import "tokens/fonts.css";
+@import "tokens/spacing.css";
+@import "tokens/radius.css";
+@import "tokens/elevation.css";
+@import "tokens/motion.css";
+@import "tokens/materials.css";
+@import "tokens/base.css";

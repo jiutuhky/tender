@@ -1,0 +1,18 @@
+{
+  "eval_id": 0,
+  "eval_name": "仿真软件开发服务采购(F1375)",
+  "prompt": "解析项目 eval-0-sim 的招标文件，生成四个应答矩阵并发布。project_id 是 eval-0-sim，源文件在 project workspace 的 docs/tender.md。",
+  "doc_key": "sim",
+  "source_md": "/home/han/workplace/tender/data/MinerU_markdown_仿真软件开发服务采购项目招标文件（113105020）_2046056385897365504.md",
+  "assertions": [
+    "[schema] 四矩阵均 published 且全套校验（结构/一致性/源文保真）pass",
+    "[完整][P0] 资格性条目（category=qualification 或 compliance_overview.qualification_review 行）≥ 8",
+    "[完整][P0] business 符合性条目（category=conformity 或 compliance_overview.conformity_review 行）≥ 5",
+    "[完整] scoring 条目 max_score 合计=100 且各维度=（商务17/技术53/价格30）",
+    "[完整] technical items ≥ 60",
+    "[完整] business items ≥ 8",
+    "[忠实] basic_info meta：budget.amount=3900000、project.number=2025-JQ04-F1375",
+    "[忠实] 带 ★/否则视为无效 等强信号的条目 ≥80% 标记 mandatory=true",
+    "[忠实] requirement_text 抽样 ≥80% 逐字命中源文（grade.py 直读源文，独立于校验器）"
+  ]
+}

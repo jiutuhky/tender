@@ -1,0 +1,25 @@
+<!-- @dsCard group="Brand" viewport="700x160" name="Radius ramp" subtitle="Continuous corners — control < field < window < card < panel · icon 22.4%" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; background: var(--canvas); padding: 18px; }
+  .row { display: flex; align-items: flex-end; gap: 22px; flex-wrap: wrap; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .box { background: var(--blue-soft); border: 1.5px solid var(--blue); }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--label-3); text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="item"><span class="box" style="width:54px;height:54px;border-radius:7px"></span><span class="cap">control<br>7px</span></div>
+  <div class="item"><span class="box" style="width:60px;height:60px;border-radius:9px"></span><span class="cap">field<br>9px</span></div>
+  <div class="item"><span class="box" style="width:68px;height:68px;border-radius:12px"></span><span class="cap">window<br>12px</span></div>
+  <div class="item"><span class="box" style="width:76px;height:76px;border-radius:14px"></span><span class="cap">card<br>14px</span></div>
+  <div class="item"><span class="box" style="width:84px;height:84px;border-radius:18px"></span><span class="cap">panel<br>18px</span></div>
+  <div class="item"><span class="box" style="width:84px;height:84px;border-radius:22.4%"></span><span class="cap">icon<br>22.4%</span></div>
+</div>
+</body>
+</html>

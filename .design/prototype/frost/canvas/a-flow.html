@@ -1,0 +1,408 @@
+<!doctype html>
+<!--
+  范式 A · 流程画布（Pipeline-on-canvas）
+  =====================================
+  标书全生命周期 = 一条可见生产线：招标文件 → 解析 → 5 维提取 → 大纲 → 章节 → 成稿。
+  节点有状态（待命/进行/完成），连线显示数据流向。底部提示栏点「运行」后，
+  智能体沿流程依次点亮节点（连线走蓝色流动）。点节点 → 右侧检视面板看内容。
+  交互：拖空白处平移、滚轮缩放、点节点检视、运行流程、提示栏下发指令。
+  低保真：内容为真实标书域素材，视觉细节从简。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>范式 A · 流程画布</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+:root{
+  --canvas:#eef0f3; --surface:#fff; --surface-2:#f5f6f8;
+  --label:#1d1d1f; --label-2:#55555e; --label-3:#6b6b76;
+  --separator:rgba(60,60,67,.12);
+  --blue:#0064e1; --blue-press:#0052bc; --blue-soft:rgba(0,100,225,.10);
+  --green:#34c759; --green-text:#1d8f45; --orange-text:#b25e00; --red-text:#d70015;
+  --font-ui:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",system-ui,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,Menlo,"JetBrains Mono",monospace;
+  --r-ctl:7px; --r-field:9px; --r-card:14px; --r-panel:18px;
+  --elev-1:0 1px 2px rgba(18,24,38,.10),0 0 0 .5px rgba(18,24,38,.07);
+  --elev-2:0 10px 30px rgba(18,24,38,.12),0 2px 8px rgba(18,24,38,.06),0 0 0 .5px rgba(18,24,38,.05);
+  --elev-3:0 28px 80px rgba(12,18,32,.26),0 8px 24px rgba(12,18,32,.12),0 0 0 .5px rgba(12,18,32,.10);
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font-ui);background:var(--canvas);color:var(--label);font-size:14px;
+  letter-spacing:-.008em;-webkit-font-smoothing:antialiased;overflow:hidden}
+.app{height:100vh;display:flex;flex-direction:column}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+.mono{font-family:var(--font-mono);font-size:.85em;letter-spacing:0}
+
+/* 顶栏（玻璃工具栏） */
+.topbar{height:52px;flex:0 0 52px;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:30;
+  background:rgba(255,255,255,.68);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
+  border-bottom:1px solid var(--separator);box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.tb-back{display:flex;align-items:center;gap:6px;color:var(--label-2);font-size:13px;padding:6px 10px;border-radius:var(--r-ctl)}
+.tb-back:hover{background:rgba(60,60,67,.08)}
+.tb-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.tb-brand .mk{width:24px;height:24px;border-radius:6px;background:linear-gradient(150deg,#5fb0ff,#0a3fa8);
+  display:grid;place-items:center;color:#fff;font-size:13px}
+.tb-crumb{color:var(--label-3);font-size:13px}
+.tb-crumb b{color:var(--label);font-weight:600}
+.tb-spacer{flex:1}
+.tb-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;
+  background:var(--surface);box-shadow:var(--elev-1);font-size:12.5px;color:var(--label-2)}
+.zoom{display:inline-flex;align-items:center;background:var(--surface);border-radius:var(--r-ctl);box-shadow:var(--elev-1)}
+.zoom button{width:30px;height:30px;display:grid;place-items:center;color:var(--label-2);font-size:15px}
+.zoom button:hover{background:var(--surface-2)}
+.zoom .lvl{min-width:46px;text-align:center;font-size:12px;color:var(--label-2);font-variant-numeric:tabular-nums}
+
+/* 舞台 + 世界 */
+.stage{position:relative;flex:1;overflow:hidden}
+.viewport{position:absolute;inset:0;cursor:grab}
+.viewport.panning{cursor:grabbing}
+.world{position:absolute;top:0;left:0;width:3200px;height:2200px;transform-origin:0 0;
+  background-image:radial-gradient(rgba(60,60,67,.13) 1.1px,transparent 1.1px);background-size:26px 26px}
+.edges{position:absolute;top:0;left:0;width:3200px;height:2200px;pointer-events:none;overflow:visible}
+.edges path{fill:none;stroke:#c2cad6;stroke-width:1.6}
+.edges path.active{stroke:var(--blue);stroke-width:2;stroke-dasharray:7 7;animation:flow 1s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-28}}
+@media(prefers-reduced-motion:reduce){.edges path.active{animation:none;stroke-dasharray:none}}
+
+/* 节点 */
+.node{position:absolute;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--elev-1);
+  padding:11px 14px;display:flex;flex-direction:column;gap:4px;cursor:pointer;
+  transition:transform .16s var(--ease),box-shadow .16s var(--ease),outline-color .16s}
+.node:hover{transform:translateY(-2px);box-shadow:var(--elev-2)}
+.node.sel{outline:2px solid var(--blue);outline-offset:2px}
+.node .nh{display:flex;align-items:center;gap:8px}
+.node .ni{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:14px;
+  background:var(--surface-2);color:var(--label-2);flex:0 0 24px}
+.node .nt{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+.node .nm{font-size:11.5px;color:var(--label-3);padding-left:32px}
+.node .dot{width:7px;height:7px;border-radius:50%;margin-left:auto;background:#c7ccd4}
+.node.running{box-shadow:0 0 0 1px var(--blue),var(--elev-2)}
+.node.running .ni{background:var(--blue-soft);color:var(--blue)}
+.node.running .dot{background:var(--blue);box-shadow:0 0 0 0 rgba(0,100,225,.5);animation:pulse 1.4s var(--ease) infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,100,225,.45)}70%{box-shadow:0 0 0 7px rgba(0,100,225,0)}100%{box-shadow:0 0 0 0 rgba(0,100,225,0)}}
+.node.done .dot{background:var(--green)}
+.node.done .ni{background:rgba(52,199,89,.14);color:var(--green-text)}
+@media(prefers-reduced-motion:reduce){.node.running .dot{animation:none}}
+/* 输入节点强调 */
+.node.io{background:linear-gradient(180deg,#fff,#fbfcfe)}
+.node.io .ni{background:linear-gradient(150deg,#5fb0ff,#0a3fa8);color:#fff}
+
+/* 底部提示栏（Lovart 式） */
+.dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(680px,calc(100% - 48px));z-index:20}
+.dock-chips{display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:999px;font-size:12.5px;color:var(--label-2);
+  background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid rgba(255,255,255,.5);box-shadow:var(--elev-1)}
+.chip:hover{color:var(--label);background:rgba(255,255,255,.92)}
+.chip i{color:var(--blue);font-size:14px}
+.prompt{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-radius:18px;
+  background:rgba(255,255,255,.78);backdrop-filter:blur(40px) saturate(190%);-webkit-backdrop-filter:blur(40px) saturate(190%);
+  border:1px solid rgba(255,255,255,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),var(--elev-2)}
+.prompt .skill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--label-2);
+  padding:6px 10px;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--separator);white-space:nowrap}
+.prompt .skill i{color:var(--blue)}
+.prompt input{flex:1;border:none;outline:none;background:transparent;font:inherit;font-size:14px;color:var(--label)}
+.prompt input::placeholder{color:var(--label-3)}
+.prompt .run{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 16px;border-radius:12px;color:#fff;font-size:13px;font-weight:600;
+  background:linear-gradient(180deg,#1979f2,var(--blue));box-shadow:0 1px 2px rgba(0,80,190,.35),inset 0 1px 0 rgba(255,255,255,.25);
+  transition:transform .12s var(--ease)}
+.prompt .run:active{transform:scale(.97)}
+.prompt .run.busy{opacity:.6;pointer-events:none}
+
+/* 检视面板（右侧浮层 sheet） */
+.inspector{position:absolute;top:14px;right:14px;bottom:14px;width:340px;z-index:25;border-radius:var(--r-panel);
+  background:rgba(255,255,255,.86);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid rgba(255,255,255,.55);box-shadow:var(--elev-3);display:flex;flex-direction:column;
+  transform:translateX(380px);opacity:0;transition:transform .32s var(--ease),opacity .32s var(--ease);pointer-events:none}
+.inspector.open{transform:none;opacity:1;pointer-events:auto}
+.insp-head{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid var(--separator)}
+.insp-head .ni{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--blue-soft);color:var(--blue);font-size:16px}
+.insp-head .t{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.insp-head .s{font-size:11.5px;color:var(--label-3)}
+.insp-close{margin-left:auto;width:28px;height:28px;border-radius:var(--r-ctl);display:grid;place-items:center;color:var(--label-2)}
+.insp-close:hover{background:rgba(60,60,67,.09)}
+.insp-body{flex:1;overflow:auto;padding:14px 16px 20px}
+.kv{display:grid;grid-template-columns:84px 1fr;gap:6px 10px;font-size:13px;margin-bottom:14px}
+.kv .k{color:var(--label-3)}
+.tiles{display:flex;gap:10px;margin-bottom:16px}
+.tile{flex:1;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--elev-1);padding:12px;text-align:center}
+.tile .n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.tile .l{font-size:11px;color:var(--label-3)}
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:9px;font-size:12.5px;line-height:1.55}
+.row .seq{flex:0 0 18px;color:var(--label-3);font-variant-numeric:tabular-nums}
+.row .rm{flex:1}
+.row .rt{font-weight:600}
+.row .rq{color:var(--label-2)}
+.nb{display:inline-block;font-size:10px;font-weight:600;padding:0 6px;border-radius:999px;margin-left:6px}
+.nb.star{color:var(--red-text);background:rgba(255,59,48,.12)}
+.nb.tri{color:var(--orange-text);background:rgba(255,149,0,.14)}
+.seclab{font-size:11px;font-weight:600;color:var(--label-3);margin:14px 0 8px;letter-spacing:.02em}
+.tree{display:flex;flex-direction:column;gap:2px}
+.tree .tn{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r-ctl);font-size:13px;color:var(--label-2)}
+.tree .tn.l2{padding-left:26px;font-size:12.5px}
+.tree .tn .badge{margin-left:auto;font-size:10px;font-weight:600;color:var(--green-text);background:rgba(52,199,89,.15);padding:1px 7px;border-radius:999px}
+
+/* 提示气泡（指令下发反馈） */
+.toast{position:absolute;left:50%;bottom:104px;transform:translateX(-50%) translateY(8px);
+  background:rgba(29,29,31,.9);color:#fff;font-size:12.5px;padding:8px 14px;border-radius:999px;z-index:40;
+  opacity:0;transition:opacity .2s,transform .2s var(--ease);pointer-events:none;box-shadow:var(--elev-2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.hint{position:absolute;left:16px;bottom:18px;font-size:11.5px;color:var(--label-3);z-index:10;
+  background:rgba(255,255,255,.6);padding:5px 11px;border-radius:999px;backdrop-filter:blur(10px)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="tb-back" href="index.html"><i class="ph ph-arrow-left"></i>返回</a>
+    <span class="tb-brand"><span class="mk"><i class="ph ph-stack"></i></span>Prose</span>
+    <span class="tb-crumb">范式 A · <b>流程画布</b></span>
+    <span class="tb-spacer"></span>
+    <span class="tb-pill"><i class="ph ph-flow-arrow"></i>仿真软件开发服务采购项目</span>
+    <div class="zoom">
+      <button id="zout" title="缩小"><i class="ph ph-minus"></i></button>
+      <span class="lvl" id="lvl">85%</span>
+      <button id="zin" title="放大"><i class="ph ph-plus"></i></button>
+      <button id="zfit" title="适应"><i class="ph ph-corners-out"></i></button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="viewport" id="vp">
+      <div class="world" id="world">
+        <svg class="edges" id="edges"></svg>
+        <!-- 节点由 JS 渲染 -->
+      </div>
+    </div>
+
+    <div class="hint"><i class="ph ph-hand-grabbing"></i> 拖拽平移 · 滚轮缩放 · 点节点检视</div>
+
+    <!-- 检视面板 -->
+    <aside class="inspector" id="insp">
+      <div class="insp-head">
+        <span class="ni" id="iIcon"><i class="ph ph-file-text"></i></span>
+        <div><div class="t" id="iTitle">节点</div><div class="s" id="iSub"></div></div>
+        <button class="insp-close" id="iClose"><i class="ph ph-x"></i></button>
+      </div>
+      <div class="insp-body" id="iBody"></div>
+    </aside>
+
+    <!-- 底部提示栏 -->
+    <div class="dock">
+      <div class="dock-chips">
+        <button class="chip" data-cmd="重新解析招标文件"><i class="ph ph-arrows-clockwise"></i>重新解析</button>
+        <button class="chip" data-cmd="把技术要求逐条转成应答"><i class="ph ph-list-checks"></i>技术应答</button>
+        <button class="chip" data-cmd="生成投标文件大纲"><i class="ph ph-tree-structure"></i>生成大纲</button>
+      </div>
+      <div class="prompt">
+        <span class="skill"><i class="ph ph-sparkle"></i>标书智能体</span>
+        <input id="pInput" placeholder="下发指令，或点「运行」让智能体跑完整条流程…">
+        <button class="run" id="runBtn"><i class="ph ph-play"></i>运行</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- 节点与连线数据 ---------- */
+const NODES = [
+  {id:'src',     x:80,  y:300, w:160, h:62, icon:'ph-file-md',      t:'招标文件.md', m:'MinerU 抽取 · 312 页', io:true, state:'done'},
+  {id:'parse',   x:320, y:300, w:160, h:62, icon:'ph-magic-wand',   t:'解析·智能体', m:'extract-tech-requirements'},
+  {id:'r1', x:560, y:128, w:188, h:58, icon:'ph-identification-card', t:'基本信息', m:'项目 / 预算 / 关键节点'},
+  {id:'r2', x:560, y:200, w:188, h:58, icon:'ph-seal-check',          t:'资格条件', m:'一般 / 特定 / 符合性'},
+  {id:'r3', x:560, y:272, w:188, h:58, icon:'ph-chart-bar',           t:'评分标准', m:'技术 / 商务 / 价格'},
+  {id:'r4', x:560, y:344, w:188, h:58, icon:'ph-handshake',           t:'商务要求', m:'9 项 · ★2'},
+  {id:'r5', x:560, y:416, w:188, h:58, icon:'ph-gear-six',            t:'技术要求', m:'12 项 · ★4 ▲3'},
+  {id:'outline', x:840,  y:300, w:160, h:62, icon:'ph-tree-structure', t:'投标大纲', m:'8 章 · 等待生成'},
+  {id:'chapters',x:1080, y:300, w:170, h:62, icon:'ph-article',        t:'章节编写×8', m:'技术 / 商务 / 资信'},
+  {id:'final',   x:1330, y:300, w:160, h:62, icon:'ph-files',          t:'投标成稿', m:'导出 docx / pdf'},
+];
+const EDGES = [
+  ['src','parse'],
+  ['parse','r1'],['parse','r2'],['parse','r3'],['parse','r4'],['parse','r5'],
+  ['r1','outline'],['r2','outline'],['r3','outline'],['r4','outline'],['r5','outline'],
+  ['outline','chapters'],['chapters','final'],
+];
+const N = Object.fromEntries(NODES.map(n=>[n.id,n]));
+
+/* ---------- 检视内容 ---------- */
+const INSPECT = {
+  src:{icon:'ph-file-md',sub:'输入 · 已就绪',html:`
+    <div class="kv"><span class="k">文件</span><span class="mono">仿真软件开发服务采购项目招标文件.md</span>
+      <span class="k">来源</span><span>MinerU 从 PDF 抽取</span>
+      <span class="k">规模</span><span>312 页 · 约 14.2 万字</span>
+      <span class="k">状态</span><span style="color:var(--green-text)">已就绪，可解析</span></div>`},
+  parse:{icon:'ph-magic-wand',sub:'技能 · 智能体',html:`
+    <div class="kv"><span class="k">技能</span><span class="mono">extract-tech-requirements</span>
+      <span class="k">产出</span><span>5 份固定 schema 的结构化 JSON</span>
+      <span class="k">模型</span><span>DeepSeek（anthropic 兼容）</span></div>
+    <div class="seclab">产线下游</div>
+    <div class="tree"><span class="tn"><i class="ph ph-arrow-elbow-down-right"></i>基本信息 · 资格 · 评分 · 商务 · 技术</span></div>`},
+  r1:{icon:'ph-identification-card',sub:'01 基本信息',html:`
+    <div class="kv"><span class="k">项目编号</span><span class="mono">CGZB-2024-0731</span>
+      <span class="k">采购方式</span><span>公开招标</span>
+      <span class="k">预算金额</span><span>2,700,000 元</span>
+      <span class="k">采购机构</span><span>某省工业仿真研究院</span>
+      <span class="k">投标截止</span><span>2024-08-21 09:30</span>
+      <span class="k">开标地点</span><span>政务服务中心 3 楼 5 号厅</span></div>`},
+  r2:{icon:'ph-seal-check',sub:'02 资格条件',html:`
+    <div class="seclab">一般资格审查</div>
+    <div class="rows">
+      <div class="row"><span class="seq">1</span><div class="rm"><span class="rt">营业执照</span><div class="rq">具备独立法人资格，提供有效营业执照副本。</div></div></div>
+      <div class="row"><span class="seq">2</span><div class="rm"><span class="rt">财务状况</span><div class="rq">近一年财务审计报告，资产负债率不高于 70%。</div></div></div>
+    </div>
+    <div class="seclab">特定资格审查</div>
+    <div class="rows">
+      <div class="row"><span class="seq">3</span><div class="rm"><span class="rt">类似业绩</span><div class="rq">近三年至少 2 个仿真软件开发合同，单项 ≥ 150 万。</div></div></div>
+    </div>`},
+  r3:{icon:'ph-chart-bar',sub:'03 评分标准 · 综合评分法',html:`
+    <div class="tiles">
+      <div class="tile"><div class="n">60</div><div class="l">技术分</div></div>
+      <div class="tile"><div class="n">10</div><div class="l">商务分</div></div>
+      <div class="tile"><div class="n">30</div><div class="l">价格分</div></div>
+    </div>
+    <div class="seclab">技术评审（节选）</div>
+    <div class="rows">
+      <div class="row"><span class="seq">1</span><div class="rm"><span class="rt">技术方案完整性</span><span style="float:right;color:var(--blue);font-weight:600">20 分</span><div class="rq">架构、模块划分、关键算法描述清晰度。</div></div></div>
+      <div class="row"><span class="seq">2</span><div class="rm"><span class="rt">实施计划</span><span style="float:right;color:var(--blue);font-weight:600">15 分</span><div class="rq">进度、里程碑与风险应对的合理性。</div></div></div>
+    </div>`},
+  r4:{icon:'ph-handshake',sub:'04 商务要求',html:`
+    <div class="rows">
+      <div class="row"><span class="seq">1</span><div class="rm"><span class="rt">交付周期<span class="nb star">★ 实质性</span></span><div class="rq">合同签订后 180 日历天内完成全部交付。</div></div></div>
+      <div class="row"><span class="seq">2</span><div class="rm"><span class="rt">质保期<span class="nb star">★ 实质性</span></span><div class="rq">验收合格后免费质保不少于 24 个月。</div></div></div>
+      <div class="row"><span class="seq">3</span><div class="rm"><span class="rt">付款方式</span><div class="rq">预付 30%，验收 60%，质保金 10%。</div></div></div>
+    </div>`},
+  r5:{icon:'ph-gear-six',sub:'05 技术要求 · 仿真平台',html:`
+    <div class="rows">
+      <div class="row"><span class="seq">1</span><div class="rm"><span class="rt">求解器内核<span class="nb star">★ 实质性</span></span><div class="rq">支持有限元/有限体积双内核，网格规模 ≥ 1000 万。</div></div></div>
+      <div class="row"><span class="seq">2</span><div class="rm"><span class="rt">并行计算<span class="nb tri">▲ 重要</span></span><div class="rq">支持 MPI 分布式并行，加速比 ≥ 32 核线性度 80%。</div></div></div>
+      <div class="row"><span class="seq">3</span><div class="rm"><span class="rt">前后处理</span><div class="rq">内置几何清理、网格自适应与云图/切片可视化。</div></div></div>
+      <div class="row"><span class="seq">4</span><div class="rm"><span class="rt">国产化适配<span class="nb star">★ 实质性</span></span><div class="rq">兼容麒麟/统信 OS 与鲲鹏/飞腾 CPU。</div></div></div>
+    </div>`},
+  outline:{icon:'ph-tree-structure',sub:'投标大纲 · 待生成',html:`
+    <div class="tree">
+      <span class="tn"><i class="ph ph-folder"></i>第一章 综合说明</span>
+      <span class="tn l2">投标函 · 法定代表人授权</span>
+      <span class="tn"><i class="ph ph-folder"></i>第二章 技术方案<span class="badge">引用 技术要求</span></span>
+      <span class="tn l2">总体架构 · 求解器 · 并行 · 国产化</span>
+      <span class="tn"><i class="ph ph-folder"></i>第三章 商务部分<span class="badge">引用 商务要求</span></span>
+      <span class="tn"><i class="ph ph-folder"></i>第四章 资信业绩<span class="badge">引用 资格条件</span></span>
+    </div>
+    <p style="font-size:12px;color:var(--label-3);margin-top:14px">大纲自动引用上游 5 维提取结果，章节与评分项一一对位。</p>`},
+  chapters:{icon:'ph-article',sub:'章节编写 · 8 章',html:`
+    <div class="tree">
+      <span class="tn"><i class="ph ph-check-circle" style="color:var(--green-text)"></i>第一章 综合说明<span class="badge">完成</span></span>
+      <span class="tn"><i class="ph ph-check-circle" style="color:var(--green-text)"></i>第二章 技术方案<span class="badge">完成</span></span>
+      <span class="tn"><i class="ph ph-circle-half" style="color:var(--blue)"></i>第三章 商务部分</span>
+      <span class="tn"><i class="ph ph-circle" style="color:var(--label-3)"></i>第四章 资信业绩</span>
+    </div>`},
+  final:{icon:'ph-files',sub:'投标成稿',html:`
+    <div class="kv"><span class="k">章节</span><span>8 章 · 64 页</span>
+      <span class="k">字数</span><span>约 3.8 万字</span>
+      <span class="k">实质性项</span><span style="color:var(--red-text)">★ 全部已响应</span>
+      <span class="k">导出</span><span>docx · pdf</span></div>`},
+};
+
+/* ---------- 渲染 ---------- */
+const world=document.getElementById('world'), edges=document.getElementById('edges');
+const nodeEls={};
+NODES.forEach(n=>{
+  const el=document.createElement('div');
+  el.className='node '+(n.io?'io ':'')+(n.state||'idle');
+  el.style.cssText=`left:${n.x}px;top:${n.y}px;width:${n.w}px`;
+  el.innerHTML=`<div class="nh"><span class="ni"><i class="ph ${n.icon}"></i></span>
+      <span class="nt">${n.t}</span><span class="dot"></span></div>
+      <div class="nm">${n.m}</div>`;
+  el.addEventListener('click',e=>{e.stopPropagation();openInspect(n.id);});
+  world.appendChild(el); nodeEls[n.id]=el;
+});
+function anchor(n,side){return side==='r'?{x:n.x+n.w,y:n.y+n.h/2}:{x:n.x,y:n.y+n.h/2};}
+const edgeEls={};
+EDGES.forEach(([a,b])=>{
+  const p1=anchor(N[a],'r'),p2=anchor(N[b],'l');
+  const dx=Math.max(40,(p2.x-p1.x)/2);
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',`M${p1.x},${p1.y} C${p1.x+dx},${p1.y} ${p2.x-dx},${p2.y} ${p2.x},${p2.y}`);
+  edges.appendChild(path); edgeEls[a+'>'+b]=path;
+});
+
+/* ---------- 平移 / 缩放 ---------- */
+const vp=document.getElementById('vp'), lvl=document.getElementById('lvl');
+let tx=24,ty=40,scale=.85;
+function apply(){world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;lvl.textContent=Math.round(scale*100)+'%';}
+apply();
+let panning=false,sx,sy;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')||e.target.closest('.inspector')||e.target.closest('.dock'))return;
+  panning=true;sx=e.clientX-tx;sy=e.clientY-ty;vp.classList.add('panning');vp.setPointerCapture(e.pointerId);
+  closeInspect();
+});
+vp.addEventListener('pointermove',e=>{if(!panning)return;tx=e.clientX-sx;ty=e.clientY-sy;apply();});
+vp.addEventListener('pointerup',()=>{panning=false;vp.classList.remove('panning');});
+vp.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=vp.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const ns=Math.min(2,Math.max(.4,scale*(1-e.deltaY*0.0012)));
+  tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;apply();
+},{passive:false});
+function zoomBy(f){const r=vp.getBoundingClientRect(),mx=r.width/2,my=r.height/2;
+  const ns=Math.min(2,Math.max(.4,scale*f));tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;apply();}
+document.getElementById('zin').onclick=()=>zoomBy(1.15);
+document.getElementById('zout').onclick=()=>zoomBy(1/1.15);
+document.getElementById('zfit').onclick=()=>{tx=24;ty=40;scale=.85;apply();};
+
+/* ---------- 检视面板 ---------- */
+const insp=document.getElementById('insp');
+function openInspect(id){
+  const n=N[id],d=INSPECT[id];if(!d)return;
+  Object.values(nodeEls).forEach(e=>e.classList.remove('sel'));nodeEls[id].classList.add('sel');
+  document.getElementById('iIcon').innerHTML=`<i class="ph ${d.icon}"></i>`;
+  document.getElementById('iTitle').textContent=n.t.replace(/×\d+/,'');
+  document.getElementById('iSub').textContent=d.sub;
+  document.getElementById('iBody').innerHTML=d.html;
+  insp.classList.add('open');
+}
+function closeInspect(){insp.classList.remove('open');Object.values(nodeEls).forEach(e=>e.classList.remove('sel'));}
+document.getElementById('iClose').onclick=closeInspect;
+
+/* ---------- 运行流程动画 ---------- */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const setState=(id,s)=>{const el=nodeEls[id];el.classList.remove('idle','running','done');el.classList.add(s);};
+const act=(a,b)=>edgeEls[a+'>'+b]&&edgeEls[a+'>'+b].classList.add('active');
+const runBtn=document.getElementById('runBtn');
+let running=false;
+async function runFlow(){
+  if(running)return;running=true;runBtn.classList.add('busy');runBtn.innerHTML='<i class="ph ph-spinner"></i>运行中';
+  // 复位
+  Object.keys(edgeEls).forEach(k=>edgeEls[k].classList.remove('active'));
+  ['parse','r1','r2','r3','r4','r5','outline','chapters','final'].forEach(id=>setState(id,'idle'));
+  setState('src','done');
+  act('src','parse');setState('parse','running');await sleep(950);setState('parse','done');
+  const rs=['r1','r2','r3','r4','r5'];
+  for(const r of rs){act('parse',r);setState(r,'running');await sleep(360);}
+  await sleep(300);rs.forEach(r=>setState(r,'done'));
+  rs.forEach(r=>act(r,'outline'));setState('outline','running');await sleep(1000);setState('outline','done');
+  act('outline','chapters');setState('chapters','running');await sleep(1100);setState('chapters','done');
+  act('chapters','final');setState('final','running');await sleep(900);setState('final','done');
+  runBtn.classList.remove('busy');runBtn.innerHTML='<i class="ph ph-play"></i>运行';running=false;
+  toast('流程跑通 · 5 维提取 → 大纲 → 8 章 → 成稿');
+}
+runBtn.onclick=runFlow;
+
+/* ---------- 提示栏 ---------- */
+const toastEl=document.getElementById('toast');let toastT;
+function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove('show'),2200);}
+const input=document.getElementById('pInput');
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&input.value.trim()){toast('已下发：'+input.value.trim());input.value='';}});
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{const cmd=c.dataset.cmd;input.value=cmd;toast('已下发：'+cmd);setTimeout(()=>input.value='',400);});
+</script>
+</body>
+</html>

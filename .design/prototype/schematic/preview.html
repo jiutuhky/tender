@@ -1,0 +1,1519 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prose · 文档预览与导出</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+SC:wght@400;500;600;700&family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        oklch(98% 0.004 80);
+    --surface:   oklch(100% 0 0);
+    --surface-2: oklch(96% 0.005 80);
+    --surface-3: oklch(93% 0.006 70);
+    --fg:        oklch(20% 0.015 60);
+    --fg-2:      oklch(36% 0.015 60);
+    --muted:     oklch(54% 0.012 60);
+    --faint:     oklch(72% 0.008 60);
+    --border:    oklch(90% 0.008 70);
+    --border-2:  oklch(84% 0.010 70);
+    --accent:    oklch(55% 0.12 50);
+    --accent-soft: oklch(94% 0.025 60);
+    --success:   oklch(50% 0.10 150);
+    --warn:      oklch(65% 0.14 70);
+
+    --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+    --font-text: "Geist", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+    --font-serif: "Newsreader", "Source Han Serif SC", "Songti SC", Georgia, serif;
+    --font-mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+    --radius-sm: 6px;
+    --radius:    10px;
+    --radius-lg: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-text);
+    background: var(--surface-3);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01", "ss03", "cv11";
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* ---------- Shell ---------- */
+  .app {
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+  /* ---- top bar (shared vibe w/ index) ---- */
+  .topbar {
+    display: flex; align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    padding: 0 20px; gap: 16px;
+    user-select: none;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-sans);
+    font-weight: 600; letter-spacing: -0.01em; font-size: 15px;
+  }
+  .brand-mark {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    background: var(--fg); color: var(--bg);
+    border-radius: 6px;
+    font-family: var(--font-serif);
+    font-size: 14px; font-weight: 500; font-style: italic;
+  }
+  .topbar-divider { width: 1px; height: 18px; background: var(--border-2); }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted);
+    flex: 1; min-width: 0;
+  }
+  .breadcrumb .crumb-current { color: var(--fg); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .breadcrumb-sep { color: var(--faint); }
+  .nav-tabs { display: flex; gap: 2px; }
+  .nav-tabs a {
+    padding: 6px 12px; font-size: 13px; color: var(--muted);
+    border-radius: 6px; transition: background .15s;
+  }
+  .nav-tabs a:hover { background: var(--surface-2); color: var(--fg); }
+  .nav-tabs a.active { color: var(--fg); background: var(--surface-2); }
+  .topbar-actions { display: flex; align-items: center; gap: 6px; }
+  .icon-btn {
+    width: 30px; height: 30px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: default;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    outline: none;
+    border: 1px solid rgba(15, 12, 8, 0.1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 0;
+    background: rgb(255, 255, 255);
+    color: rgba(15, 12, 8, 0.92);
+    box-shadow: rgba(20, 20, 19, 0.04) 0 1px 2px;
+    position: relative;
+    transition: border-color .14s ease, box-shadow .14s ease, background .14s ease, color .14s ease;
+  }
+  .icon-btn:hover {
+    background: rgb(255, 255, 255);
+    border-color: rgba(15, 12, 8, 0.16);
+    color: rgba(15, 12, 8, 0.92);
+    box-shadow:
+      rgba(20, 20, 19, 0.06) 0 1px 3px,
+      rgba(255, 255, 255, 0.65) 0 1px 0 inset;
+  }
+  .icon-btn:focus-visible {
+    outline: 2px solid oklch(55% 0.12 50 / 0.24);
+    outline-offset: 2px;
+  }
+  .icon-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .btn-primary {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid oklch(0% 0 0 / 0.20);
+    background: var(--fg);
+    color: var(--bg);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
+    user-select: none;
+    outline: none;
+    position: relative;
+    box-shadow:
+      oklch(0% 0 0 / 0.22) 0 1px 3px,
+      oklch(0% 0 0 / 0.12) 0 2px 6px,
+      oklch(100% 0 0 / 0.16) 0 1px 0 inset;
+    transition: transform .14s ease, box-shadow .14s ease, background .14s ease, border-color .14s ease;
+  }
+  .btn-primary::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(to bottom, oklch(100% 0 0 / 0.16), oklch(100% 0 0 / 0) 46%);
+    pointer-events: none;
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      oklch(0% 0 0 / 0.24) 0 2px 4px,
+      oklch(0% 0 0 / 0.14) 0 5px 12px,
+      oklch(100% 0 0 / 0.18) 0 1px 0 inset;
+  }
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow:
+      oklch(0% 0 0 / 0.20) 0 1px 2px,
+      oklch(0% 0 0 / 0.10) 0 1px 4px,
+      oklch(0% 0 0 / 0.18) 0 1px 2px inset,
+      oklch(100% 0 0 / 0.10) 0 1px 0 inset;
+  }
+  .btn-primary:focus-visible {
+    outline: 2px solid oklch(55% 0.12 50 / 0.34);
+    outline-offset: 2px;
+  }
+  .btn-primary svg,
+  .btn-primary span { position: relative; z-index: 1; }
+  .btn-primary svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .btn-ghost {
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: default;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    outline: none;
+    border: 1px solid rgba(15, 12, 8, 0.1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
+    background: rgb(255, 255, 255);
+    color: rgba(15, 12, 8, 0.92);
+    box-shadow: rgba(20, 20, 19, 0.04) 0 1px 2px;
+    position: relative;
+    transition: border-color .14s ease, box-shadow .14s ease, background .14s ease, color .14s ease;
+  }
+  .btn-ghost:hover {
+    background: rgb(255, 255, 255);
+    border-color: rgba(15, 12, 8, 0.16);
+    color: rgba(15, 12, 8, 0.92);
+    box-shadow:
+      rgba(20, 20, 19, 0.06) 0 1px 3px,
+      rgba(255, 255, 255, 0.65) 0 1px 0 inset;
+  }
+  .btn-ghost:focus-visible {
+    outline: 2px solid oklch(55% 0.12 50 / 0.24);
+    outline-offset: 2px;
+  }
+  .btn-ghost svg { width: 13px; height: 13px; color: currentColor; flex-shrink: 0; }
+  .avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, oklch(70% 0.06 60), oklch(55% 0.10 50));
+    color: white; display: grid; place-items: center;
+    font-size: 11px; font-weight: 600; margin-left: 4px;
+  }
+
+  /* ---------- Main grid ---------- */
+  .main {
+    display: grid;
+    grid-template-columns: 240px 1fr 340px;
+    overflow: hidden;
+  }
+  @media (max-width: 1180px) {
+    .main { grid-template-columns: 220px 1fr 320px; }
+  }
+  @media (max-width: 960px) {
+    .main { grid-template-columns: 56px 1fr; }
+    .right-export { display: none; }
+  }
+
+  /* ---------- Left outline ---------- */
+  .outline {
+    border-right: 1px solid var(--border);
+    background: var(--bg);
+    overflow-y: auto;
+    padding: 14px 8px 20px;
+  }
+  .outline-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 4px 12px 10px;
+  }
+  .outline-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 6px 10px 6px 12px;
+    font-size: 13px;
+    color: var(--fg-2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .outline-item:hover { background: var(--surface-2); }
+  .outline-item.active {
+    position: relative;
+    background: var(--surface);
+    color: var(--fg);
+    margin-left: -2px;
+    padding-left: 12px;
+    font-weight: 500;
+  }
+  .outline-item.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    border-radius: 0;
+  }
+  .outline-item .idx {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+    width: 22px;
+  }
+  .outline-item.active .idx { color: var(--accent); }
+  .outline-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .outline-item .stat {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--faint); font-variant-numeric: tabular-nums;
+  }
+  .outline-sub {
+    padding-left: 38px;
+    font-size: 12px;
+    color: var(--muted);
+    padding-top: 2px; padding-bottom: 2px;
+    display: flex; gap: 8px; align-items: center;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .outline-sub:hover { background: var(--surface-2); color: var(--fg); }
+  .outline-sub .dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--faint); flex-shrink: 0;
+  }
+  .outline-sub.done .dot { background: var(--success); }
+  .outline-sub.running .dot { background: var(--accent); }
+  .outline-sub.todo .dot { background: var(--faint); }
+
+  /* ---------- Center: A4 page ---------- */
+  .center {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    overflow: hidden;
+    background: var(--surface-3);
+  }
+  .doc-toolbar {
+    height: 44px;
+    display: flex; align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px 0 18px;
+    background: var(--bg);
+    gap: 14px;
+  }
+  .zoom-controls {
+    display: flex; align-items: center; gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .page-indicator {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .page-indicator strong { color: var(--fg); font-weight: 500; }
+  .doc-toolbar-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .view-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 2px;
+  }
+  .view-toggle button {
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 500;
+    color: rgba(15, 12, 8, 0.72);
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 6px;
+    cursor: default;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    transition: border-color .14s ease, box-shadow .14s ease, background .14s ease, color .14s ease;
+  }
+  .view-toggle button:hover {
+    color: rgba(15, 12, 8, 0.92);
+  }
+  .view-toggle button.active {
+    background: rgb(255, 255, 255);
+    color: rgba(15, 12, 8, 0.92);
+    border-color: rgba(15, 12, 8, 0.1);
+    box-shadow: rgba(20, 20, 19, 0.04) 0 1px 2px;
+  }
+  .view-toggle button:focus-visible {
+    outline: 2px solid oklch(55% 0.12 50 / 0.24);
+    outline-offset: 2px;
+  }
+
+  .pages-viewport {
+    overflow-y: auto;
+    padding: 28px 36px 48px;
+  }
+  .pages-viewport.centered {
+    display: flex; flex-direction: column; align-items: center;
+  }
+
+  /* A4 page: 1:√2, rendered at ~720px wide → feels like actual page */
+  .page {
+    width: 720px;
+    min-height: 1018px; /* 720 * √2 */
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 72px 80px 72px;
+    margin-bottom: 24px;
+    font-family: var(--font-serif);
+    color: oklch(14% 0.015 60);
+    box-shadow: 0 1px 3px oklch(0% 0 0 / 0.04);
+    position: relative;
+  }
+  .page-num {
+    position: absolute;
+    bottom: 28px; right: 32px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--faint);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+  .page-running-head {
+    position: absolute;
+    top: 28px; left: 80px; right: 80px;
+    font-family: var(--font-text);
+    font-size: 10.5px;
+    color: var(--faint);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    display: flex; justify-content: space-between;
+    letter-spacing: 0.02em;
+  }
+
+  .page h1.doc-h1 {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    margin: 20px 0 6px;
+  }
+  .page .doc-deck {
+    font-family: var(--font-text);
+    font-size: 13px;
+    color: var(--muted);
+    margin: 8px 0 28px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.6;
+  }
+  .page h2 {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 600;
+    margin: 28px 0 10px;
+    letter-spacing: -0.005em;
+  }
+  .page h3 {
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--fg-2);
+    margin: 20px 0 8px;
+    letter-spacing: 0;
+  }
+  .page p {
+    font-size: 14px;
+    line-height: 1.75;
+    margin: 0 0 11px;
+  }
+  .page ul, .page ol { padding-left: 22px; margin: 8px 0 14px; }
+  .page li { font-size: 14px; line-height: 1.7; margin-bottom: 4px; }
+  .page table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-family: var(--font-text);
+    font-size: 12.5px;
+  }
+  .page th, .page td {
+    border: 1px solid var(--border-2);
+    padding: 8px 10px;
+    vertical-align: top;
+    text-align: left;
+  }
+  .page th {
+    background: var(--surface-2);
+    font-weight: 600;
+    color: var(--fg-2);
+    font-size: 11.5px;
+    letter-spacing: 0.01em;
+  }
+  .page td { font-variant-numeric: tabular-nums; }
+
+  .figure {
+    margin: 16px 0 20px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .figure-body {
+    aspect-ratio: 16 / 7;
+    background:
+      linear-gradient(180deg, oklch(95% 0.012 60) 0%, oklch(98% 0.006 80) 100%);
+    position: relative;
+    display: grid;
+    place-items: center;
+    color: var(--faint);
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+  .figure-body svg { width: 70%; height: 70%; }
+  .figure-caption {
+    padding: 8px 14px;
+    font-family: var(--font-text);
+    font-size: 11.5px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between;
+  }
+  .figure-caption strong { color: var(--fg-2); font-weight: 500; }
+
+  /* Annotations (AI explanations in margin) */
+  .annotation {
+    position: absolute;
+    left: calc(100% + 16px);
+    width: 220px;
+    font-family: var(--font-text);
+    font-size: 11.5px;
+    color: var(--fg-2);
+    background: oklch(98% 0.015 60);
+    border: 1px solid var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    padding: 10px 12px;
+    border-radius: 4px;
+    line-height: 1.55;
+  }
+  .annotation::before {
+    content: "智能体批注";
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+
+  /* Inline citations */
+  .cite {
+    display: inline;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 1px 4px;
+    border-radius: 2px;
+    margin-left: 3px;
+    vertical-align: 2px;
+    cursor: pointer;
+  }
+
+  /* ---------- Right export panel ---------- */
+  .right-export {
+    border-left: 1px solid var(--border);
+    background: var(--bg);
+    overflow-y: auto;
+    padding: 18px 18px 40px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .section h4 {
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--font-mono);
+  }
+
+  /* Check summary */
+  .check-summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .check-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .check-row:last-child { border-bottom: 0; }
+  .check-row .status-icon {
+    width: 16px; height: 16px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .check-row.pass .status-icon {
+    background: oklch(92% 0.05 150);
+    color: var(--success);
+  }
+  .check-row.pass .status-icon::after {
+    content: "";
+    width: 5px; height: 3px;
+    border: 1.5px solid currentColor;
+    border-top: 0; border-right: 0;
+    transform: rotate(-45deg) translate(0, -1px);
+  }
+  .check-row.warn .status-icon {
+    background: oklch(96% 0.05 70);
+    color: var(--warn);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .check-row.warn .status-icon::after { content: "!"; font-family: var(--font-sans); }
+  .check-row.live .status-icon {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .check-row.live .status-icon::after {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 oklch(55% 0.12 50 / 0.5); }
+    70% { box-shadow: 0 0 0 6px oklch(55% 0.12 50 / 0); }
+    100% { box-shadow: 0 0 0 0 oklch(55% 0.12 50 / 0); }
+  }
+  .check-body { flex: 1; min-width: 0; }
+  .check-name { color: var(--fg); font-weight: 500; }
+  .check-name-sub {
+    color: var(--muted);
+    font-size: 11.5px;
+    margin-top: 1px;
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+  }
+  .check-row .count {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Export */
+  .export-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .format-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .format {
+    padding: 10px 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .format:hover { border-color: var(--border-2); }
+  .format.active {
+    border-color: var(--fg);
+    background: var(--surface);
+  }
+  .format svg { width: 18px; height: 18px; color: var(--fg-2); margin-bottom: 4px; }
+  .format-name { font-size: 11.5px; color: var(--fg); font-weight: 500; font-family: var(--font-sans); }
+  .format-size {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .export-options {
+    display: grid;
+    gap: 9px;
+    margin-bottom: 14px;
+    font-size: 12.5px;
+  }
+  .option {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--fg-2);
+  }
+  .toggle {
+    width: 32px; height: 18px;
+    background: var(--border-2);
+    border-radius: 99px;
+    position: relative;
+    transition: background .15s;
+    cursor: pointer;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    left: 2px; top: 2px;
+    width: 14px; height: 14px;
+    background: white;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 2px oklch(0% 0 0 / 0.15);
+  }
+  .toggle.on { background: var(--fg); }
+  .toggle.on::after { transform: translateX(14px); }
+
+  .export-btn {
+    width: 100%;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid oklch(0% 0 0 / 0.20);
+    background: var(--fg);
+    color: var(--bg);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    user-select: none;
+    outline: none;
+    position: relative;
+    box-shadow:
+      oklch(0% 0 0 / 0.22) 0 1px 3px,
+      oklch(0% 0 0 / 0.12) 0 2px 6px,
+      oklch(100% 0 0 / 0.16) 0 1px 0 inset;
+    transition: transform .14s ease, box-shadow .14s ease, background .14s ease, border-color .14s ease;
+  }
+  .export-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(to bottom, oklch(100% 0 0 / 0.16), oklch(100% 0 0 / 0) 46%);
+    pointer-events: none;
+  }
+  .export-btn svg,
+  .export-btn span { position: relative; z-index: 1; }
+  .export-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .export-btn:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      oklch(0% 0 0 / 0.24) 0 2px 4px,
+      oklch(0% 0 0 / 0.14) 0 5px 12px,
+      oklch(100% 0 0 / 0.18) 0 1px 0 inset;
+  }
+  .export-btn:active {
+    transform: translateY(0);
+    box-shadow:
+      oklch(0% 0 0 / 0.20) 0 1px 2px,
+      oklch(0% 0 0 / 0.10) 0 1px 4px,
+      oklch(0% 0 0 / 0.18) 0 1px 2px inset,
+      oklch(100% 0 0 / 0.10) 0 1px 0 inset;
+  }
+  .export-btn:focus-visible {
+    outline: 2px solid oklch(55% 0.12 50 / 0.34);
+    outline-offset: 2px;
+  }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 10px; }
+  .timeline-item {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--fg-2);
+    line-height: 1.5;
+  }
+  .timeline-item .time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 40px;
+    text-align: right;
+    padding-top: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .timeline-item .line {
+    width: 1px;
+    background: var(--border);
+    margin-top: 4px;
+    margin-bottom: -10px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .timeline-item:last-child .line { background: transparent; }
+  .timeline-item .line::before {
+    content: "";
+    position: absolute;
+    top: 0; left: -3px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1.5px solid var(--border-2);
+  }
+  .timeline-item.done .line::before { background: var(--fg); border-color: var(--fg); }
+  .timeline-item.active .line::before { border-color: var(--accent); background: var(--accent-soft); }
+  .timeline-item .label { flex: 1; padding-bottom: 4px; }
+  .timeline-item .label strong { color: var(--fg); font-weight: 500; }
+
+  /* Scrollbars */
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: oklch(82% 0.008 60);
+    border-radius: 4px;
+    border: 2px solid var(--bg);
+  }
+
+  @media (max-width: 1080px) {
+    .annotation { display: none; }
+    .page { width: 640px; padding: 60px 64px; }
+  }
+</style>
+
+<style id="schematic-theme">
+:root {
+  --bg: #eef2f5 !important;
+  --surface: #ffffff !important;
+  --surface-2: #f7f9fb !important;
+  --surface-3: #e6ecf2 !important;
+  --fg: #0e1a2b !important;
+  --fg-2: #2d3e55 !important;
+  --muted: #6a7a8e !important;
+  --faint: #a3acba !important;
+  --border: #d2dae3 !important;
+  --border-2: #b4c0cb !important;
+  --accent: #0f6ad6 !important;
+  --accent-soft: #d6e9fb !important;
+  --success: #1d8c5c !important;
+  --warn: #cf8200 !important;
+  --running: #0f6ad6 !important;
+  --pending: #a3acba !important;
+
+  --font-text: "IBM Plex Sans", "IBM Plex Sans SC", "PingFang SC", -apple-system, system-ui, sans-serif !important;
+  --font-sans: "IBM Plex Sans", "IBM Plex Sans SC", "PingFang SC", -apple-system, system-ui, sans-serif !important;
+  --font-serif: "IBM Plex Sans", "IBM Plex Sans SC", system-ui, sans-serif !important;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace !important;
+
+  --radius-sm: 2px !important;
+  --radius: 2px !important;
+  --radius-lg: 3px !important;
+}
+
+/* grid background — engineering paper */
+body {
+  background-image:
+    linear-gradient(to right, rgba(20, 45, 80, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(20, 45, 80, 0.045) 1px, transparent 1px) !important;
+  background-size: 16px 16px !important;
+}
+
+/* brand — mono with cyan dot */
+.brand {
+  font-family: var(--font-mono) !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.025em !important;
+  font-size: 16px !important;
+}
+.brand::after {
+  content: "·";
+  color: var(--accent);
+  margin-left: 1px;
+  font-weight: 700;
+}
+.brand-mark {
+  background: var(--fg) !important;
+  font-family: var(--font-mono) !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  border-radius: 2px !important;
+}
+
+/* breadcrumb mono */
+.breadcrumb { font-family: var(--font-mono) !important; font-size: 12.5px !important; letter-spacing: -0.01em !important; }
+.breadcrumb .crumb-current { font-weight: 500 !important; }
+
+/* doc page — mono display, dimension marks */
+.doc-page {
+  background: var(--surface) !important;
+  padding: 40px 48px !important;
+  font-family: var(--font-sans) !important;
+  color: var(--fg) !important;
+}
+.doc-page h1 {
+  font-family: var(--font-mono) !important;
+  font-weight: 600 !important;
+  font-size: 28px !important;
+  letter-spacing: -0.03em !important;
+}
+.doc-page h2 {
+  font-family: var(--font-mono) !important;
+  font-weight: 600 !important;
+  font-size: 19px !important;
+  letter-spacing: -0.02em !important;
+  position: relative !important;
+  padding-left: 22px !important;
+}
+.doc-page h2::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 50% !important;
+  width: 14px !important;
+  height: 1px !important;
+  background: var(--accent) !important;
+  box-shadow: 0 -4px 0 -3.5px var(--accent), 0 4px 0 -3.5px var(--accent) !important;
+}
+.doc-page h3 {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--accent) !important;
+}
+.doc-page p { font-family: var(--font-sans) !important; font-size: 14px !important; line-height: 1.65 !important; }
+.doc-page .doc-deck { font-family: var(--font-mono) !important; font-size: 12px !important; color: var(--muted) !important; letter-spacing: -0.005em !important; }
+.doc-page table { font-family: var(--font-mono) !important; font-size: 12px !important; }
+.doc-page th { font-family: var(--font-mono) !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; font-size: 10px !important; }
+.doc-page td { font-variant-numeric: tabular-nums !important; }
+
+/* citations — bracket mono */
+.cite {
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 10px !important;
+  padding: 1px 5px !important;
+  border-radius: 2px !important;
+  vertical-align: 1px !important;
+  font-weight: 500 !important;
+}
+.cite::before { content: ""; }
+.cite::after { content: ""; }
+
+/* page numerals: roman → mono brackets */
+.page-num {
+  font-family: var(--font-mono) !important;
+  color: var(--accent) !important;
+  letter-spacing: 0.04em !important;
+}
+
+/* running head mono */
+.page-running-head { font-family: var(--font-mono) !important; font-size: 10px !important; letter-spacing: 0.1em !important; }
+
+/* squared corners on everything */
+.run-brief, .composer-input, .case-card, .tpl-card, .table-card,
+.check-summary, .export-card, .ds-card, .insight-card, .kpi-strip, .figure,
+.search input, .tool-call, .input, .gen-block, .nav-side .nav-item,
+.run-chip, .pill, .nav-tabs a, .doc-tab, .chip, .badge, .tag,
+.icon-btn, .btn-primary, .composer-send, .export-btn, .btn-ghost,
+.doc-tabs, .format, .view-toggle, .view-toggle button {
+  border-radius: 2px !important;
+}
+.avatar { border-radius: 2px !important; background: var(--fg) !important; }
+.doc-page, .tpl-thumb { border-radius: 2px !important; }
+
+/* terminal-style tool calls in agent stream */
+.tool-call {
+  background: #131c2a !important;
+  border: 1px solid #131c2a !important;
+  color: #d2e0f0 !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11.5px !important;
+}
+.tool-call .tool-icon { color: #79b8f8 !important; }
+.tool-call .tool-name { color: #d2e0f0 !important; font-weight: 500 !important; }
+.tool-call .tool-name code { color: #79b8f8 !important; background: transparent !important; padding: 0 !important; font-weight: 400 !important; }
+.tool-call .tool-params { color: #8a98ad !important; }
+.tool-call .tool-result { color: #a8b5c8 !important; }
+.tool-call .tool-result strong { color: #d2e0f0 !important; }
+.tool-call .timing { color: #6a7a8e !important; }
+.tool-call.running { border-color: var(--accent) !important; background: #1a2740 !important; }
+.tool-call.running .tool-icon { color: var(--accent) !important; }
+
+/* reasoning — terminal comment style */
+.reasoning {
+  font-family: var(--font-mono) !important;
+  font-style: normal !important;
+  font-size: 12px !important;
+  color: var(--muted) !important;
+  border-left: 2px solid var(--accent) !important;
+  background: var(--accent-soft) !important;
+  padding: 8px 12px !important;
+  border-radius: 2px !important;
+}
+.reasoning::before {
+  content: "// THINK :: " !important;
+  font-family: var(--font-mono) !important;
+  font-style: normal !important;
+  color: var(--accent) !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
+  font-weight: 500 !important;
+}
+
+/* turn meta — mono with cyan */
+.turn-meta { font-family: var(--font-mono) !important; color: var(--accent) !important; letter-spacing: 0.04em !important; text-transform: lowercase !important; font-size: 11px !important; }
+.stream-title { color: var(--accent) !important; }
+.stream-title-dot { background: var(--accent) !important; }
+.run-brief-title { font-family: var(--font-mono) !important; }
+.run-brief-status { color: var(--accent) !important; }
+
+/* annotation as engineering callout */
+.annotation {
+  background: var(--accent-soft) !important;
+  border: 0 !important;
+  border-left: 3px solid var(--accent) !important;
+  border-radius: 2px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  color: var(--fg) !important;
+}
+.annotation::before {
+  content: "// CALLOUT" !important;
+  font-family: var(--font-mono) !important;
+  color: var(--accent) !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+/* knowledge page — mono headings */
+.page-header h1 {
+  font-family: var(--font-mono) !important;
+  font-weight: 600 !important;
+  font-size: 30px !important;
+  letter-spacing: -0.03em !important;
+}
+.page-header .eyebrow { color: var(--accent) !important; letter-spacing: 0.18em !important; }
+.case-title { font-family: var(--font-mono) !important; font-weight: 500 !important; letter-spacing: -0.02em !important; font-size: 17px !important; }
+.case-meta { font-family: var(--font-mono) !important; }
+.kpi .value, .kpi .delta, .kpi .label { font-family: var(--font-mono) !important; }
+.insight-card h3 { font-family: var(--font-mono) !important; font-weight: 600 !important; letter-spacing: -0.02em !important; }
+.tpl-name { font-family: var(--font-mono) !important; letter-spacing: -0.015em !important; }
+
+/* tags — bracket mono */
+.tag { font-family: var(--font-mono) !important; font-size: 10.5px !important; letter-spacing: 0.04em !important; }
+
+/* run chips and badges */
+.run-chip { font-family: var(--font-mono) !important; }
+.pill { font-family: var(--font-mono) !important; }
+
+/* outline numerals */
+.outline-item .name { font-family: var(--font-mono) !important; font-size: 12.5px !important; letter-spacing: -0.01em !important; }
+
+/* topbar tabs mono */
+.nav-tabs a { font-family: var(--font-mono) !important; font-size: 12px !important; }
+
+/* back-to-canvas pill */
+.ds-return {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 16px;
+  z-index: 99;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #131c2a;
+  color: #d2e0f0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 7px 14px 7px 10px;
+  border-radius: 2px;
+  text-decoration: none;
+  box-shadow: 0 8px 24px -8px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.15);
+  border: 1px solid var(--accent);
+}
+.ds-return:hover { background: var(--accent); color: white; }
+.ds-return .ds-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: white;
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark">P</div>Prose</div>
+    <div class="topbar-divider"></div>
+    <div class="breadcrumb">
+      <span>工作台</span>
+      <span class="breadcrumb-sep">/</span>
+      <span>2026 年度项目</span>
+      <span class="breadcrumb-sep">/</span>
+      <span class="crumb-current">华东数据中心绿色改造工程 · 投标书</span>
+    </div>
+    <nav class="nav-tabs">
+      <a href="index.html">工作台</a>
+      <a href="preview.html" class="active">文档预览</a>
+      <a href="knowledge.html">知识库</a>
+    </nav>
+    <div class="topbar-actions">
+      <button class="btn-ghost">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4M12 2v13"/></svg>
+        分享
+      </button>
+      <button class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        导出完整标书
+      </button>
+      <div class="avatar">LH</div>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- ===== Outline ===== -->
+    <aside class="outline">
+      <div class="outline-title">目录 · 共 6 章 78 页</div>
+
+      <div class="outline-item">
+        <span class="idx">01</span><span class="name">商务响应</span><span class="stat">11 p</span>
+      </div>
+      <div class="outline-sub done"><span class="dot"></span>1.1 投标函</div>
+      <div class="outline-sub done"><span class="dot"></span>1.2 法人资质</div>
+      <div class="outline-sub done"><span class="dot"></span>1.3 投标保函</div>
+
+      <div class="outline-item">
+        <span class="idx">02</span><span class="name">公司综合实力</span><span class="stat">9 p</span>
+      </div>
+      <div class="outline-sub done"><span class="dot"></span>2.1 公司概况</div>
+      <div class="outline-sub done"><span class="dot"></span>2.2 团队与专家</div>
+      <div class="outline-sub done"><span class="dot"></span>2.3 历史业绩</div>
+
+      <div class="outline-item">
+        <span class="idx">03</span><span class="name">项目理解与需求响应</span><span class="stat">14 p</span>
+      </div>
+      <div class="outline-sub done"><span class="dot"></span>3.1 项目背景解读</div>
+      <div class="outline-sub done"><span class="dot"></span>3.2 需求逐条响应</div>
+      <div class="outline-sub done"><span class="dot"></span>3.3 偏离说明</div>
+
+      <div class="outline-item active">
+        <span class="idx">04</span><span class="name">绿色技术方案</span><span class="stat">23 p</span>
+      </div>
+      <div class="outline-sub done"><span class="dot"></span>4.1 总体技术路线</div>
+      <div class="outline-sub running"><span class="dot"></span>4.2 液冷子系统设计</div>
+      <div class="outline-sub todo"><span class="dot"></span>4.3 余热回收与利用</div>
+      <div class="outline-sub todo"><span class="dot"></span>4.4 光储一体化</div>
+      <div class="outline-sub todo"><span class="dot"></span>4.5 智能运维</div>
+
+      <div class="outline-item">
+        <span class="idx">05</span><span class="name">实施与交付</span><span class="stat">12 p</span>
+      </div>
+      <div class="outline-sub todo"><span class="dot"></span>5.1 项目进度计划</div>
+      <div class="outline-sub todo"><span class="dot"></span>5.2 质量保证</div>
+      <div class="outline-sub todo"><span class="dot"></span>5.3 运维与培训</div>
+
+      <div class="outline-item">
+        <span class="idx">06</span><span class="name">报价与服务承诺</span><span class="stat">9 p</span>
+      </div>
+      <div class="outline-sub todo"><span class="dot"></span>6.1 投标报价表</div>
+      <div class="outline-sub todo"><span class="dot"></span>6.2 服务承诺</div>
+    </aside>
+
+    <!-- ===== Center: A4 pages ===== -->
+    <section class="center">
+      <div class="doc-toolbar">
+        <div class="zoom-controls">
+          <button class="icon-btn" title="缩小">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg>
+          </button>
+          <span style="min-width: 40px; text-align: center;">100%</span>
+          <button class="icon-btn" title="放大">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+          </button>
+        </div>
+
+        <div style="width: 1px; height: 20px; background: var(--border);"></div>
+
+        <div class="page-indicator">
+          页 <strong>42</strong> / 78 &nbsp;·&nbsp; 第 4 章 第 3 页
+        </div>
+
+        <div class="doc-toolbar-right">
+          <div class="view-toggle">
+            <button class="active">单页</button>
+            <button>双页</button>
+            <button>连续</button>
+          </div>
+          <button class="btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18 2l4 4-10 10H8v-4L18 2z"/></svg>
+            请求修改
+          </button>
+        </div>
+      </div>
+
+      <div class="pages-viewport centered">
+        <!-- Page 42 -->
+        <article class="page" id="p42">
+          <div class="page-running-head">
+            <span>华东数据中心绿色改造工程 · 投标书</span>
+            <span>第四章 绿色技术方案</span>
+          </div>
+
+          <h1 class="doc-h1">第四章 · 绿色技术方案</h1>
+          <p class="doc-deck">
+            本章对应招标文件第三部分「技术要求」第 36–58 页,围绕 PUE、WUE、可再生能源占比三项核心指标,结合投标方在华东地区已落地的同类项目经验,提出适配本工程地理与气候条件的绿色技术方案。
+          </p>
+
+          <h2>4.1 总体技术路线</h2>
+          <p>本工程采用「冷板式液冷为主、风冷为辅」的混合制冷架构,在 IT 负载侧实现端到端的高效散热,在基础设施侧通过余热回收与光储一体化将综合 PUE 控制在 <strong>1.18 以下</strong>(招标要求 ≤ 1.25<span class="cite">T-36</span>),WUE 控制在 <strong>0.32 L/kWh 以下</strong>(行业平均 1.8),可再生能源占比不低于 <strong>35%</strong>(招标要求 ≥ 30%<span class="cite">T-38</span>)。</p>
+
+          <p>整体技术路线已在投标方 2025 年 8 月完成的「上海张江绿色数据中心二期」项目中得到完整验证<span class="cite">R-07</span>,该项目实测年均 PUE 1.184,与本工程在气候条件、IT 负载密度、网架结构上具备 87% 以上相似度。</p>
+
+          <h3>关键指标对比</h3>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 26%;">指标</th>
+                <th>招标要求</th>
+                <th>张江二期 (实测)</th>
+                <th>本工程承诺</th>
+                <th style="width: 14%;">响应</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>年均 PUE</td><td>≤ 1.25</td><td>1.184</td><td style="font-weight:500;">≤ 1.18</td><td style="color: var(--success);">优于</td></tr>
+              <tr><td>WUE (L/kWh)</td><td>≤ 0.5</td><td>0.31</td><td style="font-weight:500;">≤ 0.32</td><td style="color: var(--success);">优于</td></tr>
+              <tr><td>可再生能源占比</td><td>≥ 30%</td><td>34.2%</td><td style="font-weight:500;">≥ 35%</td><td style="color: var(--success);">优于</td></tr>
+              <tr><td>余热回收率</td><td>—</td><td>62%</td><td style="font-weight:500;">≥ 60%</td><td style="color: var(--fg-2);">增项</td></tr>
+              <tr><td>制冷冗余等级</td><td>N+1</td><td>N+1</td><td style="font-weight:500;">N+1</td><td style="color: var(--fg-2);">符合</td></tr>
+            </tbody>
+          </table>
+
+          <div class="annotation" style="top: 380px;">
+            此处交叉引用招标第 38 页。系统已检测到指标 <strong>全部达标或优于要求</strong>。
+          </div>
+
+          <h2>4.2 液冷子系统设计</h2>
+          <p>液冷子系统采用 <strong>冷板式液冷 + 25℃ 高温冷冻水</strong>方案,可在华东地区年均 5,840 小时实现自然冷却<span class="cite">R-07</span>,相较传统压缩制冷节能约 38%。系统遵循 N+1 冗余设计,关键管路采用双路独立环网,任一管段故障不影响整体运行。</p>
+
+          <div class="page-num">— 42 —</div>
+        </article>
+
+        <!-- Page 43 -->
+        <article class="page" id="p43">
+          <div class="page-running-head">
+            <span>华东数据中心绿色改造工程 · 投标书</span>
+            <span>第四章 绿色技术方案</span>
+          </div>
+
+          <h3>4.2.1 冷板液冷循环</h3>
+          <p>服务器侧采用微通道铜质冷板,与 CPU、GPU、内存、电源模块直接接触,带走机柜 <strong>约 85%</strong> 的热负荷。冷板出水温度 32–34℃,进入一次侧板式换热器后,由二次侧冷冻水回路将热量输送至室外干冷器或水冷塔。</p>
+
+          <div class="figure">
+            <div class="figure-body">
+              <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
+                <!-- Schematic: 4 server racks -> heat exchanger -> dry cooler -->
+                <defs>
+                  <linearGradient id="hot" x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0%" stop-color="oklch(70% 0.12 40)"/>
+                    <stop offset="100%" stop-color="oklch(60% 0.14 35)"/>
+                  </linearGradient>
+                  <linearGradient id="cold" x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0%" stop-color="oklch(65% 0.10 240)"/>
+                    <stop offset="100%" stop-color="oklch(60% 0.13 245)"/>
+                  </linearGradient>
+                </defs>
+
+                <!-- Servers -->
+                <g>
+                  <rect x="60" y="90" width="44" height="140" rx="3" fill="none" stroke="oklch(30% 0.02 60)" stroke-width="1.3"/>
+                  <rect x="66" y="100" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                  <rect x="66" y="120" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                  <rect x="66" y="140" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                  <rect x="66" y="160" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                  <rect x="66" y="180" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                  <rect x="66" y="200" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                  <text x="82" y="255" font-family="system-ui" font-size="10" fill="oklch(40% 0.015 60)" text-anchor="middle">机柜 A01</text>
+
+                  <rect x="120" y="90" width="44" height="140" rx="3" fill="none" stroke="oklch(30% 0.02 60)" stroke-width="1.3"/>
+                  <g>
+                    <rect x="126" y="100" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                    <rect x="126" y="120" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                    <rect x="126" y="140" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                    <rect x="126" y="160" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                    <rect x="126" y="180" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                    <rect x="126" y="200" width="32" height="16" rx="1" fill="oklch(92% 0.008 80)"/>
+                  </g>
+                  <text x="142" y="255" font-family="system-ui" font-size="10" fill="oklch(40% 0.015 60)" text-anchor="middle">机柜 A02</text>
+
+                  <text x="100" y="80" font-family="system-ui" font-size="10" fill="oklch(30% 0.02 60)" text-anchor="middle" font-weight="500">IT 负载侧 · 冷板液冷</text>
+                </g>
+
+                <!-- Pipes hot -->
+                <path d="M 170 140 L 330 140 L 330 95 L 500 95 L 500 140" stroke="url(#hot)" stroke-width="5" fill="none" stroke-linecap="round"/>
+                <text x="330" y="85" font-family="system-ui" font-size="10" fill="oklch(50% 0.10 40)" text-anchor="middle">热回水 34℃</text>
+
+                <!-- Pipes cold return -->
+                <path d="M 170 180 L 330 180 L 330 230 L 500 230 L 500 185" stroke="url(#cold)" stroke-width="5" fill="none" stroke-linecap="round"/>
+                <text x="330" y="248" font-family="system-ui" font-size="10" fill="oklch(50% 0.10 240)" text-anchor="middle">冷供水 25℃</text>
+
+                <!-- Heat exchanger -->
+                <g>
+                  <rect x="485" y="115" width="80" height="90" rx="4" fill="oklch(98% 0.005 60)" stroke="oklch(30% 0.02 60)" stroke-width="1.3"/>
+                  <line x1="495" y1="140" x2="555" y2="140" stroke="oklch(50% 0.02 60)" stroke-width="1"/>
+                  <line x1="495" y1="160" x2="555" y2="160" stroke="oklch(50% 0.02 60)" stroke-width="1"/>
+                  <line x1="495" y1="180" x2="555" y2="180" stroke="oklch(50% 0.02 60)" stroke-width="1"/>
+                  <text x="525" y="225" font-family="system-ui" font-size="10" fill="oklch(30% 0.02 60)" text-anchor="middle">板式换热器</text>
+                </g>
+
+                <!-- Pipes to dry cooler -->
+                <path d="M 565 140 L 650 140" stroke="url(#hot)" stroke-width="5" fill="none" stroke-linecap="round"/>
+                <path d="M 565 180 L 650 180" stroke="url(#cold)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+                <!-- Dry cooler -->
+                <g>
+                  <rect x="650" y="110" width="100" height="100" rx="4" fill="oklch(96% 0.006 80)" stroke="oklch(30% 0.02 60)" stroke-width="1.3"/>
+                  <!-- Fins -->
+                  <g stroke="oklch(50% 0.02 60)" stroke-width="1">
+                    <line x1="660" y1="125" x2="660" y2="195"/>
+                    <line x1="670" y1="125" x2="670" y2="195"/>
+                    <line x1="680" y1="125" x2="680" y2="195"/>
+                    <line x1="690" y1="125" x2="690" y2="195"/>
+                    <line x1="700" y1="125" x2="700" y2="195"/>
+                    <line x1="710" y1="125" x2="710" y2="195"/>
+                    <line x1="720" y1="125" x2="720" y2="195"/>
+                    <line x1="730" y1="125" x2="730" y2="195"/>
+                    <line x1="740" y1="125" x2="740" y2="195"/>
+                  </g>
+                  <text x="700" y="225" font-family="system-ui" font-size="10" fill="oklch(30% 0.02 60)" text-anchor="middle">室外干冷器</text>
+                </g>
+                <text x="700" y="80" font-family="system-ui" font-size="10" fill="oklch(30% 0.02 60)" text-anchor="middle" font-weight="500">基础设施侧 · 自然冷却 5,840 h/年</text>
+
+                <!-- Flow arrows -->
+                <g fill="oklch(50% 0.10 40)">
+                  <polygon points="490,138 500,142 490,146"/>
+                </g>
+                <g fill="oklch(50% 0.10 240)">
+                  <polygon points="170,178 160,182 170,186"/>
+                </g>
+              </svg>
+            </div>
+            <div class="figure-caption">
+              <strong>图 4.2-1</strong>  冷板液冷循环示意
+              <span>源:投标方 / 上海张江二期工程图(脱敏)</span>
+            </div>
+          </div>
+
+          <h3>4.2.2 冗余与可靠性</h3>
+          <ul>
+            <li>冷却塔 N+1 冗余,单塔检修期间总制冷量下降不超过 5%。</li>
+            <li>关键泵组 2+1 配置,VFD 变频驱动,年均能耗较定频降低 24%<span class="cite">W-02</span>。</li>
+            <li>冷却液采用专利单相氟化液,20 年内泄漏概率 &lt; 0.01%(厂家承诺,含合同附件)。</li>
+          </ul>
+
+          <div class="annotation" style="top: 570px;">
+            此节已对照招标文件扣分项 <strong>T-42.3 冗余等级</strong> 与 <strong>T-43.1 可靠性承诺</strong>,0 扣分风险。
+          </div>
+
+          <p>从实际部署角度,本方案将在机房 A 区优先投用,B、C 区在二期扩容时同步接入,避免一次性停机带来的业务中断。详细施工窗口见第五章「实施与交付」。</p>
+
+          <div class="page-num">— 43 —</div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== Right: Export + checks + timeline ===== -->
+    <aside class="right-export">
+      <!-- Compliance / check summary -->
+      <div class="section">
+        <h4>合规与校对</h4>
+        <div class="check-summary">
+          <div class="check-row pass">
+            <div class="status-icon"></div>
+            <div class="check-body">
+              <div class="check-name">招标技术要求逐条响应</div>
+              <div class="check-name-sub">19 / 19 条 · 全部响应</div>
+            </div>
+            <span class="count">通过</span>
+          </div>
+          <div class="check-row pass">
+            <div class="status-icon"></div>
+            <div class="check-body">
+              <div class="check-name">历史扣分点规避</div>
+              <div class="check-name-sub">47 条 · 全部规避</div>
+            </div>
+            <span class="count">通过</span>
+          </div>
+          <div class="check-row pass">
+            <div class="status-icon"></div>
+            <div class="check-body">
+              <div class="check-name">引用资料交叉核验</div>
+              <div class="check-name-sub">23 处 · 全部指向有效来源</div>
+            </div>
+            <span class="count">通过</span>
+          </div>
+          <div class="check-row live">
+            <div class="status-icon"></div>
+            <div class="check-body">
+              <div class="check-name">格式与排版规范</div>
+              <div class="check-name-sub">GB/T 9704-2012 · 部分章节待生成</div>
+            </div>
+            <span class="count">运行中</span>
+          </div>
+          <div class="check-row warn">
+            <div class="status-icon"></div>
+            <div class="check-body">
+              <div class="check-name">报价表双盲一致性</div>
+              <div class="check-name-sub">第 6.1 节待撰写后复核</div>
+            </div>
+            <span class="count">待审</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="section">
+        <h4>导出</h4>
+        <div class="export-card">
+          <div class="format-row">
+            <div class="format active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6M9 11h2"/></svg>
+              <div class="format-name">PDF / A</div>
+              <div class="format-size">~ 14.2 MB</div>
+            </div>
+            <div class="format">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M10 13l2 4 2-4"/></svg>
+              <div class="format-name">Word</div>
+              <div class="format-size">.docx</div>
+            </div>
+            <div class="format">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              <div class="format-name">分册 ZIP</div>
+              <div class="format-size">6 册</div>
+            </div>
+          </div>
+
+          <div class="export-options">
+            <div class="option">
+              <span>嵌入水印 · 投标编号</span>
+              <div class="toggle on"></div>
+            </div>
+            <div class="option">
+              <span>保留智能体批注</span>
+              <div class="toggle"></div>
+            </div>
+            <div class="option">
+              <span>附加合规性证明</span>
+              <div class="toggle on"></div>
+            </div>
+            <div class="option">
+              <span>按章节拆分 PDF</span>
+              <div class="toggle"></div>
+            </div>
+          </div>
+
+          <button class="export-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            生成 · PDF / A (78 页)
+          </button>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="section">
+        <h4>修订记录</h4>
+        <div class="timeline">
+          <div class="timeline-item active">
+            <div class="time">10:14</div>
+            <div class="line"></div>
+            <div class="label"><strong>智能体</strong> 正在撰写 § 4.2 液冷子系统</div>
+          </div>
+          <div class="timeline-item done">
+            <div class="time">09:57</div>
+            <div class="line"></div>
+            <div class="label"><strong>李慧</strong> 采纳图 4.2-1 原理示意图</div>
+          </div>
+          <div class="timeline-item done">
+            <div class="time">09:42</div>
+            <div class="line"></div>
+            <div class="label"><strong>智能体</strong> 完成 § 4.1 总体技术路线初稿</div>
+          </div>
+          <div class="timeline-item done">
+            <div class="time">08:30</div>
+            <div class="line"></div>
+            <div class="label"><strong>智能体</strong> 从知识库匹配 4 个历史项目</div>
+          </div>
+          <div class="timeline-item done">
+            <div class="time">昨 22:10</div>
+            <div class="line"></div>
+            <div class="label"><strong>张工</strong> 上传招标补遗文件</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<a href="../index.html" class="ds-return"><span class="ds-tag">C · SCHEMATIC</span><span>← 返回设计系统选板</span></a>
+</body>
+</html>

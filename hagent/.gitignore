@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Reference docs (deepagents 官方 docs 是镜像，不入仓)
+# deepagents/
+docs/cc-recovered-main/
+
+# Sandbox 审计日志与事件（命令 JSONL）
+.logs/
+
+# Hagent 本地 runtime 工件（后续 plan 才产生）
+# 注意：.hagent/skills 与 .hagent/agents 是源码（标书解析 skill + parser 子 agent），需入仓；
+# 仅忽略 .hagent/ 下的运行时产物。
+.hagent/sessions/
+.hagent/workspaces/
+.hagent/*.sqlite
+.hagent/*.sqlite-journal
+*.sqlite
+*.sqlite-journal
+
+# 本地环境变量（含 API key，绝不能入仓）
+.env
+.env.local
+.env.*.local
+.env.qwen

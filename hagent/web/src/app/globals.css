@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* MVP 阶段固定亮色主题，避免与浏览器深色 user-agent style 冲突。
+   后续要支持深色模式时，重新引入 prefers-color-scheme + 补齐 input/button 的 dark: 变体。 */
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #f9fafb; /* gray-50 */
+  color: #111827;      /* gray-900 */
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+input,
+button,
+textarea {
+  color: inherit;
+  background-color: #ffffff;
+}

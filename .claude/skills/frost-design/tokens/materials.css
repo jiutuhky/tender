@@ -1,0 +1,83 @@
+/* ===========================================================================
+   Frost · Materials & Wallpaper
+   The signature layer. Four glass grades go front-to-back: blur radius says
+   "how far from the user", white opacity says "how heavy the content it carries".
+   This is a Web approximation of macOS Vibrancy (backdrop-filter + layered
+   strokes + top highlight) — NOT an official Apple implementation. Honest
+   fallback to a solid surface under prefers-reduced-transparency.
+   =========================================================================== */
+:root {
+  /* Cold-blue aurora desktop wallpaper (layered radial + linear gradients) */
+  --wallpaper:
+    radial-gradient(1100px 700px at 12% -10%, #c8e6ff 0%, rgba(200, 230, 255, 0) 58%),
+    radial-gradient(900px 620px at 92% 6%, #8fc0f5 0%, rgba(143, 192, 245, 0) 55%),
+    radial-gradient(1100px 850px at 78% 100%, #0a4ecf 0%, rgba(10, 78, 207, 0) 62%),
+    radial-gradient(820px 640px at 14% 86%, #2e8fd8 0%, rgba(46, 143, 216, 0) 58%),
+    linear-gradient(162deg, #d4e8fb 0%, #6aa4e6 46%, #1c4796 100%); /* @kind other */
+
+  /* Per-grade material variables: background tint, blur, saturation */
+  --mat-sidebar-bg: rgba(255, 255, 255, .55);  --mat-sidebar-blur: 60px;
+  --mat-toolbar-bg: rgba(255, 255, 255, .68);  --mat-toolbar-blur: 40px;
+  --mat-popover-bg: rgba(255, 255, 255, .75);  --mat-popover-blur: 40px;
+  --mat-sheet-bg:   rgba(255, 255, 255, .85);  --mat-sheet-blur:   24px;
+  --mat-saturate:   180%;
+  --mat-border:     1px solid rgba(255, 255, 255, .45); /* @kind other */
+}
+
+[data-appearance="dark"] {
+  --mat-sidebar-bg: rgba(28, 28, 33, .62);
+  --mat-toolbar-bg: rgba(34, 34, 40, .72);
+  --mat-popover-bg: rgba(40, 40, 46, .80);
+  --mat-sheet-bg:   rgba(40, 40, 46, .88);
+  --mat-border:     1px solid rgba(255, 255, 255, .10); /* @kind other */
+}
+
+/* Utility surfaces — apply to any element that should read as that grade. */
+.frost-wallpaper { background: var(--wallpaper); }
+
+.frost-glass-sidebar,
+.frost-glass-toolbar,
+.frost-glass-popover,
+.frost-glass-sheet {
+  position: relative;
+  isolation: isolate;
+  border: var(--mat-border);
+  box-shadow: var(--highlight-top), var(--elev-2);
+}
+.frost-glass-sidebar {
+  background: var(--mat-sidebar-bg);
+  backdrop-filter: blur(var(--mat-sidebar-blur)) saturate(var(--mat-saturate));
+  -webkit-backdrop-filter: blur(var(--mat-sidebar-blur)) saturate(var(--mat-saturate));
+}
+.frost-glass-toolbar {
+  background: var(--mat-toolbar-bg);
+  backdrop-filter: blur(var(--mat-toolbar-blur)) saturate(var(--mat-saturate));
+  -webkit-backdrop-filter: blur(var(--mat-toolbar-blur)) saturate(var(--mat-saturate));
+}
+.frost-glass-popover {
+  background: var(--mat-popover-bg);
+  backdrop-filter: blur(var(--mat-popover-blur)) saturate(190%);
+  -webkit-backdrop-filter: blur(var(--mat-popover-blur)) saturate(190%);
+}
+.frost-glass-sheet {
+  background: var(--mat-sheet-bg);
+  backdrop-filter: blur(var(--mat-sheet-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--mat-sheet-blur)) saturate(160%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .frost-glass-sidebar,
+  .frost-glass-toolbar,
+  .frost-glass-popover,
+  .frost-glass-sheet {
+    background: rgba(250, 251, 253, .98);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  [data-appearance="dark"] .frost-glass-sidebar,
+  [data-appearance="dark"] .frost-glass-toolbar,
+  [data-appearance="dark"] .frost-glass-popover,
+  [data-appearance="dark"] .frost-glass-sheet {
+    background: rgba(30, 30, 34, .98);
+  }
+}

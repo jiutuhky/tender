@@ -1,0 +1,1310 @@
+<!doctype html>
+<!--
+  Frost · 霜  |  Prose 的 macOS 风格设计语言（品牌设计系统板）
+  ============================================================
+  与现行 Archive 纸面风格完全相反的第二套品牌语言：
+    暖纸底      -> 冷灰中性 + 壁纸景深
+    黏土橘      -> 系统蓝（唯一强调色）
+    1px 细线    -> 半透明材质 + 模糊 + 投影
+    Geist       -> SF 系统字体栈 + PingFang SC
+    6-14px 圆角 -> 7-18px 连续圆角 + 22.4% 图标超椭圆
+
+  诚实声明：本文件中的「材质」是 macOS Vibrancy 的 Web 近似实现
+  （backdrop-filter 模糊 + 分层描边 + 高光叠加），并非 Apple 官方包；
+  已为 prefers-reduced-transparency 提供实底回退。
+
+  页面主题锁定：本页整体为浅色外观；深色外观仅在「标本框」内演示。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prose 品牌设计：Frost 霜（macOS 风格设计语言）</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+/* ===================================================================
+   0. Tokens（浅色外观，页面锁定）
+   =================================================================== */
+:root {
+  /* 中性阶（浅） */
+  --canvas:     #eef0f3;
+  --surface:    #ffffff;
+  --surface-2:  #f5f6f8;
+  --label:      #1d1d1f;
+  --label-2:    #55555e;
+  --label-3:    #6b6b76;
+  --separator:  rgba(60, 60, 67, .12);
+
+  /* 强调（唯一） */
+  --blue:        #0064e1;
+  --blue-press:  #0052bc;
+  --blue-soft:   rgba(0, 100, 225, .10);
+
+  /* 语义（图形用 / 文本用 成对出现） */
+  --green:       #34c759;
+  --green-text:  #1d8f45;
+  --orange:      #ff9500;
+  --orange-text: #b25e00;
+  --red:         #ff3b30;
+  --red-text:    #d70015;
+
+  /* 深色阶（仅供标本框引用） */
+  --d-canvas:    #161618;
+  --d-surface:   #1e1e22;
+  --d-surface-2: #2a2a30;
+  --d-label:     #f5f5f7;
+  --d-label-2:   #a8a8b3;
+  --d-separator: rgba(255, 255, 255, .10);
+  --d-blue:      #409cff;
+
+  /* 字体：系统栈，macOS 下即 SF Pro + PingFang SC */
+  --font-ui: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+             "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, "JetBrains Mono", monospace;
+
+  /* 圆角阶（成体系：控件 < 输入 < 窗口 < 卡片 < 面板） */
+  --r-control: 7px;
+  --r-field:   9px;
+  --r-window:  12px;
+  --r-card:    14px;
+  --r-panel:   18px;
+
+  /* 阴影阶（深度代替描边） */
+  --elev-1: 0 1px 2px rgba(18, 24, 38, .10), 0 0 0 .5px rgba(18, 24, 38, .07);
+  --elev-2: 0 10px 30px rgba(18, 24, 38, .12), 0 2px 8px rgba(18, 24, 38, .06), 0 0 0 .5px rgba(18, 24, 38, .05);
+  --elev-3: 0 28px 80px rgba(12, 18, 32, .26), 0 8px 24px rgba(12, 18, 32, .12), 0 0 0 .5px rgba(12, 18, 32, .10);
+
+  /* 动效 */
+  --t-micro: 120ms;
+  --t-float: 200ms;
+  --t-panel: 320ms;
+  --ease-std: cubic-bezier(.32, .72, 0, 1);
+  --ease-out: cubic-bezier(.4, 0, 1, 1);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-ui);
+  background: var(--canvas);
+  color: var(--label);
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: -.008em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+.mono { font-family: var(--font-mono); font-size: .82em; letter-spacing: 0; }
+
+/* ===================================================================
+   1. 壁纸（macOS 桌面隐喻：冷蓝极光，分层径向渐变）
+   =================================================================== */
+.wallpaper {
+  background:
+    radial-gradient(1100px 700px at 12% -10%, #c8e6ff 0%, rgba(200, 230, 255, 0) 58%),
+    radial-gradient(900px 620px at 92% 6%, #8fc0f5 0%, rgba(143, 192, 245, 0) 55%),
+    radial-gradient(1100px 850px at 78% 100%, #0a4ecf 0%, rgba(10, 78, 207, 0) 62%),
+    radial-gradient(820px 640px at 14% 86%, #2e8fd8 0%, rgba(46, 143, 216, 0) 58%),
+    linear-gradient(162deg, #d4e8fb 0%, #6aa4e6 46%, #1c4796 100%);
+}
+
+/* ===================================================================
+   2. 玻璃材质（macOS Vibrancy 的 Web 近似，非官方实现）
+   =================================================================== */
+.glass, .glass-sidebar, .glass-toolbar, .glass-popover, .glass-sheet {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, .45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), var(--elev-2);
+}
+.glass-sidebar {
+  background: rgba(255, 255, 255, .55);
+  backdrop-filter: blur(60px) saturate(180%);
+  -webkit-backdrop-filter: blur(60px) saturate(180%);
+}
+.glass-toolbar {
+  background: rgba(255, 255, 255, .68);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+.glass-popover {
+  background: rgba(255, 255, 255, .75);
+  backdrop-filter: blur(40px) saturate(190%);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+}
+.glass-sheet {
+  background: rgba(255, 255, 255, .85);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-sidebar, .glass-toolbar, .glass-popover, .glass-sheet {
+    background: rgba(250, 251, 253, .98);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* ===================================================================
+   3. 版式骨架
+   =================================================================== */
+.page { max-width: 1280px; margin: 0 auto; padding: 0 48px; }
+section { padding: 104px 0; }
+section + section { border-top: 1px solid var(--separator); }
+.sec-head { max-width: 640px; margin-bottom: 56px; }
+.sec-head h2 {
+  font-size: 34px; font-weight: 700; letter-spacing: -.022em;
+  line-height: 1.25; margin: 0 0 14px;
+}
+.sec-head p { color: var(--label-2); margin: 0; font-size: 16px; }
+
+.reveal { opacity: 0; transform: translateY(12px); }
+.reveal.in {
+  opacity: 1; transform: none;
+  transition: opacity .56s var(--ease-std), transform .56s var(--ease-std);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ===================================================================
+   4. 封面
+   =================================================================== */
+.cover {
+  min-height: 92vh;
+  display: flex; flex-direction: column;
+  color: #fff;
+  position: relative;
+}
+/* 文字落区 scrim：压暗壁纸最浅的左上角，保证白字对比度 */
+.cover::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(118deg, rgba(8, 28, 74, .46) 0%, rgba(8, 28, 74, .22) 46%, rgba(8, 28, 74, 0) 72%);
+}
+.cover > * { position: relative; }
+.cover-nav-wrap {
+  position: sticky; top: 16px; z-index: 50;
+  display: flex; justify-content: center; padding: 16px 24px 0;
+}
+.cover-nav {
+  display: flex; align-items: center; gap: 4px;
+  height: 48px; padding: 0 10px 0 14px;
+  border-radius: 999px;
+}
+.cover-nav .nav-brand {
+  display: flex; align-items: center; gap: 8px;
+  font-weight: 600; font-size: 14px; letter-spacing: -.01em;
+  color: var(--label); margin-right: 10px;
+}
+.cover-nav .nav-brand svg { width: 22px; height: 22px; }
+.cover-nav a.nav-item {
+  padding: 7px 13px; border-radius: 999px;
+  font-size: 13px; color: var(--label-2);
+  transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std);
+}
+.cover-nav a.nav-item:hover { background: rgba(0, 0, 0, .06); color: var(--label); }
+
+.cover-body {
+  flex: 1; display: grid;
+  grid-template-columns: 1.15fr .85fr;
+  align-items: center; gap: 64px;
+  max-width: 1280px; width: 100%;
+  margin: 0 auto; padding: 48px;
+}
+.cover-title .kicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: rgba(255, 255, 255, .82);
+  margin-bottom: 22px;
+}
+.cover-title h1 {
+  font-size: clamp(56px, 7vw, 88px); font-weight: 800;
+  letter-spacing: -.034em; line-height: 1.04; margin: 0 0 20px;
+  text-shadow: 0 2px 24px rgba(10, 30, 70, .25);
+}
+.cover-title h1 .zh { font-weight: 700; }
+.cover-title .sub {
+  font-size: 19px; line-height: 1.65; max-width: 26em;
+  color: rgba(255, 255, 255, .92); margin: 0;
+}
+.cover-tile {
+  justify-self: end;
+  width: min(380px, 100%);
+  padding: 44px 40px 38px;
+  border-radius: var(--r-panel);
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  color: var(--label);
+}
+.cover-tile .app-icon { width: 128px; height: 128px; filter: drop-shadow(0 14px 30px rgba(10, 40, 110, .35)); }
+.cover-tile .lockup { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+.cover-tile .lockup-sub { font-size: 13px; color: var(--label-2); margin-top: -14px; }
+
+/* ===================================================================
+   5. 设计立场
+   =================================================================== */
+.stance-list { display: flex; flex-direction: column; gap: 0; max-width: 880px; }
+.stance-item {
+  display: grid; grid-template-columns: 240px 1fr; gap: 32px;
+  padding: 34px 0;
+}
+.stance-item + .stance-item { border-top: 1px solid var(--separator); }
+.stance-item h3 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -.015em; line-height: 1.4; }
+.stance-item p { margin: 0; color: var(--label-2); font-size: 15px; }
+
+.swap-strip {
+  margin-top: 56px; display: flex; flex-wrap: wrap; gap: 12px;
+}
+.swap {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 9px 16px; border-radius: 999px;
+  background: var(--surface); box-shadow: var(--elev-1);
+  font-size: 13px;
+}
+.swap .old { color: var(--label-3); text-decoration: line-through; text-decoration-color: rgba(60, 60, 67, .3); }
+.swap .ph-arrow-right { color: var(--blue); font-size: 13px; }
+.swap .new { font-weight: 600; }
+
+/* ===================================================================
+   6. 标识系统
+   =================================================================== */
+.identity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.identity-hero {
+  border-radius: var(--r-panel);
+  padding: 56px 40px 44px;
+  display: flex; flex-direction: column; align-items: center; gap: 40px;
+  box-shadow: var(--elev-2);
+  overflow: hidden;
+}
+.identity-hero .app-icon { width: 168px; height: 168px; filter: drop-shadow(0 20px 44px rgba(8, 35, 100, .4)); }
+.dock {
+  display: flex; align-items: flex-end; gap: 14px;
+  padding: 12px 18px; border-radius: 22px;
+}
+.dock .dock-app { width: 52px; height: 52px; border-radius: 13px; background: rgba(255,255,255,.34); }
+.dock .dock-self { width: 52px; height: 52px; }
+.dock .dock-self svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 14px rgba(8, 35, 100, .35)); }
+
+.identity-spec { display: flex; flex-direction: column; gap: 28px; }
+.spec-card {
+  background: var(--surface); border-radius: var(--r-card);
+  box-shadow: var(--elev-1); padding: 28px 30px;
+}
+.spec-card h3 { margin: 0 0 10px; font-size: 16px; font-weight: 700; }
+.spec-card p { margin: 0; color: var(--label-2); font-size: 14px; }
+.spec-card ul { margin: 10px 0 0; padding-left: 18px; color: var(--label-2); font-size: 14px; }
+.spec-card li { margin: 4px 0; }
+.lockup-row { display: flex; align-items: center; gap: 28px; margin-top: 16px; flex-wrap: wrap; }
+.lockup-h { display: flex; align-items: center; gap: 11px; font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+.lockup-h svg { width: 34px; height: 34px; }
+.lockup-text { font-size: 24px; font-weight: 700; letter-spacing: -.02em; color: var(--label); }
+.size-row { display: flex; align-items: flex-end; gap: 26px; margin-top: 18px; }
+.size-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.size-item .cap { font-size: 11px; color: var(--label-3); font-family: var(--font-mono); }
+
+/* ===================================================================
+   7. 色彩系统
+   =================================================================== */
+.swatch-group { margin-bottom: 44px; }
+.swatch-group:last-child { margin-bottom: 0; }
+.swatch-group h3 { font-size: 16px; font-weight: 700; margin: 0 0 16px; }
+.swatch-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+.swatch-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.swatch {
+  border-radius: var(--r-card); overflow: hidden;
+  background: var(--surface); box-shadow: var(--elev-1);
+}
+.swatch .chip { height: 76px; }
+.swatch .meta { padding: 10px 13px 12px; }
+.swatch .meta .name { font-size: 13px; font-weight: 600; display: block; }
+.swatch .meta .val { font-size: 11px; color: var(--label-3); font-family: var(--font-mono); }
+.swatch.on-dark { background: var(--d-surface); }
+.swatch.on-dark .meta .name { color: var(--d-label); }
+.swatch.on-dark .meta .val { color: var(--d-label-2); }
+
+/* ===================================================================
+   8. 字体排印
+   =================================================================== */
+.stack-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 48px; }
+.stack-chips .chip-f {
+  padding: 8px 15px; border-radius: 999px; background: var(--surface);
+  box-shadow: var(--elev-1); font-size: 13px; font-weight: 600;
+}
+.stack-chips .chip-f small { font-weight: 400; color: var(--label-3); margin-left: 6px; }
+.type-group { margin-bottom: 40px; }
+.type-group:last-child { margin-bottom: 0; }
+.type-group > .g-name { font-size: 13px; font-weight: 600; color: var(--label-3); margin-bottom: 14px; }
+.type-row {
+  display: grid; grid-template-columns: 120px 1fr 220px;
+  align-items: baseline; gap: 24px; padding: 13px 0;
+}
+.type-row .t-use { font-size: 13px; color: var(--label-2); }
+.type-row .t-meta { font-size: 12px; color: var(--label-3); font-family: var(--font-mono); text-align: right; }
+.t-large-title { font-size: 26px; font-weight: 700; letter-spacing: -.022em; line-height: 1.3; }
+.t-title-1 { font-size: 22px; font-weight: 600; letter-spacing: -.018em; line-height: 1.3; }
+.t-title-2 { font-size: 17px; font-weight: 600; letter-spacing: -.012em; line-height: 1.4; }
+.t-headline { font-size: 13px; font-weight: 700; line-height: 1.5; }
+.t-body { font-size: 13px; font-weight: 400; line-height: 1.7; }
+.t-callout { font-size: 12px; font-weight: 400; line-height: 1.6; color: var(--label-2); }
+.t-footnote { font-size: 10px; font-weight: 400; line-height: 1.5; color: var(--label-3); }
+.type-note {
+  margin-top: 36px; padding: 18px 22px; border-radius: var(--r-card);
+  background: var(--blue-soft); color: var(--label-2); font-size: 14px;
+}
+.type-note strong { color: var(--label); }
+
+/* ===================================================================
+   9. 材质
+   =================================================================== */
+.material-band {
+  border-radius: var(--r-panel); padding: 56px 48px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+  box-shadow: var(--elev-2);
+}
+.material-panel { border-radius: var(--r-card); padding: 22px 20px 20px; color: var(--label); }
+.material-panel h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+.material-panel .use { font-size: 12px; color: var(--label-2); margin: 0 0 14px; }
+.material-panel .params { font-size: 11px; font-family: var(--font-mono); color: var(--label-2); line-height: 1.9; }
+.material-note { margin-top: 20px; font-size: 13px; color: var(--label-3); }
+
+/* ===================================================================
+   10. 圆角与层级
+   =================================================================== */
+.shape-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 28px; }
+.shape-card {
+  background: var(--surface); border-radius: var(--r-panel);
+  box-shadow: var(--elev-1); padding: 36px;
+}
+.shape-card h3 { margin: 0 0 24px; font-size: 16px; font-weight: 700; }
+.radius-row { display: flex; align-items: flex-end; gap: 22px; flex-wrap: wrap; }
+.radius-item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.radius-box { background: var(--blue-soft); border: 1.5px solid var(--blue); }
+.radius-item .cap { font-size: 11px; font-family: var(--font-mono); color: var(--label-3); text-align: center; line-height: 1.5; }
+.elev-row { display: flex; flex-direction: column; gap: 22px; }
+.elev-demo {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface-2); border-radius: var(--r-card); padding: 18px 22px;
+}
+.elev-demo .tile { width: 64px; height: 44px; border-radius: var(--r-control); background: var(--surface); }
+.elev-demo .info .n { font-size: 14px; font-weight: 600; display: block; }
+.elev-demo .info .v { font-size: 11px; font-family: var(--font-mono); color: var(--label-3); }
+
+/* ===================================================================
+   11. 控件（bento：6 项内容 = 6 格，背景有变化）
+   =================================================================== */
+.controls-bento {
+  display: grid; gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-areas:
+    "btn  seg   tgl"
+    "menu menu  field"
+    "tb   tb    tb";
+}
+.cell {
+  border-radius: var(--r-card); padding: 28px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.cell > h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.cell.on-surface { background: var(--surface); box-shadow: var(--elev-1); }
+.cell.on-gray { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--separator); }
+.cell-btn { grid-area: btn; }
+.cell-seg { grid-area: seg; }
+.cell-tgl { grid-area: tgl; }
+.cell-menu { grid-area: menu; padding: 0; overflow: hidden; position: relative; min-height: 230px; }
+.cell-field { grid-area: field; }
+.cell-tb { grid-area: tb; padding: 0; overflow: hidden; position: relative; min-height: 150px; }
+
+/* 按钮 */
+.btn-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.btn {
+  height: 32px; padding: 0 16px; border-radius: var(--r-control);
+  font-size: 13px; font-weight: 600; border: none;
+  transition: transform var(--t-micro) var(--ease-std),
+              background var(--t-micro) var(--ease-std),
+              box-shadow var(--t-micro) var(--ease-std);
+}
+.btn:active { transform: scale(.97); }
+.btn-primary {
+  color: #fff;
+  background: linear-gradient(180deg, #1979f2 0%, var(--blue) 100%);
+  box-shadow: 0 1px 2px rgba(0, 80, 190, .35), inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+.btn-primary:hover { background: linear-gradient(180deg, #1571e4 0%, var(--blue-press) 100%); }
+.btn-default {
+  color: var(--label); background: var(--surface);
+  box-shadow: var(--elev-1);
+}
+.btn-default:hover { background: var(--surface-2); }
+.btn-plain { color: var(--blue); background: transparent; }
+.btn-plain:hover { background: var(--blue-soft); }
+
+/* 分段控件 */
+.segmented {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: rgba(60, 60, 67, .09); border-radius: var(--r-field);
+}
+.segmented button {
+  height: 28px; padding: 0 18px; border: none; border-radius: 7px;
+  font-size: 13px; font-weight: 500; color: var(--label-2); background: transparent;
+  transition: all var(--t-micro) var(--ease-std);
+}
+.segmented button.active {
+  background: var(--surface); color: var(--label); font-weight: 600;
+  box-shadow: 0 1px 3px rgba(18, 24, 38, .16), 0 0 0 .5px rgba(18, 24, 38, .05);
+}
+
+/* 开关与复选 */
+.tgl-row { display: flex; align-items: center; gap: 14px; }
+.tgl-row .t-label { font-size: 14px; }
+.switch {
+  width: 42px; height: 26px; border-radius: 999px; border: none; padding: 2px;
+  background: rgba(60, 60, 67, .26); display: inline-flex;
+  transition: background var(--t-float) var(--ease-std);
+}
+.switch .knob {
+  width: 22px; height: 22px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: transform var(--t-float) var(--ease-std);
+}
+.switch.on { background: var(--blue); }
+.switch.on .knob { transform: translateX(16px); }
+.checkbox {
+  width: 18px; height: 18px; border-radius: 5px;
+  display: inline-grid; place-items: center;
+  background: linear-gradient(180deg, #1979f2, var(--blue));
+  color: #fff; font-size: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+
+/* 搜索框 */
+.field {
+  display: flex; align-items: center; gap: 9px;
+  height: 36px; padding: 0 13px;
+  background: var(--surface); border-radius: var(--r-field);
+  box-shadow: inset 0 0 0 1px var(--separator);
+  transition: box-shadow var(--t-micro) var(--ease-std);
+}
+.field:focus-within { box-shadow: inset 0 0 0 1px var(--blue), 0 0 0 3px rgba(0, 100, 225, .18); }
+.field i { color: var(--label-3); font-size: 15px; }
+.field input {
+  border: none; outline: none; background: transparent; flex: 1;
+  font: inherit; font-size: 13px; color: var(--label);
+}
+.field input::placeholder { color: var(--label-3); }
+
+/* 菜单标本（落在壁纸上） */
+.menu-stage { position: absolute; inset: 0; display: grid; place-items: center; }
+.menu {
+  width: 248px; border-radius: var(--r-field); padding: 5px;
+}
+.menu .m-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px; border-radius: 6px; font-size: 13px;
+}
+.menu .m-item i { font-size: 15px; color: var(--label-2); width: 18px; }
+.menu .m-item .kbd { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--label-3); }
+.menu .m-item.hovered { background: var(--blue); color: #fff; }
+.menu .m-item.hovered i, .menu .m-item.hovered .kbd { color: rgba(255, 255, 255, .85); }
+.menu .m-sep { height: 1px; background: var(--separator); margin: 5px 10px; }
+.cell-label-float {
+  position: absolute; top: 14px; left: 16px; z-index: 2;
+  font-size: 12px; font-weight: 700; color: var(--label);
+  padding: 5px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, .72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, .5);
+}
+
+/* 工具栏标本（落在壁纸上） */
+.tb-stage { position: absolute; inset: 0; display: grid; place-items: center; padding: 30px 40px 26px; }
+.toolbar {
+  width: 100%; height: 52px; border-radius: var(--r-window);
+  display: flex; align-items: center; gap: 14px; padding: 0 16px;
+}
+.traffic { display: flex; gap: 8px; }
+.traffic span { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.traffic .tl-close { background: #ff5f57; }
+.traffic .tl-min   { background: #febc2e; }
+.traffic .tl-max   { background: #28c840; }
+.toolbar .tb-title { font-size: 13px; font-weight: 600; color: var(--label); }
+.toolbar .tb-sub { font-size: 13px; color: var(--label-3); }
+.toolbar .tb-spacer { flex: 1; }
+.toolbar .tb-icon {
+  width: 30px; height: 30px; border-radius: var(--r-control);
+  display: grid; place-items: center; border: none; background: transparent;
+  color: var(--label-2); font-size: 16px;
+  transition: background var(--t-micro) var(--ease-std);
+}
+.toolbar .tb-icon:hover { background: rgba(60, 60, 67, .09); }
+
+/* ===================================================================
+   12. 应用全貌（窗口标本）
+   =================================================================== */
+.app-band {
+  border-radius: var(--r-panel); padding: 64px 56px;
+  box-shadow: var(--elev-2);
+}
+.window {
+  border-radius: var(--r-window); overflow: hidden;
+  box-shadow: var(--elev-3);
+  display: grid; grid-template-rows: 48px 1fr;
+  height: 620px;
+}
+.win-toolbar {
+  display: flex; align-items: center; gap: 14px; padding: 0 16px;
+  border-bottom: 1px solid var(--separator);
+}
+.win-body { display: grid; grid-template-columns: 216px 1fr 296px; min-height: 0; }
+
+/* 侧栏：玻璃，透出壁纸 */
+.win-sidebar {
+  padding: 14px 10px; display: flex; flex-direction: column; gap: 2px;
+  border-right: 1px solid rgba(60, 60, 67, .10);
+  overflow: hidden;
+}
+.win-sidebar .sb-group {
+  font-size: 11px; font-weight: 600; color: var(--label-3);
+  padding: 12px 10px 5px;
+}
+.win-sidebar .sb-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 10px; border-radius: var(--r-control);
+  font-size: 13px; color: var(--label);
+}
+.win-sidebar .sb-item i { font-size: 15px; color: var(--label-2); }
+.win-sidebar .sb-item.active { background: rgba(0, 100, 225, .14); font-weight: 600; }
+.win-sidebar .sb-item.active i { color: var(--blue); }
+
+/* 中栏：智能体执行流（实底，内容为最实的一层） */
+.win-stream {
+  background: var(--surface);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.stream-scroll { flex: 1; overflow: hidden; padding: 26px 30px 12px; display: flex; flex-direction: column; gap: 18px; }
+.msg-user {
+  align-self: flex-end; max-width: 78%;
+  background: var(--blue); color: #fff;
+  padding: 9px 15px; border-radius: 16px 16px 4px 16px;
+  font-size: 14px; line-height: 1.65;
+}
+.msg-agent { max-width: 88%; display: flex; flex-direction: column; gap: 10px; }
+.chip-tool {
+  display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--separator);
+  font-size: 12px; color: var(--label-2);
+}
+.chip-tool i { color: var(--blue); font-size: 14px; }
+.chip-tool .mono { font-size: 11px; }
+.msg-agent .a-text { font-size: 14px; line-height: 1.75; color: var(--label); }
+.msg-agent .a-text strong { font-weight: 600; }
+.composer { padding: 12px 22px 18px; }
+.composer .field { height: 44px; border-radius: 14px; box-shadow: var(--elev-1); }
+.composer .send {
+  width: 30px; height: 30px; border-radius: 50%; border: none;
+  display: grid; place-items: center; color: #fff; font-size: 14px;
+  background: linear-gradient(180deg, #1979f2, var(--blue));
+  transition: transform var(--t-micro) var(--ease-std);
+}
+.composer .send:active { transform: scale(.92); }
+
+/* 右栏：文档面板 */
+.win-doc {
+  background: var(--surface-2);
+  border-left: 1px solid var(--separator);
+  padding: 20px 18px; overflow: hidden;
+}
+.win-doc .doc-title { font-size: 13px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.win-doc .doc-title i { color: var(--blue); }
+.doc-tree { display: flex; flex-direction: column; gap: 1px; }
+.doc-tree .node {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 9px; border-radius: var(--r-control);
+  font-size: 12.5px; color: var(--label-2);
+}
+.doc-tree .node i { font-size: 12px; color: var(--label-3); }
+.doc-tree .node.lvl-2 { padding-left: 28px; }
+.doc-tree .node.active { background: var(--surface); color: var(--label); font-weight: 600; box-shadow: var(--elev-1); }
+.doc-tree .node.active i { color: var(--blue); }
+.doc-tree .node .badge {
+  margin-left: auto; font-size: 10px; font-weight: 600;
+  color: var(--green-text); background: rgba(52, 199, 89, .15);
+  padding: 1px 7px; border-radius: 999px;
+}
+
+/* 深色外观对照 */
+.dark-duo { display: grid; grid-template-columns: 1.05fr .95fr; gap: 40px; align-items: center; margin-top: 64px; }
+.window.dark { height: 330px; grid-template-rows: 44px 1fr; }
+.window.dark .win-toolbar {
+  background: rgba(34, 34, 40, .72);
+  backdrop-filter: blur(40px) saturate(160%);
+  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  border-bottom: 1px solid var(--d-separator);
+}
+.window.dark .tb-title { color: var(--d-label); }
+.window.dark .tb-sub { color: var(--d-label-2); }
+.window.dark .win-body { grid-template-columns: 200px 1fr; }
+.window.dark .win-sidebar {
+  background: rgba(28, 28, 33, .62);
+  backdrop-filter: blur(60px) saturate(160%);
+  -webkit-backdrop-filter: blur(60px) saturate(160%);
+  border-right: 1px solid var(--d-separator);
+}
+.window.dark .sb-group { color: var(--d-label-2); }
+.window.dark .sb-item { color: var(--d-label); }
+.window.dark .sb-item i { color: var(--d-label-2); }
+.window.dark .sb-item.active { background: rgba(64, 156, 255, .22); }
+.window.dark .sb-item.active i { color: var(--d-blue); }
+.window.dark .win-stream { background: var(--d-canvas); }
+.window.dark .msg-agent .a-text { color: var(--d-label); }
+.window.dark .chip-tool {
+  background: var(--d-surface-2); box-shadow: inset 0 0 0 1px var(--d-separator);
+  color: var(--d-label-2);
+}
+.window.dark .chip-tool i { color: var(--d-blue); }
+.dark-note h3 { font-size: 21px; font-weight: 700; margin: 0 0 12px; letter-spacing: -.015em; }
+.dark-note p { color: var(--label-2); font-size: 15px; margin: 0 0 10px; }
+
+/* ===================================================================
+   13. 动效
+   =================================================================== */
+.motion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.motion-spec { display: flex; flex-direction: column; gap: 16px; }
+.m-row {
+  display: grid; grid-template-columns: 110px 1fr; gap: 18px;
+  background: var(--surface); border-radius: var(--r-card);
+  box-shadow: var(--elev-1); padding: 20px 24px;
+}
+.m-row .k { font-size: 13px; font-weight: 700; }
+.m-row .v { font-size: 13px; color: var(--label-2); }
+.m-row .v .mono { color: var(--label-3); }
+.motion-demo {
+  background: var(--surface-2); border-radius: var(--r-panel);
+  display: grid; place-items: center; gap: 0; padding: 40px;
+}
+.demo-card {
+  width: 250px; background: var(--surface); border-radius: var(--r-card);
+  box-shadow: var(--elev-1); padding: 22px 24px;
+  transition: transform var(--t-float) var(--ease-std), box-shadow var(--t-float) var(--ease-std);
+}
+.demo-card:hover { transform: translateY(-3px); box-shadow: var(--elev-2); }
+.demo-card .d-t { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.demo-card .d-s { font-size: 12px; color: var(--label-3); }
+.demo-card .d-btns { display: flex; gap: 10px; margin-top: 16px; }
+@media (prefers-reduced-motion: reduce) {
+  .demo-card, .btn, .switch, .switch .knob, .segmented button { transition: none; }
+  .demo-card:hover { transform: none; }
+}
+
+/* ===================================================================
+   14. 页脚
+   =================================================================== */
+footer {
+  border-top: 1px solid var(--separator);
+  padding: 44px 0 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  color: var(--label-3); font-size: 13px;
+}
+footer .f-brand { display: flex; align-items: center; gap: 9px; font-weight: 600; color: var(--label); }
+footer .f-brand svg { width: 20px; height: 20px; }
+
+/* ===================================================================
+   15. 响应式（< 900px 全部塌成单列）
+   =================================================================== */
+@media (max-width: 900px) {
+  .page { padding: 0 22px; }
+  section { padding: 64px 0; }
+  .cover-body { grid-template-columns: 1fr; padding: 28px 22px; gap: 36px; }
+  .cover-tile { justify-self: start; }
+  .cover-nav a.nav-item { display: none; }
+  .stance-item { grid-template-columns: 1fr; gap: 8px; }
+  .identity-grid, .shape-grid, .motion-grid, .dark-duo { grid-template-columns: 1fr; }
+  .swatch-grid, .swatch-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .material-band { grid-template-columns: 1fr; padding: 28px 22px; }
+  .controls-bento { grid-template-columns: 1fr; grid-template-areas: "btn" "seg" "tgl" "field" "menu" "tb"; }
+  .type-row { grid-template-columns: 1fr; gap: 4px; }
+  .type-row .t-meta { text-align: left; }
+  .window { height: auto; }
+  .win-body { grid-template-columns: 1fr; }
+  .win-sidebar, .win-doc { display: none; }
+  .app-band { padding: 28px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 封面 ============ -->
+<header class="cover wallpaper">
+  <div class="cover-nav-wrap">
+    <nav class="cover-nav glass-toolbar">
+      <span class="nav-brand">
+        <svg viewBox="0 0 120 120" aria-hidden="true"><use href="#frost-icon"/></svg>
+        Prose
+      </span>
+      <a class="nav-item" href="#identity">标识</a>
+      <a class="nav-item" href="#color">色彩</a>
+      <a class="nav-item" href="#type">字型</a>
+      <a class="nav-item" href="#material">材质</a>
+      <a class="nav-item" href="#controls">控件</a>
+      <a class="nav-item" href="#app">应用</a>
+    </nav>
+  </div>
+  <div class="cover-body">
+    <div class="cover-title">
+      <span class="kicker">Prose Design Language</span>
+      <h1>Frost <span class="zh">霜</span></h1>
+      <p class="sub">Prose 的 macOS 风格设计语言：以半透明材质与景深组织信息，让标书编制像原生应用一样安静、专注。</p>
+    </div>
+    <div class="cover-tile glass-popover">
+      <svg class="app-icon" viewBox="0 0 120 120" aria-label="Prose 应用图标">
+        <use href="#frost-icon"/>
+      </svg>
+      <div class="lockup">Prose</div>
+      <div class="lockup-sub">AI 原生标书编制平台</div>
+    </div>
+  </div>
+</header>
+
+<!-- 共享图标资产：三页层叠玻璃纸（单一几何标志） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="frost-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5fb0ff"/>
+      <stop offset=".55" stop-color="#1670ec"/>
+      <stop offset="1" stop-color="#0a3fa8"/>
+    </linearGradient>
+    <g id="frost-icon">
+      <rect width="120" height="120" rx="27" fill="url(#frost-bg)"/>
+      <rect x="30" y="46" width="60" height="44" rx="8" fill="#ffffff" opacity=".28"/>
+      <rect x="26" y="36" width="68" height="48" rx="8" fill="#ffffff" opacity=".5"/>
+      <rect x="22" y="25" width="76" height="52" rx="9" fill="#ffffff"/>
+      <rect x="34" y="38" width="40" height="5" rx="2.5" fill="#1670ec"/>
+      <rect x="34" y="50" width="52" height="4" rx="2" fill="#9cc4f5"/>
+      <rect x="34" y="60" width="46" height="4" rx="2" fill="#9cc4f5"/>
+    </g>
+  </defs>
+</svg>
+
+<main class="page">
+
+  <!-- ============ 设计立场 ============ -->
+  <section id="stance">
+    <div class="sec-head reveal">
+      <h2>设计立场</h2>
+      <p>现行的 Archive 纸面风格用暖纸色与 1px 细线组织界面。Frost 走向另一极：冷色中性、半透明材质，以模糊与投影表达层级。两套语言共享同一信息架构，视觉立场完全相反。</p>
+    </div>
+    <div class="stance-list">
+      <div class="stance-item reveal">
+        <h3>材质即层级</h3>
+        <p>界面不靠描边分区，而靠玻璃的厚度与投影的深度区分前后。越接近用户的内容，材质越实、投影越深。</p>
+      </div>
+      <div class="stance-item reveal">
+        <h3>内容优先</h3>
+        <p>侧栏、工具栏等 chrome 退后为半透明，透出壁纸与底层内容；文档与对话永远是最亮、最实的一层。</p>
+      </div>
+      <div class="stance-item reveal">
+        <h3>一种强调色</h3>
+        <p>系统蓝只授予「可交互」与「正在进行」两种含义。装饰不得占用色彩，语义色按图形与文本两套数值成对发放。</p>
+      </div>
+      <div class="stance-item reveal">
+        <h3>动效可关闭</h3>
+        <p>所有动画只作用于 transform 与 opacity，进场位移不超过 8px，并完整响应系统的「减弱动态效果」设置。</p>
+      </div>
+    </div>
+    <div class="swap-strip reveal">
+      <span class="swap"><span class="old">暖纸底</span><i class="ph ph-arrow-right"></i><span class="new">冷灰中性 + 壁纸景深</span></span>
+      <span class="swap"><span class="old">黏土橘</span><i class="ph ph-arrow-right"></i><span class="new">系统蓝</span></span>
+      <span class="swap"><span class="old">1px 细线</span><i class="ph ph-arrow-right"></i><span class="new">模糊与投影</span></span>
+      <span class="swap"><span class="old">Geist</span><i class="ph ph-arrow-right"></i><span class="new">系统字体栈</span></span>
+      <span class="swap"><span class="old">6-14px 圆角</span><i class="ph ph-arrow-right"></i><span class="new">7-18px 连续圆角</span></span>
+    </div>
+  </section>
+
+  <!-- ============ 标识系统 ============ -->
+  <section id="identity">
+    <div class="sec-head reveal">
+      <h2>标识系统</h2>
+      <p>三页层叠的玻璃纸，由深至浅向上聚合：素材层层沉淀，最终成为一份清晰的标书。图标遵循 macOS 超椭圆规格，深浅外观共用同一资产。</p>
+    </div>
+    <div class="identity-grid">
+      <div class="identity-hero wallpaper reveal">
+        <svg class="app-icon" viewBox="0 0 120 120" aria-label="Prose 应用图标大样">
+          <use href="#frost-icon"/>
+        </svg>
+        <div class="dock glass-toolbar">
+          <span class="dock-app"></span>
+          <span class="dock-app"></span>
+          <span class="dock-self"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#frost-icon"/></svg></span>
+          <span class="dock-app"></span>
+          <span class="dock-app"></span>
+        </div>
+      </div>
+      <div class="identity-spec">
+        <div class="spec-card reveal">
+          <h3>字标与组合</h3>
+          <p>字标使用系统字体 Semibold，字距 -2%。横排组合用于工具栏与文档页眉；图标单独出现时即代表产品本身。</p>
+          <div class="lockup-row">
+            <span class="lockup-h"><svg viewBox="0 0 120 120" aria-hidden="true"><use href="#frost-icon"/></svg>Prose</span>
+            <span class="lockup-text">Prose</span>
+          </div>
+        </div>
+        <div class="spec-card reveal">
+          <h3>尺寸阶</h3>
+          <p>16px 及以下省略最底层纸页与正文线条，仅保留双层轮廓。</p>
+          <div class="size-row">
+            <span class="size-item"><svg width="64" height="64" viewBox="0 0 120 120"><use href="#frost-icon"/></svg><span class="cap">64</span></span>
+            <span class="size-item"><svg width="40" height="40" viewBox="0 0 120 120"><use href="#frost-icon"/></svg><span class="cap">40</span></span>
+            <span class="size-item"><svg width="24" height="24" viewBox="0 0 120 120"><use href="#frost-icon"/></svg><span class="cap">24</span></span>
+            <span class="size-item"><svg width="16" height="16" viewBox="0 0 120 120"><use href="#frost-icon"/></svg><span class="cap">16</span></span>
+          </div>
+        </div>
+        <div class="spec-card reveal">
+          <h3>使用规则</h3>
+          <ul>
+            <li>圆角固定为边长的 22.4%，不得改为正圆或直角。</li>
+            <li>不得添加外发光、描边或投影以外的装饰。</li>
+            <li>渐变方向固定为左上至右下，不得旋转或镜像。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 色彩系统 ============ -->
+  <section id="color">
+    <div class="sec-head reveal">
+      <h2>色彩系统</h2>
+      <p>冷灰中性为底，系统蓝为唯一强调。语义色提供图形与文本两套数值：图形用饱和值绘制状态点与填充，文本用加深值保证对比度达标。</p>
+    </div>
+    <div class="swatch-group reveal">
+      <h3>中性阶（浅色外观）</h3>
+      <div class="swatch-grid">
+        <div class="swatch"><div class="chip" style="background:#eef0f3"></div><div class="meta"><span class="name">画布</span><span class="val">#EEF0F3</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#ffffff;box-shadow:inset 0 0 0 1px var(--separator)"></div><div class="meta"><span class="name">表面</span><span class="val">#FFFFFF</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#f5f6f8"></div><div class="meta"><span class="name">表面二</span><span class="val">#F5F6F8</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#6b6b76"></div><div class="meta"><span class="name">三级文本</span><span class="val">#6B6B76</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#55555e"></div><div class="meta"><span class="name">次级文本</span><span class="val">#55555E</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#1d1d1f"></div><div class="meta"><span class="name">主文本</span><span class="val">#1D1D1F</span></div></div>
+      </div>
+    </div>
+    <div class="swatch-group reveal">
+      <h3>中性阶（深色外观）</h3>
+      <div class="swatch-grid">
+        <div class="swatch on-dark"><div class="chip" style="background:#161618"></div><div class="meta"><span class="name">画布</span><span class="val">#161618</span></div></div>
+        <div class="swatch on-dark"><div class="chip" style="background:#1e1e22"></div><div class="meta"><span class="name">表面</span><span class="val">#1E1E22</span></div></div>
+        <div class="swatch on-dark"><div class="chip" style="background:#2a2a30"></div><div class="meta"><span class="name">表面二</span><span class="val">#2A2A30</span></div></div>
+        <div class="swatch on-dark"><div class="chip" style="background:#6e6e78"></div><div class="meta"><span class="name">三级文本</span><span class="val">#6E6E78</span></div></div>
+        <div class="swatch on-dark"><div class="chip" style="background:#a8a8b3"></div><div class="meta"><span class="name">次级文本</span><span class="val">#A8A8B3</span></div></div>
+        <div class="swatch on-dark"><div class="chip" style="background:#f5f5f7"></div><div class="meta"><span class="name">主文本</span><span class="val">#F5F5F7</span></div></div>
+      </div>
+    </div>
+    <div class="swatch-group reveal">
+      <h3>强调色</h3>
+      <div class="swatch-grid cols-4">
+        <div class="swatch"><div class="chip" style="background:#0064e1"></div><div class="meta"><span class="name">系统蓝（浅）</span><span class="val">#0064E1</span></div></div>
+        <div class="swatch on-dark"><div class="chip" style="background:#409cff"></div><div class="meta"><span class="name">系统蓝（深）</span><span class="val">#409CFF</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#0052bc"></div><div class="meta"><span class="name">按压态</span><span class="val">#0052BC</span></div></div>
+        <div class="swatch"><div class="chip" style="background:rgba(0,100,225,.1)"></div><div class="meta"><span class="name">浅蓝衬底</span><span class="val">10% 蓝</span></div></div>
+      </div>
+    </div>
+    <div class="swatch-group reveal">
+      <h3>语义色（图形用 / 文本用）</h3>
+      <div class="swatch-grid">
+        <div class="swatch"><div class="chip" style="background:#34c759"></div><div class="meta"><span class="name">成功 图形</span><span class="val">#34C759</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#1d8f45"></div><div class="meta"><span class="name">成功 文本</span><span class="val">#1D8F45</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#ff9500"></div><div class="meta"><span class="name">警示 图形</span><span class="val">#FF9500</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#b25e00"></div><div class="meta"><span class="name">警示 文本</span><span class="val">#B25E00</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#ff3b30"></div><div class="meta"><span class="name">危险 图形</span><span class="val">#FF3B30</span></div></div>
+        <div class="swatch"><div class="chip" style="background:#d70015"></div><div class="meta"><span class="name">危险 文本</span><span class="val">#D70015</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 字体排印 ============ -->
+  <section id="type">
+    <div class="sec-head reveal">
+      <h2>字体排印</h2>
+      <p>不引入任何 Web 字体。系统字体栈在 macOS 上即 SF Pro 与苹方，在其他平台落到各自的系统无衬线，零加载成本，永远与宿主系统一致。</p>
+    </div>
+    <div class="stack-chips reveal">
+      <span class="chip-f">SF Pro Display<small>标题</small></span>
+      <span class="chip-f">SF Pro Text<small>正文</small></span>
+      <span class="chip-f">PingFang SC<small>中文</small></span>
+      <span class="chip-f">SF Mono<small>代码与数值</small></span>
+    </div>
+    <div class="type-group reveal">
+      <div class="g-name">标题组</div>
+      <div class="type-row">
+        <span class="t-use">大标题</span>
+        <span class="t-large-title">为每一份标书，配一个安静的工作台</span>
+        <span class="t-meta">26px / 700 / -2.2%</span>
+      </div>
+      <div class="type-row">
+        <span class="t-use">标题一</span>
+        <span class="t-title-1">为每一份标书，配一个安静的工作台</span>
+        <span class="t-meta">22px / 600 / -1.8%</span>
+      </div>
+      <div class="type-row">
+        <span class="t-use">标题二</span>
+        <span class="t-title-2">为每一份标书，配一个安静的工作台</span>
+        <span class="t-meta">17px / 600 / -1.2%</span>
+      </div>
+    </div>
+    <div class="type-group reveal">
+      <div class="g-name">正文组</div>
+      <div class="type-row">
+        <span class="t-use">头条</span>
+        <span class="t-headline">智能体已完成技术需求解析，等待确认。</span>
+        <span class="t-meta">13px / 700</span>
+      </div>
+      <div class="type-row">
+        <span class="t-use">正文</span>
+        <span class="t-body">投标人应当按照招标文件的要求编制投标文件，并对招标文件提出的实质性要求和条件作出响应。</span>
+        <span class="t-meta">13px / 400 / 行高 1.7</span>
+      </div>
+    </div>
+    <div class="type-group reveal">
+      <div class="g-name">辅助组</div>
+      <div class="type-row">
+        <span class="t-use">标注</span>
+        <span class="t-callout">来源：仿真软件开发服务采购项目招标文件，第三章。</span>
+        <span class="t-meta">12px / 400</span>
+      </div>
+      <div class="type-row">
+        <span class="t-use">脚注</span>
+        <span class="t-footnote">最后保存于今天 14:02</span>
+        <span class="t-meta">10px / 400</span>
+      </div>
+    </div>
+    <div class="type-note reveal">
+      <strong>Web 端适配：</strong>以上为 macOS 原生字阶。在浏览器中渲染中文正文时，正文与头条整体上调 1 至 2px（13px 至 14-15px），行高保持 1.7，以补偿苹方在小字号下的笔画密度。
+    </div>
+  </section>
+
+  <!-- ============ 材质 ============ -->
+  <section id="material">
+    <div class="sec-head reveal">
+      <h2>材质</h2>
+      <p>四级玻璃，由后向前逐级变实。模糊半径表达「离用户多远」，白色不透明度表达「承载多重的内容」。</p>
+    </div>
+    <div class="material-band wallpaper reveal">
+      <div class="material-panel glass-sidebar">
+        <h3>侧栏</h3>
+        <p class="use">导航与项目列表</p>
+        <div class="params">blur 60px<br>saturate 180%<br>white 55%</div>
+      </div>
+      <div class="material-panel glass-toolbar">
+        <h3>工具栏</h3>
+        <p class="use">窗口顶部与悬浮导航</p>
+        <div class="params">blur 40px<br>saturate 180%<br>white 68%</div>
+      </div>
+      <div class="material-panel glass-popover">
+        <h3>浮层</h3>
+        <p class="use">菜单与弹出框</p>
+        <div class="params">blur 40px<br>saturate 190%<br>white 75%</div>
+      </div>
+      <div class="material-panel glass-sheet">
+        <h3>模态</h3>
+        <p class="use">表单与确认对话</p>
+        <div class="params">blur 24px<br>saturate 160%<br>white 85%</div>
+      </div>
+    </div>
+    <p class="material-note reveal">实现说明：以上材质是 macOS Vibrancy 的 Web 近似（backdrop-filter 模糊加分层描边与顶部高光），并非 Apple 官方实现；系统开启「降低透明度」时全部回退为实底表面。</p>
+  </section>
+
+  <!-- ============ 圆角与层级 ============ -->
+  <section id="shape">
+    <div class="sec-head reveal">
+      <h2>圆角与层级</h2>
+      <p>一套圆角阶、三级投影。规则固定：控件最小，面板最大，窗口介于其间；投影代替描边承担全部层级表达。</p>
+    </div>
+    <div class="shape-grid">
+      <div class="shape-card reveal">
+        <h3>圆角阶</h3>
+        <div class="radius-row">
+          <span class="radius-item"><span class="radius-box" style="width:56px;height:56px;border-radius:7px"></span><span class="cap">控件<br>7px</span></span>
+          <span class="radius-item"><span class="radius-box" style="width:64px;height:64px;border-radius:9px"></span><span class="cap">输入框<br>9px</span></span>
+          <span class="radius-item"><span class="radius-box" style="width:72px;height:72px;border-radius:12px"></span><span class="cap">窗口<br>12px</span></span>
+          <span class="radius-item"><span class="radius-box" style="width:80px;height:80px;border-radius:14px"></span><span class="cap">卡片<br>14px</span></span>
+          <span class="radius-item"><span class="radius-box" style="width:88px;height:88px;border-radius:18px"></span><span class="cap">面板<br>18px</span></span>
+          <span class="radius-item"><span class="radius-box" style="width:88px;height:88px;border-radius:22.4%"></span><span class="cap">图标<br>22.4%</span></span>
+        </div>
+      </div>
+      <div class="shape-card reveal">
+        <h3>投影阶</h3>
+        <div class="elev-row">
+          <div class="elev-demo">
+            <div class="info"><span class="n">一级：控件</span><span class="v">y1 b2 / 10%</span></div>
+            <span class="tile" style="box-shadow:var(--elev-1)"></span>
+          </div>
+          <div class="elev-demo">
+            <div class="info"><span class="n">二级：卡片与浮层</span><span class="v">y10 b30 / 12%</span></div>
+            <span class="tile" style="box-shadow:var(--elev-2)"></span>
+          </div>
+          <div class="elev-demo">
+            <div class="info"><span class="n">三级：窗口</span><span class="v">y28 b80 / 26%</span></div>
+            <span class="tile" style="box-shadow:var(--elev-3)"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 控件 ============ -->
+  <section id="controls">
+    <div class="sec-head reveal">
+      <h2>控件</h2>
+      <p>按 macOS 控件语义重绘的核心组件。实心按钮自带顶部高光，分段控件用白片滑块，菜单选中行整行染蓝。</p>
+    </div>
+    <div class="controls-bento">
+      <div class="cell cell-btn on-surface reveal">
+        <h3>按钮</h3>
+        <div class="btn-row">
+          <button class="btn btn-primary">生成投标文件</button>
+          <button class="btn btn-default">取消</button>
+          <button class="btn btn-plain">查看来源</button>
+        </div>
+      </div>
+      <div class="cell cell-seg on-gray reveal">
+        <h3>分段控件</h3>
+        <div class="segmented" role="tablist">
+          <button class="active" role="tab">编制</button>
+          <button role="tab">预览</button>
+          <button role="tab">对照</button>
+        </div>
+      </div>
+      <div class="cell cell-tgl on-surface reveal">
+        <h3>开关与复选</h3>
+        <div class="tgl-row">
+          <button class="switch on" role="switch" aria-checked="true" aria-label="自动保存"><span class="knob"></span></button>
+          <span class="t-label">自动保存</span>
+        </div>
+        <div class="tgl-row">
+          <span class="checkbox"><i class="ph ph-check"></i></span>
+          <span class="t-label">引用原文页码</span>
+        </div>
+      </div>
+      <div class="cell cell-menu wallpaper reveal">
+        <span class="cell-label-float">菜单</span>
+        <div class="menu-stage">
+          <div class="menu glass-popover">
+            <div class="m-item"><i class="ph ph-file-text"></i>新建标书<span class="kbd">N</span></div>
+            <div class="m-item hovered"><i class="ph ph-sparkle"></i>解析招标文件<span class="kbd">E</span></div>
+            <div class="m-item"><i class="ph ph-stack"></i>插入知识库条目<span class="kbd">K</span></div>
+            <div class="m-sep"></div>
+            <div class="m-item"><i class="ph ph-clock-counter-clockwise"></i>版本历史</div>
+          </div>
+        </div>
+      </div>
+      <div class="cell cell-field on-gray reveal">
+        <h3>搜索框</h3>
+        <label class="field">
+          <i class="ph ph-magnifying-glass"></i>
+          <input type="search" placeholder="搜索条款、资质或案例">
+        </label>
+      </div>
+      <div class="cell cell-tb wallpaper reveal">
+        <span class="cell-label-float">工具栏与窗口控制</span>
+        <div class="tb-stage">
+          <div class="toolbar glass-toolbar">
+            <span class="traffic"><span class="tl-close"></span><span class="tl-min"></span><span class="tl-max"></span></span>
+            <span class="tb-title">仿真软件开发服务采购项目</span>
+            <span class="tb-sub">投标文件</span>
+            <span class="tb-spacer"></span>
+            <button class="tb-icon" aria-label="切换侧栏"><i class="ph ph-sidebar-simple"></i></button>
+            <button class="tb-icon" aria-label="搜索"><i class="ph ph-magnifying-glass"></i></button>
+            <div class="segmented">
+              <button class="active">编制</button>
+              <button>预览</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 应用全貌 ============ -->
+  <section id="app">
+    <div class="sec-head reveal">
+      <h2>应用全貌</h2>
+      <p>Frost 语言下的 Prose 工作台：玻璃侧栏透出壁纸，智能体执行流落在最实的表面上，文档面板以浅灰承托大纲。</p>
+    </div>
+    <div class="app-band wallpaper reveal">
+      <div class="window">
+        <div class="win-toolbar glass-toolbar">
+          <span class="traffic"><span class="tl-close"></span><span class="tl-min"></span><span class="tl-max"></span></span>
+          <span class="tb-title">仿真软件开发服务采购项目</span>
+          <span class="tb-sub">投标文件</span>
+          <span class="tb-spacer"></span>
+          <button class="tb-icon" aria-label="切换侧栏"><i class="ph ph-sidebar-simple"></i></button>
+          <div class="segmented">
+            <button class="active">编制</button>
+            <button>预览</button>
+          </div>
+        </div>
+        <div class="win-body">
+          <aside class="win-sidebar glass-sidebar">
+            <div class="sb-group">项目</div>
+            <span class="sb-item active"><i class="ph ph-folder-simple"></i>仿真软件开发服务采购</span>
+            <span class="sb-item"><i class="ph ph-folder-simple"></i>智慧园区运维服务</span>
+            <span class="sb-item"><i class="ph ph-folder-simple"></i>实验室设备购置</span>
+            <div class="sb-group">知识库</div>
+            <span class="sb-item"><i class="ph ph-identification-card"></i>资质证照</span>
+            <span class="sb-item"><i class="ph ph-buildings"></i>业绩案例</span>
+            <span class="sb-item"><i class="ph ph-files"></i>人员简历</span>
+          </aside>
+          <div class="win-stream">
+            <div class="stream-scroll">
+              <div class="msg-user">解析这份招标文件的技术需求，生成技术需求清单。</div>
+              <div class="msg-agent">
+                <span class="chip-tool"><i class="ph ph-file-text"></i>已读取<span class="mono">招标文件.md</span></span>
+                <span class="chip-tool"><i class="ph ph-sparkle"></i>技术需求解析完成</span>
+                <p class="a-text">已从第三章提取全部技术需求条目，按<strong>功能、性能、接口、安全</strong>四类归档，并标出了需要逐条响应的实质性条款。偏差项已同步到右侧大纲的「技术偏差表」，可以逐项确认。</p>
+              </div>
+            </div>
+            <div class="composer">
+              <label class="field">
+                <i class="ph ph-plus-circle"></i>
+                <input type="text" placeholder="向智能体描述下一步…">
+                <button class="send" aria-label="发送"><i class="ph ph-paper-plane-tilt"></i></button>
+              </label>
+            </div>
+          </div>
+          <aside class="win-doc">
+            <div class="doc-title"><i class="ph ph-tree-structure"></i>投标文件大纲</div>
+            <div class="doc-tree">
+              <span class="node"><i class="ph ph-caret-right"></i>投标函及附录</span>
+              <span class="node"><i class="ph ph-caret-right"></i>法定代表人授权书</span>
+              <span class="node"><i class="ph ph-caret-right"></i>商务响应</span>
+              <span class="node active"><i class="ph ph-caret-right"></i>技术方案</span>
+              <span class="node lvl-2">技术需求响应<span class="badge">已生成</span></span>
+              <span class="node lvl-2">技术偏差表</span>
+              <span class="node lvl-2">实施与验收方案</span>
+              <span class="node"><i class="ph ph-caret-right"></i>资质证明材料</span>
+              <span class="node"><i class="ph ph-caret-right"></i>报价表</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <div class="dark-duo">
+      <div class="window dark wallpaper reveal">
+        <div class="win-toolbar">
+          <span class="traffic"><span class="tl-close"></span><span class="tl-min"></span><span class="tl-max"></span></span>
+          <span class="tb-title">仿真软件开发服务采购项目</span>
+          <span class="tb-sub">投标文件</span>
+        </div>
+        <div class="win-body">
+          <aside class="win-sidebar">
+            <div class="sb-group">项目</div>
+            <span class="sb-item active"><i class="ph ph-folder-simple"></i>仿真软件开发服务采购</span>
+            <span class="sb-item"><i class="ph ph-folder-simple"></i>智慧园区运维服务</span>
+            <div class="sb-group">知识库</div>
+            <span class="sb-item"><i class="ph ph-identification-card"></i>资质证照</span>
+          </aside>
+          <div class="win-stream">
+            <div class="stream-scroll">
+              <div class="msg-user">继续生成技术偏差表。</div>
+              <div class="msg-agent">
+                <span class="chip-tool"><i class="ph ph-sparkle"></i>正在比对需求条目</span>
+                <p class="a-text">正在将技术需求清单与现有产品能力逐条比对，完全响应、部分响应与偏差项将分列呈现。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dark-note reveal">
+        <h3>深色外观</h3>
+        <p>深色不是反色：画布落在近黑的冷灰（#161618），玻璃改用深灰半透明，强调蓝提亮为 #409CFF 以保持对比度。</p>
+        <p>两种外观共用同一套组件与圆角、投影规则，仅替换色彩 token，跟随系统外观自动切换。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 动效 ============ -->
+  <section id="motion">
+    <div class="sec-head reveal">
+      <h2>动效</h2>
+      <p>动效只回答三个问题：发生了什么、来自哪里、去往何处。时长短、位移小、随时可以整体关闭。</p>
+    </div>
+    <div class="motion-grid">
+      <div class="motion-spec">
+        <div class="m-row reveal">
+          <span class="k">时长阶</span>
+          <span class="v">微交互 <span class="mono">120ms</span>，浮层 <span class="mono">200ms</span>，窗口与面板 <span class="mono">320ms</span>。</span>
+        </div>
+        <div class="m-row reveal">
+          <span class="k">缓动</span>
+          <span class="v">标准 <span class="mono">cubic-bezier(.32, .72, 0, 1)</span>，离场 <span class="mono">cubic-bezier(.4, 0, 1, 1)</span>。</span>
+        </div>
+        <div class="m-row reveal">
+          <span class="k">约束</span>
+          <span class="v">只动 transform 与 opacity；进场位移不超过 8px；无任何无限循环动画。</span>
+        </div>
+        <div class="m-row reveal">
+          <span class="k">可关闭</span>
+          <span class="v">系统开启「减弱动态效果」时，全部动画退化为瞬时切换。</span>
+        </div>
+      </div>
+      <div class="motion-demo reveal">
+        <div class="demo-card">
+          <div class="d-t">悬停上浮，按压回弹</div>
+          <div class="d-s">把鼠标放上来，再按一下按钮</div>
+          <div class="d-btns">
+            <button class="btn btn-primary">确认</button>
+            <button class="btn btn-default">稍后</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="page" style="display:flex;align-items:center;justify-content:space-between;width:100%">
+    <span class="f-brand">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><use href="#frost-icon"/></svg>
+      Prose
+    </span>
+    <span>Frost 霜，与 Archive 纸面并行的第二套品牌语言</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var items = document.querySelectorAll('.reveal');
+  if (reduce || !('IntersectionObserver' in window)) {
+    items.forEach(function (el) { el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: .15 });
+    items.forEach(function (el) { io.observe(el); });
+  }
+
+  document.querySelectorAll('.segmented').forEach(function (seg) {
+    seg.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      seg.querySelectorAll('button').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.switch').forEach(function (sw) {
+    sw.addEventListener('click', function () {
+      sw.classList.toggle('on');
+      sw.setAttribute('aria-checked', sw.classList.contains('on') ? 'true' : 'false');
+    });
+  });
+})();
+</script>
+</body>
+</html>

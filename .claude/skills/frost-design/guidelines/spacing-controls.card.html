@@ -1,0 +1,24 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Control metrics" subtitle="Exact macOS heights — do not snap to a grid" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; background: var(--canvas); padding: 18px; }
+  .row { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .box { background: var(--surface); box-shadow: var(--elev-1); border-radius: var(--r-control); width: 84px; display: grid; place-items: center; font-size: 11px; color: var(--label-2); }
+  .cap { font-family: var(--font-mono); font-size: 10px; color: var(--label-3); }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="item"><span class="box" style="height:28px">seg</span><span class="cap">28 · control-sm</span></div>
+  <div class="item"><span class="box" style="height:32px">button</span><span class="cap">32 · control</span></div>
+  <div class="item"><span class="box" style="height:36px">field</span><span class="cap">36 · field</span></div>
+  <div class="item"><span class="box" style="height:44px">composer</span><span class="cap">44 · field-lg</span></div>
+  <div class="item"><span class="box" style="height:52px">toolbar</span><span class="cap">52 · toolbar</span></div>
+</div>
+</body>
+</html>

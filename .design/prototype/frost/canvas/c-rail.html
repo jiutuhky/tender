@@ -1,0 +1,257 @@
+<!doctype html>
+<!--
+  范式 C · 轨道 + 画布双栏（Rail + canvas）
+  =======================================
+  保留左侧智能体对话流（思考块 / 工具调用 / 正文 / Composer），
+  右侧单文档面板升级为可缩放画布，5 维提取结果作为卡片落在画布上。
+  对话推进时，画布同步落新卡。改动最小、最稳，是对现状的增强。
+  交互：左栏发消息→模拟思考+工具+落卡；右画布拖拽平移、滚轮缩放、点卡高亮。
+  低保真：内容为真实标书域素材，视觉细节从简。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>范式 C · 轨道 + 画布</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+:root{
+  --canvas:#eef0f3; --surface:#fff; --surface-2:#f5f6f8;
+  --label:#1d1d1f; --label-2:#55555e; --label-3:#6b6b76;
+  --separator:rgba(60,60,67,.12);
+  --blue:#0064e1; --blue-soft:rgba(0,100,225,.10);
+  --green:#34c759; --green-text:#1d8f45; --orange-text:#b25e00; --red-text:#d70015;
+  --font-ui:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",system-ui,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,Menlo,"JetBrains Mono",monospace;
+  --r-ctl:7px; --r-field:9px; --r-card:14px; --r-panel:18px;
+  --elev-1:0 1px 2px rgba(18,24,38,.10),0 0 0 .5px rgba(18,24,38,.07);
+  --elev-2:0 10px 30px rgba(18,24,38,.12),0 2px 8px rgba(18,24,38,.06),0 0 0 .5px rgba(18,24,38,.05);
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font-ui);background:var(--canvas);color:var(--label);font-size:14px;
+  letter-spacing:-.008em;-webkit-font-smoothing:antialiased;overflow:hidden}
+.app{height:100vh;display:flex;flex-direction:column}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+.mono{font-family:var(--font-mono);font-size:.85em;letter-spacing:0}
+
+.topbar{height:52px;flex:0 0 52px;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:30;
+  background:rgba(255,255,255,.68);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
+  border-bottom:1px solid var(--separator);box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.tb-back{display:flex;align-items:center;gap:6px;color:var(--label-2);font-size:13px;padding:6px 10px;border-radius:var(--r-ctl)}
+.tb-back:hover{background:rgba(60,60,67,.08)}
+.tb-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.tb-brand .mk{width:24px;height:24px;border-radius:6px;background:linear-gradient(150deg,#5fb0ff,#0a3fa8);display:grid;place-items:center;color:#fff;font-size:13px}
+.tb-crumb{color:var(--label-3);font-size:13px}.tb-crumb b{color:var(--label);font-weight:600}
+.tb-spacer{flex:1}
+.tb-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;background:var(--surface);box-shadow:var(--elev-1);font-size:12.5px;color:var(--label-2)}
+
+.split{flex:1;display:flex;min-height:0}
+
+/* 左：智能体对话流 */
+.chat{width:392px;flex:0 0 392px;background:var(--surface);border-right:1px solid var(--separator);display:flex;flex-direction:column;min-height:0}
+.run-brief{display:flex;align-items:center;gap:9px;padding:14px 22px;border-bottom:1px solid var(--separator);font-size:13px}
+.run-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.run-dot.running{background:var(--blue);animation:pulse 1.4s var(--ease) infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,100,225,.45)}70%{box-shadow:0 0 0 6px rgba(0,100,225,0)}100%{box-shadow:0 0 0 0 rgba(0,100,225,0)}}
+.run-brief .nm{font-weight:600}.run-brief .st{color:var(--label-3);margin-left:auto}
+.stream{flex:1;overflow:auto;padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.turn{display:flex;flex-direction:column;gap:8px}
+.u-meta,.a-meta{font-size:11px;color:var(--label-3);font-weight:600}
+.u-bubble{align-self:flex-start;background:var(--blue);color:#fff;padding:9px 14px;border-radius:14px 14px 14px 4px;font-size:13.5px;line-height:1.6;max-width:92%}
+.a-text{font-size:13.5px;line-height:1.75;color:var(--label)}
+.a-text b{font-weight:600}
+.think{border-radius:var(--r-card);background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--separator);overflow:hidden}
+.think summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 13px;font-size:12.5px;color:var(--label-2)}
+.think summary::-webkit-details-marker{display:none}
+.think summary i.cv{margin-left:auto;transition:transform .2s var(--ease)}
+.think[open] summary i.cv{transform:rotate(90deg)}
+.think .tbody{padding:0 13px 12px 13px;font-size:12px;color:var(--label-3);line-height:1.7}
+.tool{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:6px 12px;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--separator);font-size:12px;color:var(--label-2)}
+.tool i{color:var(--blue);font-size:14px}
+.typing{display:inline-block;width:7px;height:14px;background:var(--blue);border-radius:2px;animation:blink 1s steps(2) infinite;vertical-align:-2px}
+@keyframes blink{50%{opacity:0}}
+.composer{padding:12px 18px 16px;border-top:1px solid var(--separator)}
+.cinput{display:flex;align-items:center;gap:9px;height:44px;padding:0 8px 0 14px;border-radius:14px;background:var(--surface);box-shadow:var(--elev-1)}
+.cinput input{flex:1;border:none;outline:none;background:transparent;font:inherit;font-size:14px}
+.cinput input::placeholder{color:var(--label-3)}
+.cinput .send{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:14px;background:linear-gradient(180deg,#1979f2,var(--blue));transition:transform .12s var(--ease)}
+.cinput .send:active{transform:scale(.92)}
+@media(prefers-reduced-motion:reduce){.run-dot.running,.typing{animation:none}}
+
+/* 右：画布 */
+.stage{position:relative;flex:1;overflow:hidden}
+.viewport{position:absolute;inset:0;cursor:grab}.viewport.panning{cursor:grabbing}
+.world{position:absolute;top:0;left:0;width:2600px;height:2000px;transform-origin:0 0;
+  background-image:radial-gradient(rgba(60,60,67,.13) 1.1px,transparent 1.1px);background-size:26px 26px}
+.zoom{position:absolute;right:14px;top:14px;z-index:20;display:inline-flex;align-items:center;background:var(--surface);border-radius:var(--r-ctl);box-shadow:var(--elev-1)}
+.zoom button{width:30px;height:30px;display:grid;place-items:center;color:var(--label-2);font-size:15px}
+.zoom button:hover{background:var(--surface-2)}
+.zoom .lvl{min-width:46px;text-align:center;font-size:12px;color:var(--label-2)}
+
+.card{position:absolute;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--elev-1);overflow:hidden;cursor:pointer;
+  transition:box-shadow .16s var(--ease),outline-color .12s}
+.card:hover{box-shadow:var(--elev-2)}
+.card.sel{outline:2px solid var(--blue);outline-offset:2px}
+.card .ch{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--separator)}
+.card .ci{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:14px;background:var(--surface-2);color:var(--label-2)}
+.card .ct{font-size:13px;font-weight:700}.card .cm{margin-left:auto;font-size:11px;color:var(--label-3)}
+.card .cb{padding:11px 13px 13px;font-size:12.5px;color:var(--label-2);line-height:1.6}
+.kv2{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px}.kv2 .k{color:var(--label-3)}
+.mini{display:flex;gap:7px}.mtile{flex:1;background:var(--surface-2);border-radius:8px;padding:7px 4px;text-align:center}
+.mtile .n{font-size:16px;font-weight:700}.mtile .l{font-size:10px;color:var(--label-3)}
+.li{display:flex;gap:7px;margin:4px 0}.li .s{color:var(--label-3);flex:0 0 14px}
+.nb{display:inline-block;font-size:9.5px;font-weight:600;padding:0 5px;border-radius:999px;margin-left:5px}
+.nb.star{color:var(--red-text);background:rgba(255,59,48,.12)}.nb.tri{color:var(--orange-text);background:rgba(255,149,0,.14)}
+.appear{animation:appear .42s var(--ease)}
+@keyframes appear{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.appear{animation:none}}
+.hint{position:absolute;left:14px;bottom:14px;font-size:11.5px;color:var(--label-3);z-index:10;background:rgba(255,255,255,.6);padding:5px 11px;border-radius:999px;backdrop-filter:blur(10px)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="tb-back" href="index.html"><i class="ph ph-arrow-left"></i>返回</a>
+    <span class="tb-brand"><span class="mk"><i class="ph ph-stack"></i></span>Prose</span>
+    <span class="tb-crumb">范式 C · <b>轨道 + 画布</b></span>
+    <span class="tb-spacer"></span>
+    <span class="tb-pill"><i class="ph ph-columns"></i>对话流 + 画布</span>
+  </header>
+
+  <div class="split">
+    <!-- 左：对话流 -->
+    <section class="chat">
+      <div class="run-brief">
+        <span class="run-dot" id="dot"></span>
+        <span class="nm">解析 仿真软件开发服务采购项目</span>
+        <span class="st" id="st">已完成 · 5 份结果</span>
+      </div>
+      <div class="stream" id="stream">
+        <div class="turn"><div class="u-meta">你</div><div class="u-bubble">解析这份招标文件，提取技术与商务要求。</div></div>
+        <div class="turn">
+          <div class="a-meta">Prose</div>
+          <details class="think"><summary><i class="ph ph-brain"></i>思考过程 · 2 段推理 · 1 次工具调用<i class="ph ph-caret-right cv"></i></summary>
+            <div class="tbody">先定位招标文件的「技术要求」「商务要求」「评分办法」章节，再按固定 schema 抽取每一条参数，区分 ★ 实质性与 ▲ 重要。</div></details>
+          <div class="tool"><i class="ph ph-magic-wand"></i><span class="mono">extract-tech-requirements</span> · 5 份 JSON</div>
+          <div class="a-text">已完成解析，<b>5 维结构化结果</b>已落到右侧画布：基本信息、资格条件、评分标准、商务要求、技术要求。其中技术要求含 <b>★ 4 项实质性</b>、▲ 3 项重要。</div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="cinput">
+          <input id="cin" placeholder="继续追问，或让我生成大纲 / 章节…">
+          <button class="send" id="csend"><i class="ph ph-arrow-up"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右：画布 -->
+    <div class="stage">
+      <div class="viewport" id="vp"><div class="world" id="world"></div></div>
+      <div class="zoom">
+        <button id="zout"><i class="ph ph-minus"></i></button><span class="lvl" id="lvl">90%</span>
+        <button id="zin"><i class="ph ph-plus"></i></button><button id="zfit"><i class="ph ph-corners-out"></i></button>
+      </div>
+      <div class="hint"><i class="ph ph-hand-grabbing"></i> 拖拽平移 · 滚轮缩放 · 点卡高亮</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- 画布初始卡片（5 维提取结果） ---------- */
+const CARDS=[
+  {id:'c1',x:120,y:110,w:236,icon:'ph-identification-card',t:'基本信息',m:'01',body:`
+    <div class="kv2"><span class="k">预算</span><span>2,700,000 元</span>
+      <span class="k">方式</span><span>公开招标</span>
+      <span class="k">截止</span><span class="mono">2024-08-21</span></div>`},
+  {id:'c2',x:400,y:96,w:236,icon:'ph-seal-check',t:'资格条件',m:'02',body:`
+    <div class="li"><span class="s">1</span><span>独立法人 + 营业执照</span></div>
+    <div class="li"><span class="s">3</span><span>近三年 ≥ 2 个类似业绩</span></div>`},
+  {id:'c3',x:680,y:120,w:212,icon:'ph-chart-bar',t:'评分标准',m:'03',body:`
+    <div class="mini"><div class="mtile"><div class="n">60</div><div class="l">技术</div></div>
+      <div class="mtile"><div class="n">10</div><div class="l">商务</div></div>
+      <div class="mtile"><div class="n">30</div><div class="l">价格</div></div></div>`},
+  {id:'c4',x:170,y:360,w:212,icon:'ph-handshake',t:'商务要求',m:'04',body:`
+    <div class="li"><span class="s">1</span><span>交付周期<span class="nb star">★</span> 180 天</span></div>
+    <div class="li"><span class="s">2</span><span>质保期<span class="nb star">★</span> ≥ 24 月</span></div>`},
+  {id:'c5',x:420,y:352,w:252,icon:'ph-gear-six',t:'技术要求',m:'12 项 · 05',body:`
+    <div class="li"><span class="s">1</span><span>求解器内核<span class="nb star">★</span> 双内核</span></div>
+    <div class="li"><span class="s">2</span><span>并行计算<span class="nb tri">▲</span> 加速比 ≥ 80%</span></div>
+    <div class="li"><span class="s">4</span><span>国产化<span class="nb star">★</span> 麒麟/鲲鹏</span></div>`},
+];
+let nextId=6;
+const world=document.getElementById('world'),cardEls={};
+const selected=new Set();
+function renderCard(c,isGen){
+  const el=document.createElement('div');el.className='card'+(isGen?' appear':'');
+  el.style.cssText=`left:${c.x}px;top:${c.y}px;width:${c.w}px`;
+  el.innerHTML=`<div class="ch"><span class="ci"><i class="ph ${c.icon}"></i></span><span class="ct">${c.t}</span><span class="cm">${c.m}</span></div><div class="cb">${c.body}</div>`;
+  el.addEventListener('click',e=>{e.stopPropagation();selected.clear();selected.add(c.id);
+    Object.entries(cardEls).forEach(([id,x])=>x.classList.toggle('sel',selected.has(id)));});
+  world.appendChild(el);cardEls[c.id]=el;
+}
+CARDS.forEach(c=>renderCard(c));
+
+/* ---------- 平移 / 缩放 ---------- */
+const vp=document.getElementById('vp'),lvl=document.getElementById('lvl');
+let tx=20,ty=24,scale=.9;
+function apply(){world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;lvl.textContent=Math.round(scale*100)+'%';}
+apply();
+const toWorld=(cx,cy)=>{const r=vp.getBoundingClientRect();return{x:(cx-r.left-tx)/scale,y:(cy-r.top-ty)/scale};};
+let panning=false,sx,sy;
+vp.addEventListener('pointerdown',e=>{if(e.target.closest('.card')||e.target.closest('.zoom'))return;
+  panning=true;sx=e.clientX-tx;sy=e.clientY-ty;vp.classList.add('panning');vp.setPointerCapture(e.pointerId);
+  selected.clear();Object.values(cardEls).forEach(x=>x.classList.remove('sel'));});
+vp.addEventListener('pointermove',e=>{if(panning){tx=e.clientX-sx;ty=e.clientY-sy;apply();}});
+vp.addEventListener('pointerup',()=>{panning=false;vp.classList.remove('panning');});
+vp.addEventListener('wheel',e=>{e.preventDefault();const r=vp.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const ns=Math.min(2,Math.max(.4,scale*(1-e.deltaY*0.0012)));tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;apply();},{passive:false});
+function zoomBy(f){const r=vp.getBoundingClientRect(),mx=r.width/2,my=r.height/2;const ns=Math.min(2,Math.max(.4,scale*f));tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;apply();}
+document.getElementById('zin').onclick=()=>zoomBy(1.15);
+document.getElementById('zout').onclick=()=>zoomBy(1/1.15);
+document.getElementById('zfit').onclick=()=>{tx=20;ty=24;scale=.9;apply();};
+
+/* ---------- 对话推进 → 落卡 ---------- */
+const stream=document.getElementById('stream'),dot=document.getElementById('dot'),st=document.getElementById('st');
+const cin=document.getElementById('cin'),csend=document.getElementById('csend');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function add(html){const d=document.createElement('div');d.className='turn';d.innerHTML=html;stream.appendChild(d);stream.scrollTop=stream.scrollHeight;return d;}
+function spawnCard(title,meta,icon,body){
+  const r=vp.getBoundingClientRect();const ctr=toWorld(r.left+r.width*0.55,r.top+r.height*0.55);
+  const c={id:'c'+(nextId++),x:ctr.x-130,y:ctr.y-60,w:256,icon,t:title,m:meta,body};
+  CARDS.push(c);renderCard(c,true);
+}
+let busy=false;
+async function send(text){
+  if(busy)return;busy=true;
+  add(`<div class="u-meta">你</div><div class="u-bubble">${text}</div>`);
+  dot.classList.add('running');st.textContent='智能体处理中…';
+  const t=add(`<div class="a-meta">Prose</div><div class="a-text"><span class="typing"></span> 处理中…</div>`);
+  await sleep(700);
+  const wantOutline=/大纲/.test(text),wantChapter=/章节|起草|编写/.test(text);
+  t.innerHTML=`<div class="a-meta">Prose</div>
+    <div class="tool"><i class="ph ${wantOutline?'ph-tree-structure':wantChapter?'ph-article':'ph-magic-wand'}"></i><span class="mono">${wantOutline?'build-outline':wantChapter?'draft-chapter':'analyze'}</span></div>`;
+  await sleep(800);
+  if(wantOutline){
+    t.innerHTML+=`<div class="a-text">已生成 <b>投标大纲</b> 并落到画布，8 章结构自动引用上游 5 维结果。</div>`;
+    spawnCard('投标大纲（生成）','8 章 · 引用 5 维','ph-tree-structure',`
+      <div class="li"><span class="s">一</span><span>综合说明</span></div>
+      <div class="li"><span class="s">二</span><span>技术方案</span></div>
+      <div class="li"><span class="s">三</span><span>商务部分</span></div>
+      <div class="li"><span class="s">四</span><span>资信业绩</span></div>`);
+  }else if(wantChapter){
+    t.innerHTML+=`<div class="a-text">已起草 <b>第二章 技术方案</b> 草稿，逐条响应技术要求，已落到画布。</div>`;
+    spawnCard('章节草稿 · 第 2 章','技术方案 · 2,310 字','ph-article',`
+      <div style="color:var(--label-2)">本章针对技术要求逐条编写响应，覆盖求解器、并行、前后处理与国产化…</div>`);
+  }else{
+    t.innerHTML+=`<div class="a-text">已根据你的问题补充分析，并把结果制品落到画布右侧。</div>`;
+    spawnCard(text.slice(0,10)||'分析结果','智能体生成','ph-sparkle',`<div style="color:var(--label-2)">已生成草稿制品，可在画布上查看、拖拽与缩放。</div>`);
+  }
+  dot.classList.remove('running');st.textContent='已完成 · '+CARDS.length+' 份结果';busy=false;
+}
+csend.onclick=()=>{const v=cin.value.trim()||'生成投标大纲';send(v);cin.value='';};
+cin.addEventListener('keydown',e=>{if(e.key==='Enter')csend.onclick();});
+</script>
+</body>
+</html>

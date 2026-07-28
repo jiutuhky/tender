@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prose · 文件袋开封登录转场 · 原型</title>
+
+<!-- gsap 3（cdnjs）。真实项目用 @gsap/react + useGSAP，API 与此处一致。 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+<style>
+/* ============================================================
+   牛皮纸文件袋登录转场 · 自包含原型
+   叙事：解扣 → 右侧封口展开 → 袋内文件露出 → 文件放大铺满 → 工作区
+   token 内联自 frontend/app/login/styles.css 的 .login-page 作用域
+   ============================================================ */
+:root{
+  --clay:      #D97757;
+  --clay-deep: #C86442;
+  --dark-bg:   #1a1816;
+  --dark-bg-2: #221f1b;
+  --dark-bg-3: #2c2823;
+  --dark-fg:   #faf9f5;
+  --dark-fg-2: #d6d1c4;
+  --dark-fg-3: #9a9285;
+  --dark-faint:#6a6359;
+  --dark-border: rgba(255,255,255,0.07);
+
+  --bg:       oklch(98% 0.004 80);
+  --surface:  #ffffff;
+  --surface-2:oklch(96% 0.005 80);
+  --fg:       oklch(20% 0.015 60);
+  --fg-2:     oklch(36% 0.015 60);
+  --muted:    oklch(54% 0.012 60);
+  --faint:    oklch(72% 0.008 60);
+  --border:   oklch(90% 0.008 70);
+  --border-2: oklch(84% 0.010 70);
+
+  --font-sans: "Inter","PingFang SC","HarmonyOS Sans SC","Noto Sans SC",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-serif:"Source Serif 4","Songti SC","Source Han Serif SC",Georgia,serif;
+  --font-mono: ui-monospace,"SF Mono","JetBrains Mono",Menlo,monospace;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; margin:0; }
+body{
+  font-family:var(--font-sans);
+  color:var(--fg);
+  background:
+    radial-gradient(120% 90% at 75% 8%, oklch(95% 0.022 70) 0%, transparent 55%),
+    radial-gradient(90% 80% at 10% 100%, oklch(94% 0.018 60) 0%, transparent 60%),
+    oklch(96.5% 0.012 75);
+  overflow:hidden;
+}
+
+/* ============================================================
+   袋内文件 = 工作区纸张（fixed 铺满，初始缩在袋内、藏在封口盖之下）
+   ============================================================ */
+.file{
+  position:fixed; inset:0; z-index:2;
+  background:var(--bg);
+  display:grid;
+  grid-template-columns:56px 280px 1fr;
+  grid-template-rows:52px 1fr;
+  overflow:hidden;
+  border-radius:16px;          /* 袋内像一张纸；铺满时归 0 */
+  box-shadow:0 40px 90px -24px rgba(40,25,15,.5), 0 8px 24px -12px rgba(40,25,15,.3);
+  transform-origin:center center;
+  visibility:hidden; opacity:0;  /* 防首帧闪现，autoAlpha 接管 */
+  will-change:transform,opacity;
+}
+.dk-rail{
+  grid-row:1 / 3; background:var(--surface-2);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column; align-items:center; gap:18px; padding:14px 0;
+}
+.dk-rail .dot{ width:24px; height:24px; border-radius:7px; background:var(--border-2); }
+.dk-rail .dot.brand{ background:var(--fg); }
+.dk-rail .dot.on{ background:var(--clay); }
+.dk-panel{ grid-row:1 / 3; background:var(--surface); border-right:1px solid var(--border); padding:20px 18px; }
+.dk-panel h3{ font-size:12px; letter-spacing:.04em; color:var(--muted); margin:0 0 14px; font-weight:600; text-transform:uppercase; }
+.dk-panel .row{ height:13px; border-radius:5px; background:var(--surface-2); margin-bottom:11px; }
+.dk-panel .row:nth-child(2){ width:78%; } .dk-panel .row:nth-child(4){ width:64%; } .dk-panel .row:nth-child(6){ width:84%; }
+.dk-top{ grid-column:3; grid-row:1; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:14px; padding:0 22px; font-size:13px; color:var(--fg-2); }
+.dk-top .crumb{ color:var(--muted); } .dk-top .crumb strong{ color:var(--fg); font-weight:600; }
+.dk-main{ grid-column:3; grid-row:2; padding:30px 34px; overflow:hidden; }
+.dk-main h1{ font-size:21px; margin:0 0 4px; letter-spacing:-.01em; }
+.dk-main .sub{ color:var(--muted); font-size:13px; margin-bottom:24px; }
+.dk-list{ border-top:1px solid var(--border); }
+.dk-item{ display:grid; grid-template-columns:1fr 120px 90px 110px; gap:16px; align-items:center; padding:15px 6px; border-bottom:1px solid var(--border); font-size:13px; }
+.dk-item .name{ font-weight:550; color:var(--fg); }
+.dk-item .name small{ display:block; color:var(--muted); font-weight:400; font-size:11.5px; margin-top:3px; }
+.dk-bar{ height:6px; border-radius:3px; background:var(--surface-2); overflow:hidden; }
+.dk-bar i{ display:block; height:100%; background:var(--clay); border-radius:3px; }
+.dk-item .score{ font-family:var(--font-mono); color:var(--fg-2); font-size:12.5px; }
+.dk-item .due{ color:var(--muted); font-size:12px; }
+
+/* ============================================================
+   文件袋（左封皮袋体 + 右封口盖 + 中缝红绳），浮在桌面上
+   ============================================================ */
+.stage{ position:fixed; inset:0; display:grid; place-items:center; perspective:1800px; }
+.bag{
+  position:relative; z-index:3;
+  width:min(960px, 92vw); height:min(620px, 86vh);
+  display:grid; grid-template-columns:1.05fr 0.95fr;
+  border-radius:16px; overflow:visible;          /* 封口翻出需可溢出 */
+  transform-style:preserve-3d;
+  filter:drop-shadow(0 40px 80px rgba(40,25,15,.42));
+  will-change:transform,opacity;
+}
+
+/* ---------- 左封皮（袋体正面，极简） ---------- */
+.cover{
+  position:relative; grid-column:1;
+  background:linear-gradient(155deg, var(--dark-bg-2) 0%, var(--dark-bg) 60%);
+  color:var(--dark-fg); padding:38px 42px;
+  display:flex; flex-direction:column;
+  border-radius:16px 0 0 16px;
+  will-change:transform,opacity;
+}
+.cover::before{ content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(120% 80% at 100% 0%, rgba(217,119,87,.12), transparent 55%),
+            radial-gradient(80% 60% at 0% 100%, rgba(217,119,87,.06), transparent 60%); }
+.cover::after{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.06; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.cover > *{ position:relative; }
+.brand{ display:inline-flex; align-items:center; gap:10px; }
+.brand-mark{ width:30px; height:30px; display:grid; place-items:center; background:var(--dark-fg); color:var(--dark-bg); border-radius:6px; font-family:var(--font-serif); font-style:italic; font-weight:600; font-size:19px; line-height:1; padding-bottom:2px; }
+.wordmark{ font-family:var(--font-serif); font-style:italic; font-weight:600; font-size:20px; letter-spacing:-.015em; color:var(--dark-fg); }
+.wordmark .pipe{ display:inline-block; width:1px; height:14px; background:var(--dark-border); margin:0 9px; vertical-align:-2px; }
+.wordmark .sub{ font-family:var(--font-sans); font-style:normal; font-weight:500; font-size:13px; color:var(--dark-fg-3); }
+.cover-mid{ flex:1; display:flex; flex-direction:column; justify-content:flex-end; }
+.cover-line{ font-family:var(--font-serif); font-size:15px; color:var(--dark-fg-3); letter-spacing:.02em; line-height:1.7; }
+.cover-line em{ color:var(--dark-fg-2); font-style:italic; }
+.cover-foot{ display:flex; align-items:center; justify-content:space-between; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--dark-faint); margin-top:34px; }
+.cover-foot .mark{ display:inline-flex; align-items:center; gap:7px; color:var(--dark-fg-3); }
+.cover-foot .mark svg{ width:13px; height:13px; }
+
+/* ---------- 右封口盖（登录表单印在盖内侧，绕右缘翻开） ---------- */
+.flap{
+  position:relative; grid-column:2;
+  background:var(--surface); padding:40px 46px;
+  display:flex; flex-direction:column;
+  border-radius:0 16px 16px 0;
+  transform-origin:right center;     /* 绕右缘掀开 */
+  transform-style:preserve-3d; backface-visibility:hidden;
+  box-shadow:-1px 0 0 rgba(40,25,15,.05);
+  will-change:transform,opacity;
+}
+.pane-head{ display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--muted); }
+.pane-head a{ color:var(--clay); text-decoration:none; }
+.pane-body{ flex:1; display:flex; flex-direction:column; justify-content:center; max-width:340px; }
+.eyebrow{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--clay); margin-bottom:14px; }
+.flap h1{ font-family:var(--font-serif); font-size:29px; letter-spacing:-.01em; margin:0 0 8px; color:var(--fg); }
+.flap .psub{ font-size:13.5px; color:var(--muted); margin:0 0 26px; line-height:1.6; }
+.field{ display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.field label{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.field input{ font-family:var(--font-sans); font-size:14px; color:var(--fg); background:var(--surface); border:1px solid var(--border-2); border-radius:7px; padding:11px 13px; outline:none; transition:border-color .14s, box-shadow .14s; }
+.field input:focus{ border-color:var(--clay); box-shadow:0 0 0 3px rgba(217,119,87,.18); }
+.submit{ display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:6px; background:var(--clay); color:#FAF9F5; border:1px solid rgba(0,0,0,.18); border-radius:9px; padding:12px 16px; font-size:13.5px; font-weight:600; letter-spacing:.005em; cursor:pointer; position:relative; overflow:hidden; box-shadow:0 1px 3px rgba(180,90,30,.35), 0 2px 6px rgba(180,90,30,.20), inset 0 1px 0 rgba(255,255,255,.15); transition:transform .14s ease, background .14s ease; }
+.submit:hover{ background:var(--clay-deep); transform:translateY(-1px); }
+.submit:active{ transform:translateY(0); }
+.submit:disabled{ opacity:.85; cursor:default; transform:none; }
+.submit svg{ width:14px; height:14px; }
+.spinner{ width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.legal{ margin-top:24px; font-size:11px; color:var(--faint); line-height:1.6; }
+
+/* ---------- 中缝红绳纸扣（拟物 string-and-button，唯一拟物焦点） ---------- */
+.seam{ position:absolute; top:0; bottom:0; left:52.5%; width:44px; transform:translateX(-50%); z-index:6; pointer-events:none; }
+.seam .cord{ position:absolute; left:50%; top:0; bottom:0; width:0; border-left:1.5px dashed var(--clay); opacity:.5; transform:translateX(-50%); }
+.seam .knot{ position:absolute; left:50%; width:44px; height:44px; transform:translate(-50%,-50%); will-change:transform,opacity; }
+.seam .knot.k1{ top:24%; } .seam .knot.k2{ top:50%; } .seam .knot.k3{ top:76%; }
+.seam .knot svg{ width:100%; height:100%; display:block; overflow:visible; }
+
+/* ---------- 控制条 ---------- */
+.controls{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:40; display:flex; align-items:center; gap:10px; background:rgba(28,24,20,.82); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,.10); border-radius:999px; padding:8px 10px 8px 16px; box-shadow:0 10px 30px -10px rgba(0,0,0,.4); font-size:12.5px; color:var(--dark-fg-2); }
+.controls .label{ color:var(--dark-fg-3); }
+.controls button{ font:inherit; cursor:pointer; border-radius:999px; padding:7px 14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:var(--dark-fg); transition:background .14s; }
+.controls button:hover{ background:rgba(255,255,255,.12); }
+.controls button.primary{ background:var(--clay); border-color:transparent; color:#fff; }
+.controls button.primary:hover{ background:var(--clay-deep); }
+.controls .toggle{ display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+.controls .toggle input{ accent-color:var(--clay); }
+
+@media (max-width:760px){ .bag{ grid-template-columns:1fr; } .cover{ display:none; } .seam{ display:none; } }
+</style>
+</head>
+<body>
+
+<!-- 袋内文件 = 工作区纸张（初始缩在袋内、藏在封口盖下） -->
+<div class="file" id="file" aria-hidden="true">
+  <div class="dk-rail">
+    <div class="dot brand"></div><div class="dot on"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div style="flex:1"></div><div class="dot"></div>
+  </div>
+  <div class="dk-panel">
+    <h3>工作区</h3>
+    <div class="row"></div><div class="row"></div><div class="row"></div>
+    <div class="row"></div><div class="row"></div><div class="row"></div>
+  </div>
+  <div class="dk-top"><span class="crumb">Prose / <strong>在投项目</strong></span></div>
+  <div class="dk-main">
+    <h1>在投项目 · 12 项</h1>
+    <div class="sub">欢迎回来。今天有 3 份标书临近截止。</div>
+    <div class="dk-list">
+      <div class="dk-item"><div class="name">城市轨交仿真平台采购<small>华东设计院</small></div><div class="dk-bar"><i style="width:72%"></i></div><div class="score">A · 91.2</div><div class="due">6 月 14 日</div></div>
+      <div class="dk-item"><div class="name">配电网数字孪生服务<small>南方电网</small></div><div class="dk-bar"><i style="width:48%"></i></div><div class="score">B · 84.0</div><div class="due">6 月 18 日</div></div>
+      <div class="dk-item"><div class="name">机房热仿真软件开发<small>中数智算</small></div><div class="dk-bar"><i style="width:88%"></i></div><div class="score">A · 93.5</div><div class="due">6 月 20 日</div></div>
+      <div class="dk-item"><div class="name">港口调度系统集成<small>北部湾港</small></div><div class="dk-bar"><i style="width:35%"></i></div><div class="score">B · 80.7</div><div class="due">6 月 27 日</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 文件袋舞台 -->
+<div class="stage" id="stage">
+  <div class="bag" id="bag">
+
+    <!-- 左封皮（袋体） -->
+    <div class="cover" id="cover">
+      <span class="brand">
+        <span class="brand-mark">P</span>
+        <span class="wordmark">Prose<span class="pipe"></span><span class="sub">智能标书</span></span>
+      </span>
+      <div class="cover-mid"><div class="cover-line">归档卷宗 · <em>待启封。</em></div></div>
+      <div class="cover-foot">
+        <span class="mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v6M12 15v6M3 12h6M15 12h6" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2"/></svg>
+          Prose Quarterly
+        </span>
+        <span>est. 2024 · Shanghai</span>
+      </div>
+    </div>
+
+    <!-- 右封口盖：登录表单 -->
+    <div class="flap" id="flap">
+      <div class="pane-head">
+        <span>EN / 简</span>
+        <span>还没有账号? <a href="#" onclick="return false">申请试用 →</a></span>
+      </div>
+      <div class="pane-body">
+        <div class="eyebrow">登录 · Sign in</div>
+        <h1>回到您的工作台</h1>
+        <p class="psub">使用企业邮箱继续。新设备登录将触发二次验证。</p>
+        <form id="form" onsubmit="return false">
+          <div class="field"><label>企业邮箱</label><input type="email" value="li.wei@prose.studio" /></div>
+          <div class="field"><label>密码</label><input type="password" value="••••••••••" /></div>
+          <button type="submit" class="submit" id="submit">
+            <span id="submit-label">继续</span>
+            <svg id="submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </form>
+        <div class="legal">继续即表示您同意 服务条款 与 隐私政策 · ICP 备 2024-001</div>
+      </div>
+    </div>
+
+    <!-- 中缝红绳纸扣 -->
+    <div class="seam" id="seam" aria-hidden="true">
+      <div class="cord" id="cord"></div>
+      <div class="knot k1"><svg viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r="11" fill="#2c2823" stroke="#D97757" stroke-width="1.8"/>
+        <circle cx="22" cy="22" r="3" fill="#1a1816"/>
+        <circle cx="22" cy="22" r="3" fill="none" stroke="#D97757" stroke-width="1" opacity=".7"/>
+      </svg></div>
+      <div class="knot k2"><svg viewBox="0 0 44 44">
+        <path d="M22 6 C12 12, 12 18, 22 22 C32 26, 32 32, 22 38" fill="none" stroke="#D97757" stroke-width="1.9" stroke-linecap="round" opacity=".9"/>
+        <path d="M22 6 C32 12, 32 18, 22 22 C12 26, 12 32, 22 38" fill="none" stroke="#C86442" stroke-width="1.9" stroke-linecap="round" opacity=".8"/>
+        <circle cx="22" cy="22" r="12.5" fill="#2c2823" stroke="#D97757" stroke-width="2"/>
+        <circle cx="22" cy="22" r="3.4" fill="#1a1816"/>
+        <circle cx="18" cy="22" r="1.3" fill="#D97757"/>
+        <circle cx="26" cy="22" r="1.3" fill="#D97757"/>
+      </svg></div>
+      <div class="knot k3"><svg viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r="11" fill="#2c2823" stroke="#D97757" stroke-width="1.8"/>
+        <circle cx="22" cy="22" r="3" fill="#1a1816"/>
+        <circle cx="22" cy="22" r="3" fill="none" stroke="#D97757" stroke-width="1" opacity=".7"/>
+      </svg></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 控制条 -->
+<div class="controls">
+  <span class="label">文件袋开封转场</span>
+  <button class="primary" id="play">▶ 播放登录</button>
+  <button id="replay">↻ 重置</button>
+  <label class="toggle"><input type="checkbox" id="reduce" /> 减弱动态</label>
+</div>
+
+<script>
+const bag   = document.getElementById('bag');
+const cover = document.getElementById('cover');
+const flap  = document.getElementById('flap');
+const file  = document.getElementById('file');
+const seam  = document.getElementById('seam');
+const submit = document.getElementById('submit');
+const submitLabel = document.getElementById('submit-label');
+let playing = false;
+
+/* 纸张在袋内的「藏匿态」：缩小、居中、隐藏（被封口盖住） */
+const FILE_TUCK = { scale:0.64, x:0, autoAlpha:0, borderRadius:16, transformOrigin:'center center' };
+
+function setInitial(){
+  gsap.set(file, FILE_TUCK);
+  gsap.set(flap, { rotationY:0, x:0, y:0, autoAlpha:1, transformOrigin:'right center' });
+  gsap.set(cover,{ y:0, autoAlpha:1 });
+  gsap.set(seam, { autoAlpha:1 });
+  gsap.set('#cord', { autoAlpha:.5, scaleY:1 });
+  gsap.set('.knot',{ rotation:0, scale:1 });
+  gsap.set(bag,  { autoAlpha:1, scale:1, y:0 });
+}
+
+/* 入场：文件袋浮入 + 红绳「系紧」 */
+function intro(){
+  setInitial();
+  gsap.set(bag, { autoAlpha:0, y:24, scale:.97 });
+  gsap.set('.knot', { scale:0, rotation:(i)=> (i-1)*30 });
+  gsap.set('#cord', { scaleY:0, transformOrigin:'top center' });
+  gsap.timeline()
+    .to(bag, { autoAlpha:1, y:0, scale:1, duration:.7, ease:'power3.out' })
+    .to('#cord', { scaleY:1, duration:.45, ease:'power2.out' }, '-=.35')
+    .to('.knot', { scale:1, rotation:0, stagger:.1, duration:.5, ease:'back.out(2.2)' }, '-=.3');
+}
+
+/* 核心：解扣 → 封口从右向左揭开 → 纸张升起被取出 → 平滑放大铺满 → 工作区
+   设计：小幅度、自然、拟真。无夸张整面 3D 翻转；纸张有真实的升起位移。 */
+function playTransition(){
+  if (playing) return;
+  playing = true;
+  submit.disabled = true;
+  submitLabel.textContent = '登录中';
+  const arr = document.getElementById('submit-arrow');
+  if (arr) arr.outerHTML = '<span class="spinner" id="submit-arrow"></span>';
+
+  if (document.getElementById('reduce').checked){
+    gsap.timeline()
+      .to([cover, flap, seam], { autoAlpha:0, duration:.3 })
+      .to(file, { autoAlpha:1, scale:1, x:0, borderRadius:0, duration:.4 }, '-=.15');
+    window.__bagTL = null;
+    return;
+  }
+
+  const tl = gsap.timeline({ defaults:{ ease:'power3.inOut' } });
+
+  // ① 解扣：纸扣依次旋开 + 弹一下，红绳松脱淡出
+  tl.to('.knot', { rotation:-30, scale:1.15, transformOrigin:'center', stagger:.12, duration:.32, ease:'back.out(2)' }, 0.05)
+    .to('.knot', { scale:1, stagger:.12, duration:.28, ease:'power2.out' }, 0.16)
+    .to('#cord', { autoAlpha:0, duration:.4 }, 0.10)
+    .to(seam,    { autoAlpha:0, duration:.4 }, 0.30)
+
+  // ② 右封口向右推动淡出：封口盖沿水平方向被推开抽走
+    .to(flap, { x:540, autoAlpha:0, duration:.62, ease:'power2.in' }, 0.42)
+
+  // ③ 纸张随之向右推出：从袋口被向右抽出（左半仍插在左封皮里），渐显
+    .to(file, { autoAlpha:1, x:230, duration:.66, ease:'power2.out' }, 0.66)
+
+  // ④ 停顿 0.5s（让「文件已抽出」的状态停留），随后左封皮淡出 + 纸张归位放大铺满
+    .to(cover, { autoAlpha:0, duration:.5, ease:'power2.out' }, 1.77)
+    .to(file,  { x:0, scale:1, borderRadius:0, duration:.95, ease:'expo.out' }, 1.82)
+
+  // ⑤ 完成（真实项目此处 router.push('/projects')）
+    .add(()=>{}, 2.8);
+
+  window.__bagTL = tl;   // 测试钩子：便于 seek 定格分镜
+}
+
+function reset(){
+  playing = false;
+  gsap.killTweensOf('*');
+  submit.disabled = false;
+  submitLabel.textContent = '继续';
+  const sp = document.getElementById('submit-arrow');
+  if (sp) sp.outerHTML = '<svg id="submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  intro();
+}
+
+document.getElementById('play').addEventListener('click', playTransition);
+document.getElementById('submit').addEventListener('click', playTransition);
+document.getElementById('replay').addEventListener('click', reset);
+
+intro();
+</script>
+</body>
+</html>

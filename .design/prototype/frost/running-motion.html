@@ -1,0 +1,265 @@
+<title>Frost · 运行中动效（B + D 调参台）</title>
+<style>
+  :root {
+    --canvas: #eef0f3; --surface: #fff; --surface-2: #f5f6f8;
+    --fg: #1d1d1f; --fg-2: #48484f; --label-2: #55555e; --faint: #8e8e98;
+    --separator: rgba(60,60,67,.12);
+    --accent: #0064e1; --blue-soft: rgba(0,100,225,.10);
+    --ease-out: cubic-bezier(.23,1,.32,1);
+    --elev-1: 0 1px 2px rgba(18,24,38,.10), 0 0 0 .5px rgba(18,24,38,.07);
+    --elev-2: 0 10px 30px rgba(18,24,38,.12), 0 2px 8px rgba(18,24,38,.06), 0 0 0 .5px rgba(18,24,38,.05);
+    --font: "SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Noto Sans SC",system-ui,sans-serif;
+  }
+
+  body {
+    margin: 0; padding: 38px 28px 72px; min-height: 100vh; box-sizing: border-box;
+    font-family: var(--font); color: var(--fg);
+    font-size: 15px; line-height: 1.7; letter-spacing: -.008em;
+    background:
+      radial-gradient(1100px 700px at 12% -10%, #dbeeff 0%, transparent 60%),
+      radial-gradient(900px 620px at 92% 6%, #c2dcf7 0%, transparent 62%),
+      radial-gradient(1100px 850px at 78% 100%, #b9d2f4 0%, transparent 66%),
+      linear-gradient(162deg, #e8f1fb 0%, #cfe0f4 48%, #bcd0ec 100%);
+    background-attachment: fixed;
+  }
+  h1 { font-size: 21px; font-weight: 650; letter-spacing: -.022em; margin: 0 0 4px; }
+  .lede { color: var(--label-2); font-size: 13.5px; margin: 0 0 24px; max-width: 66ch; }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px;
+    padding: 14px 18px; margin-bottom: 24px; border-radius: 14px;
+    background: rgba(255,255,255,.72);
+    backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), var(--elev-2);
+    position: sticky; top: 12px; z-index: 5;
+  }
+  .toolbar label { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--label-2); }
+  .toolbar input[type=range] { width: 132px; accent-color: var(--accent); }
+  .toolbar input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+  .val { font-variant-numeric: tabular-nums; color: var(--fg); min-width: 34px; font-weight: 550; }
+  .toolbar .sep { width: 1px; height: 22px; background: var(--separator); }
+  .toolbar button {
+    font: inherit; font-size: 12px; font-weight: 550; padding: 5px 11px; border-radius: 7px;
+    border: 1px solid rgba(60,60,67,.16); background: #fff; color: var(--fg); cursor: pointer;
+  }
+  .toolbar button:active { transform: scale(.97); }
+
+  .card { border-radius: 18px; padding: 22px; background: var(--surface); box-shadow: var(--elev-2); margin-bottom: 18px; }
+  .card h2 { font-size: 14.5px; font-weight: 620; margin: 0 0 3px; letter-spacing: -.012em; }
+  .card p { font-size: 12.5px; color: var(--label-2); margin: 0 0 16px; line-height: 1.6; }
+  .stage {
+    display: flex; flex-direction: column; gap: 16px; align-items: flex-start;
+    padding: 26px 22px; border-radius: 14px;
+    background:
+      radial-gradient(700px 400px at 20% 0%, #dbeeff 0%, transparent 60%),
+      linear-gradient(160deg, #e8f1fb 0%, #cfe0f4 100%);
+  }
+  .stage > * { width: 100%; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 900px) { .row2 { grid-template-columns: 1fr; } }
+  .tag { font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: .04em; margin-bottom: 9px; }
+
+  /* ═════════ 以下与 globals.css 生产代码逐字一致 ═════════ */
+  .cv-capsule, .cv-actbar {
+    --sheen-dur: 3s; --sheen-core: .6; --sheen-glow: 1;
+    position: relative; isolation: isolate;
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding: 0 12px; max-width: 100%;
+    border: 1px solid rgba(255,255,255,.45); border-radius: 999px;
+    background: rgba(255,255,255,.78);
+    backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), var(--elev-1);
+    font-size: 12.5px; font-weight: 500; color: var(--fg); white-space: nowrap;
+  }
+  .cv-actbar { display: flex; color: var(--fg-2); }
+  .cv-capsule.is-running, .cv-actbar.is-running { border-color: rgba(0,100,225,.30); }
+
+  .cv-sheen {
+    position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+    overflow: hidden; pointer-events: none;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+  }
+  .cv-sheen::before, .cv-sheen::after {
+    content: ""; position: absolute; top: -60%; bottom: -60%; left: 0; width: 46%;
+    background: linear-gradient(90deg,
+      rgba(0,100,225,0) 0%, rgba(0,100,225,.50) 40%, rgba(140,200,255,.95) 48%,
+      rgba(255,255,255,var(--sheen-core)) 51%, rgba(140,200,255,.95) 54%,
+      rgba(0,100,225,.50) 62%, rgba(0,100,225,0) 100%);
+    animation: cv-sheen-travel var(--sheen-dur) cubic-bezier(.42,0,.58,1) infinite;
+  }
+  .cv-sheen::after { filter: blur(6px); opacity: var(--sheen-glow); }
+  @keyframes cv-sheen-travel {
+    0%   { transform: translateX(-130%); }
+    55%  { transform: translateX(340%); }
+    100% { transform: translateX(340%); }
+  }
+
+  .cv-shimmer {
+    background-image: linear-gradient(105deg,
+      var(--fg-2) 0%, var(--fg-2) 35%, var(--faint) 44%, var(--fg) 50%,
+      var(--faint) 56%, var(--fg-2) 65%, var(--fg-2) 100%);
+    background-size: 260% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: cv-shimmer 3.3s linear infinite;
+  }
+  @keyframes cv-shimmer { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+
+  .run-dot { width: 7px; height: 7px; border-radius: 50%; background: #b4b4be; flex: 0 0 auto; }
+  .run-dot.running { background: var(--accent); box-shadow: 0 0 0 3px var(--blue-soft); position: relative; }
+  .run-dot.running::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid var(--accent); pointer-events: none;
+    animation: cv-run-ripple 2.2s var(--ease-out) infinite;
+  }
+  @keyframes cv-run-ripple {
+    0%   { transform: scale(1);   opacity: .5; }
+    70%  { transform: scale(2.6); opacity: 0; }
+    100% { transform: scale(2.6); opacity: 0; }
+  }
+  /* ═════════ 生产代码结束 ═════════ */
+
+  .cv-capsule-text, .cv-actbar-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .chev { margin-left: auto; color: var(--faint); flex: 0 0 auto; }
+
+  /* 旧版（弱）对照：1px 硬光带 + background-position 驱动，无辉光无白核 */
+  .old { position: relative; }
+  .old::after {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+    background: linear-gradient(100deg, rgba(0,100,225,0) 34%, rgba(0,100,225,.92) 50%, rgba(0,100,225,0) 66%);
+    background-size: 260% 100%;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    animation: old-travel 3.2s cubic-bezier(.45,0,.55,1) infinite;
+    pointer-events: none;
+  }
+  @keyframes old-travel { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
+
+  /* 同屏组合场景 */
+  .scene {
+    position: relative; height: 300px; border-radius: 14px; overflow: hidden;
+    background:
+      radial-gradient(700px 400px at 20% 0%, #dbeeff 0%, transparent 60%),
+      linear-gradient(160deg, #e8f1fb 0%, #cfe0f4 100%);
+  }
+  .scene .mockcard {
+    position: absolute; width: 130px; height: 76px; border-radius: 14px;
+    background: var(--surface); box-shadow: var(--elev-2);
+    padding: 11px 12px; box-sizing: border-box; font-size: 11px; color: var(--faint);
+  }
+  .scene .mockcard b { display: block; color: var(--fg); font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+  .scene .at-cap { position: absolute; left: 14px; top: 14px; }
+  .scene .at-dock { position: absolute; left: 50%; transform: translateX(-50%); bottom: 16px; width: min(320px, 80%); }
+  .scene .composer {
+    margin-top: 10px; height: 64px; border-radius: 16px; background: var(--surface);
+    box-shadow: 0 12px 30px rgba(12,18,32,.16), 0 0 0 .5px rgba(12,18,32,.06);
+    padding: 12px 13px; box-sizing: border-box; font-size: 12.5px; color: var(--faint);
+  }
+
+  .note {
+    padding: 16px 18px; border-radius: 14px;
+    background: rgba(255,255,255,.72);
+    backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55), var(--elev-1);
+    font-size: 12.5px; color: var(--label-2); line-height: 1.8;
+  }
+  .note b { color: var(--fg); font-weight: 600; }
+  code { font-family: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace; font-size: 11.5px;
+         background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+
+  body.freeze .cv-sheen { display: none; }
+  body.freeze .run-dot.running::after { display: none; }
+  body.freeze .old::after { display: none; }
+  body.freeze .cv-shimmer { background-image: none; -webkit-text-fill-color: var(--fg-2); animation: none; }
+  body.freeze .cv-capsule.is-running, body.freeze .cv-actbar.is-running { border-color: rgba(0,100,225,.45); }
+</style>
+
+<h1>Frost · 「运行中」动效调参台</h1>
+<p class="lede">B（边框流光）+ D（文字流光）+ 状态点涟漪。下面的 CSS 与 <code>globals.css</code> 里已落地的生产代码逐字一致，拖出来的值可以直接改到 <code>--sheen-*</code> 三个变量上。</p>
+
+<div class="toolbar">
+  <label>周期 <input id="dur" type="range" min="1.4" max="5" step="0.1" value="3"><span class="val" id="durv">3.0s</span></label>
+  <div class="sep"></div>
+  <label>白热核心 <input id="core" type="range" min="0" max="1" step="0.05" value="0.6"><span class="val" id="corev">0.60</span></label>
+  <div class="sep"></div>
+  <!-- 上限收到 1：opacity 不接受 >1，之前放到 1.6 会误导 -->
+  <label>辉光 <input id="glow" type="range" min="0" max="1" step="0.05" value="1"><span class="val" id="glowv">1.00</span></label>
+  <div class="sep"></div>
+  <label><input id="frz" type="checkbox"> 静态（reduced-motion）</label>
+  <button id="copy">复制当前值</button>
+</div>
+
+<div class="card">
+  <h2>改前 / 改后</h2>
+  <p>左边是你说「不明显」的那一版：1px 硬光带、无白核、无辉光、ease-in-out（慢速段落在元素之外，可见段反而一晃而过）。右边是现在的。</p>
+  <div class="row2">
+    <div>
+      <div class="tag">改前</div>
+      <div class="stage">
+        <div class="cv-actbar old"><span class="run-dot running"></span><span class="cv-actbar-text">正在提交矩阵条目 · 技术应答 · 4 次调用</span><span class="chev">›</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="tag">改后（B + D + 涟漪）</div>
+      <div class="stage">
+        <div class="cv-actbar is-running"><span class="cv-sheen"></span><span class="run-dot running"></span><span class="cv-actbar-text cv-shimmer">正在提交矩阵条目 · 技术应答 · 4 次调用</span><span class="chev">›</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>两种宽度</h2>
+  <p>胶囊会随文案长短伸缩。光带用 <code>transform</code> 位移而非角度扫掠，任意宽高比下速度都均匀。</p>
+  <div class="stage">
+    <div class="cv-actbar is-running"><span class="cv-sheen"></span><span class="run-dot running"></span><span class="cv-actbar-text cv-shimmer">正在提交矩阵条目 · 技术应答 · 4 次调用</span><span class="chev">›</span></div>
+    <div style="width:auto"><span class="cv-capsule is-running"><span class="cv-sheen"></span><span class="run-dot running"></span><span class="cv-capsule-text cv-shimmer">正在读取第三章</span><span class="chev">›</span></span></div>
+    <div style="width:auto"><span class="cv-capsule is-running"><span class="cv-sheen"></span><span class="run-dot running"></span><span class="cv-capsule-text cv-shimmer">正在解析</span></span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>同屏组合 · 收起胶囊 + 底部活动条</h2>
+  <p>运行中且浮窗已收起时的真实情形。两处用同一套信号，但涟漪 2.2s / 流光 2.4s / 文字 3.3s 互不整除，不会打成机械节拍。</p>
+  <div class="scene">
+    <div class="mockcard" style="left:200px; top:36px"><b>项目概要</b>截止 3 月 12 日</div>
+    <div class="mockcard" style="left:356px; top:100px"><b>商务应答</b>解析中…</div>
+    <div class="mockcard" style="left:222px; top:156px"><b>技术应答</b>解析中…</div>
+    <div class="at-cap">
+      <span class="cv-capsule is-running"><span class="cv-sheen"></span><span class="run-dot running"></span><span class="cv-capsule-text cv-shimmer">正在提交矩阵条目</span><span class="chev">›</span></span>
+    </div>
+    <div class="at-dock">
+      <div class="cv-actbar is-running"><span class="cv-sheen"></span><span class="run-dot running"></span><span class="cv-actbar-text cv-shimmer">正在提交矩阵条目 · 4 次调用</span><span class="chev">›</span></div>
+      <div class="composer">向智能体发送指令…</div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>三层语汇：</b>状态点涟漪（原子，2.2s）＋ 边框流光（容器，<code>--sheen-dur</code>）＋ 文字流光（内容，3.3s）。<br>
+  <b>边框流光用 <code>transform</code> 驱动</b>（可合成，跑合成线程）；文字流光用 <code>background-position</code>（不可合成，跑主线程——这是沿用思考块既有语汇的代价，单条文字开销可忽略）。<br>
+  <b>静息一拍：</b>关键帧 55% 处扫完，余下 45% 停住。扫一次 + 歇一拍比连续爬行好认，也更省电。<br>
+  <b>reduced-motion：</b>流光与涟漪整体 <code>display:none</code>，边框留 30%→45% 的静态蓝，文字把 <code>-webkit-text-fill-color</code> 还回去。勾上面的「静态」可预览。
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const set = (k, v) => document.querySelectorAll('.cv-capsule, .cv-actbar').forEach(el => el.style.setProperty(k, v));
+  $('dur').oninput  = e => { set('--sheen-dur', e.target.value + 's'); $('durv').textContent = e.target.value + 's'; };
+  $('core').oninput = e => { set('--sheen-core', e.target.value);      $('corev').textContent = (+e.target.value).toFixed(2); };
+  $('glow').oninput = e => { set('--sheen-glow', e.target.value);      $('glowv').textContent = (+e.target.value).toFixed(2); };
+  $('frz').onchange = e => document.body.classList.toggle('freeze', e.target.checked);
+  $('copy').onclick = () => {
+    const t = `--sheen-dur: ${$('dur').value}s;\n--sheen-core: ${$('core').value};\n--sheen-glow: ${$('glow').value};`;
+    navigator.clipboard?.writeText(t);
+    $('copy').textContent = '已复制';
+    setTimeout(() => $('copy').textContent = '复制当前值', 1400);
+  };
+</script>

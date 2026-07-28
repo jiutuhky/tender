@@ -1,0 +1,432 @@
+/* 登录页样式 —— Frost·霜（macOS 风格）：玻璃卡片落壁纸 + 窗口 zoom 转场。
+   品牌事实来源：.design/prototype/frost/brand.html。
+   叙事：登录卡片是浮在桌面上的玻璃浮层；登录后卡片淡出、工作区窗口从中心
+   平滑放大铺满（macOS 打开 App 的 zoom 效果），转场末尾 router.push('/home')。
+   所有 .lg-* 类限定在 .login-page 作用域内，禁止新增全局选择器（路由级
+   styles.css 是全局作用域，会污染全站）。
+   转场由 _components/LoginExperience.tsx 用 gsap（useGSAP）驱动，
+   不使用 CSS @keyframes（仅保留 spinner 的 lg-spin）。 */
+
+.login-page {
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  /* body 已由 globals 铺浅冷灰壁纸；这里只加两团极浅的蓝色氛围光 */
+  background:
+    radial-gradient(90% 70% at 78% 6%, rgba(0, 100, 225, 0.06) 0%, transparent 55%),
+    radial-gradient(80% 70% at 12% 96%, rgba(46, 143, 216, 0.07) 0%, transparent 60%);
+}
+
+.login-page .lg-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+/* ============================================================
+   右上角语言切换（玻璃 chip，呼应 macOS 菜单栏状态项）
+   ============================================================ */
+.login-page .lg-locale {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  z-index: 5;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(18, 24, 38, 0.06);
+  user-select: none;
+}
+
+/* ============================================================
+   玻璃登录卡片（浮层材质：白 75% + blur 40 + 顶部高光）
+   ============================================================ */
+.login-page .lg-card {
+  position: relative;
+  z-index: 4;
+  width: 400px;
+  max-width: calc(100vw - 40px);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(40px) saturate(190%);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 24px 70px rgba(20, 30, 50, 0.16),
+    0 6px 18px rgba(20, 30, 50, 0.08);
+}
+
+.login-page .lg-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 28px 0;
+}
+.login-page .lg-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.login-page .lg-brand svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(8, 35, 100, 0.3));
+}
+.login-page .lg-head-aux {
+  font-size: 12px;
+  color: var(--muted);
+}
+.login-page .lg-head-aux a {
+  color: var(--accent);
+  font-weight: 500;
+  margin-left: 6px;
+}
+.login-page .lg-head-aux a:hover { text-decoration: underline; }
+
+.login-page .lg-card-body {
+  padding: 26px 28px 24px;
+}
+
+.login-page .lg-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--fg);
+}
+.login-page .lg-sub {
+  margin: 0 0 22px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ============================================================
+   表单（macOS 控件：白底输入 + 蓝色 focus ring）
+   ============================================================ */
+.login-page .lg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.login-page .lg-field { display: flex; flex-direction: column; gap: 6px; }
+.login-page .lg-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.login-page .lg-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-2);
+}
+.login-page .lg-label-link {
+  font-size: 12px;
+  color: var(--accent);
+}
+.login-page .lg-label-link:hover { text-decoration: underline; }
+
+.login-page .lg-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.login-page .lg-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: none;
+  outline: none;
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(60, 60, 67, 0.16);
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--fg);
+  transition: box-shadow 0.14s ease;
+}
+.login-page .lg-input::placeholder { color: var(--faint); }
+.login-page .lg-input:focus {
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 0 0 3px rgba(0, 100, 225, 0.18);
+}
+.login-page .lg-input-icon {
+  position: absolute;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.login-page .lg-input-icon:hover {
+  background: rgba(60, 60, 67, 0.08);
+  color: var(--fg);
+}
+.login-page .lg-input-icon svg { width: 15px; height: 15px; }
+
+/* 主按钮：Frost 系统蓝实心（顶部高光 + 蓝晕投影 + 按压回弹） */
+.login-page .lg-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  margin-top: 4px;
+  border-radius: 9px;
+  border: 1px solid rgba(0, 70, 160, 0.4);
+  background: linear-gradient(180deg, #1979f2 0%, var(--accent) 100%);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 2px rgba(0, 80, 190, 0.35),
+    0 2px 6px rgba(0, 80, 190, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+}
+.login-page .lg-submit:hover:not(:disabled) {
+  background: linear-gradient(180deg, #1571e4 0%, #0052bc 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(0, 80, 190, 0.4),
+    0 5px 12px rgba(0, 80, 190, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.login-page .lg-submit:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+.login-page .lg-submit:disabled { cursor: default; opacity: 0.85; }
+.login-page .lg-submit svg { width: 14px; height: 14px; }
+
+.login-page .lg-spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: lg-spin 0.7s linear infinite;
+}
+@keyframes lg-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .login-page .lg-spinner { animation: none; }
+}
+
+/* 分隔线与 SSO 次级按钮 */
+.login-page .lg-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+  font-size: 11px;
+  color: var(--faint);
+}
+.login-page .lg-divider::before,
+.login-page .lg-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(60, 60, 67, 0.14);
+}
+.login-page .lg-sso-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.login-page .lg-sso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border: 1px solid rgba(60, 60, 67, 0.14);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(18, 24, 38, 0.06);
+  transition: background 0.12s ease, transform 0.12s ease, color 0.12s ease;
+}
+.login-page .lg-sso:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); }
+.login-page .lg-sso:active:not(:disabled) { transform: scale(0.97); }
+.login-page .lg-sso:disabled { opacity: 0.6; cursor: default; }
+.login-page .lg-sso svg { width: 14px; height: 14px; }
+
+.login-page .lg-legal {
+  margin-top: 20px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--faint);
+  text-align: center;
+}
+
+/* ============================================================
+   工作区预览窗口（zoom 转场目标）：Frost 迷你 macOS 窗口。
+   初始隐藏/缩小由 gsap 接管（autoAlpha 0 / scale .9 / radius 14），
+   放大铺满后与真实 /home 同为冷灰底，衔接无闪。纯展示，不接真实数据。
+   ============================================================ */
+.login-page .lg-file {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  overflow: hidden;
+  background: var(--bg);
+  box-shadow: 0 28px 80px rgba(12, 18, 32, 0.26);
+}
+
+.login-page .lg-win-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  background: rgba(245, 246, 248, 0.92);
+  border-bottom: 1px solid rgba(60, 60, 67, 0.1);
+}
+.login-page .lg-traffic { display: flex; gap: 8px; }
+.login-page .lg-traffic i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+}
+.login-page .lg-traffic .c { background: #ff5f57; }
+.login-page .lg-traffic .m { background: #febc2e; }
+.login-page .lg-traffic .x { background: #28c840; }
+.login-page .lg-win-title { font-size: 13px; font-weight: 600; color: var(--fg); }
+.login-page .lg-win-sub { font-size: 13px; color: var(--faint); }
+
+.login-page .lg-win-body {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  min-height: 0;
+}
+.login-page .lg-win-side {
+  background: #f2f3f6;
+  border-right: 1px solid rgba(60, 60, 67, 0.1);
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.login-page .lg-win-side .s-item {
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(60, 60, 67, 0.06);
+}
+.login-page .lg-win-side .s-item.active { background: rgba(0, 100, 225, 0.14); }
+
+.login-page .lg-win-main {
+  padding: 34px 44px;
+  min-width: 0;
+}
+.login-page .lg-win-main h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+.login-page .lg-win-main .sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 26px;
+}
+.login-page .lg-wk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+}
+.login-page .lg-wk-item {
+  display: grid;
+  grid-template-columns: 1fr 160px 80px 80px;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(18, 24, 38, 0.08), 0 0 0 0.5px rgba(18, 24, 38, 0.05);
+}
+.login-page .lg-wk-item .name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.login-page .lg-wk-item .name small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--faint);
+}
+.login-page .lg-wk-bar {
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(60, 60, 67, 0.1);
+  overflow: hidden;
+}
+.login-page .lg-wk-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #3d9bff, var(--accent));
+}
+.login-page .lg-wk-item .score {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.login-page .lg-wk-item .due {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   回退与响应式
+   ============================================================ */
+@media (prefers-reduced-transparency: reduce) {
+  .login-page .lg-card,
+  .login-page .lg-locale {
+    background: rgba(250, 251, 253, 0.98);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page .lg-card-head { padding: 18px 20px 0; }
+  .login-page .lg-card-body { padding: 22px 20px 20px; }
+  .login-page .lg-head-aux span { display: none; }
+  .login-page .lg-win-side { display: none; }
+  .login-page .lg-win-body { grid-template-columns: 1fr; }
+  .login-page .lg-wk-item { grid-template-columns: 1fr 70px; }
+  .login-page .lg-wk-bar, .login-page .lg-wk-item .due { display: none; }
+}

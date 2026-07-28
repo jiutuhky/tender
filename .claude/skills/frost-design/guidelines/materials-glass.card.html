@@ -1,0 +1,24 @@
+<!-- @dsCard group="Brand" viewport="700x190" name="Materials · Glass grades" subtitle="Four grades front-to-back — blur = distance, opacity = weight" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 18px; background: var(--wallpaper); }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .panel { border-radius: var(--r-card); padding: 16px 16px 14px; color: var(--label); }
+  .panel h4 { margin: 0 0 3px; font-size: 14px; font-weight: 700; }
+  .use { margin: 0 0 10px; font-size: 11px; color: var(--label-2); }
+  .params { font-family: var(--font-mono); font-size: 10px; color: var(--label-2); line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="panel frost-glass-sidebar"><h4>侧栏 Sidebar</h4><p class="use">导航与项目列表</p><div class="params">blur 60<br>sat 180%<br>white 55%</div></div>
+  <div class="panel frost-glass-toolbar"><h4>工具栏 Toolbar</h4><p class="use">窗口顶部 / 悬浮导航</p><div class="params">blur 40<br>sat 180%<br>white 68%</div></div>
+  <div class="panel frost-glass-popover"><h4>浮层 Popover</h4><p class="use">菜单与弹出框</p><div class="params">blur 40<br>sat 190%<br>white 75%</div></div>
+  <div class="panel frost-glass-sheet"><h4>模态 Sheet</h4><p class="use">表单与确认对话</p><div class="params">blur 24<br>sat 160%<br>white 85%</div></div>
+</div>
+</body>
+</html>

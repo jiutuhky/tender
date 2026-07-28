@@ -1,0 +1,18 @@
+{
+  "eval_id": 2,
+  "eval_name": "某部数据资源体系建设(220180032)",
+  "prompt": "解析项目 eval-2-system 的招标文件，生成四个应答矩阵并发布。project_id 是 eval-2-system，源文件在 project workspace 的 docs/tender.md。",
+  "doc_key": "system",
+  "source_md": "/home/han/workplace/tender/data/MinerU_markdown_某部数据资源体系建设及大数据分析应用项目（数据资源体系建设）一包招标文件（220180032）_2046076179233173504.md",
+  "assertions": [
+    "[schema] 四矩阵均 published 且全套校验（结构/一致性/源文保真）pass",
+    "[完整][P0] 资格性条目（category=qualification 或 compliance_overview.qualification_review 行）≥ 6",
+    "[完整][P0] business 符合性条目（category=conformity 或 compliance_overview.conformity_review 行）≥ 4",
+    "[完整] scoring 条目 max_score 合计=100 且各维度=（商务17/技术55/价格28）",
+    "[完整] technical items ≥ 15",
+    "[完整] business items ≥ 5",
+    "[忠实] basic_info meta：budget.amount=3500000、project.number=2024-JQ05-F1859(1)",
+    "[忠实] 带 ★/否则视为无效 等强信号的条目 ≥80% 标记 mandatory=true",
+    "[忠实] requirement_text 抽样 ≥80% 逐字命中源文（grade.py 直读源文，独立于校验器）"
+  ]
+}

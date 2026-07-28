@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="claude" data-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude.ai 设计系统 · 复刻</title>
+<style>
+/* ========================================================================
+   1. 调色板 —— 原始 token（_gray, _orange 等截取核心档）
+   ======================================================================== */
+:root {
+  --_gray-0:   0 0% 100%;
+  --_gray-50:  45 12% 93%;
+  --_gray-100: 53 12% 87%;
+  --_gray-200: 55 9% 74%;
+  --_gray-300: 55 6% 63%;
+  --_gray-400: 45 3% 52%;
+  --_gray-500: 40 3% 42%;
+  --_gray-700: 60 3% 21%;
+  --_gray-800: 60 2% 12%;
+  --_gray-900: 0 0% 4%;
+  --_orange-400: 17 70% 50%;
+  --_blue-400:   213 77% 56%;
+  --_violet-400: 248 67% 67%;
+  --_red-400:    0 73% 59%;
+
+  /* ===== 字体 ===== */
+  --font-ui: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Anthropic Serif", Georgia, "Arial Hebrew", "Times New Roman", Times,
+                "Hiragino Sans", "PingFang TC", "Microsoft JhengHei",
+                "PingFang SC", "Microsoft YaHei", serif;
+  --font-mono: "Anthropic Mono", ui-monospace, "JetBrains Mono", "Fira Code",
+               SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-claude-response: var(--font-serif);
+  --font-user-message: var(--font-ui);
+
+  /* ===== 缓动 ===== */
+  --ease-out:      cubic-bezier(0, 0, .2, 1);          /* 进场 */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);       /* 通用过渡 */
+  --ease-button:   cubic-bezier(0.165, 0.85, 0.45, 1); /* 按钮 decelerate + overshoot */
+  --ease-spring:   cubic-bezier(0.34, 1.3, 0.64, 1);   /* 弹簧 */
+  --ease-artifact: cubic-bezier(0, 0.9, 0.5, 1.35);    /* artifact 弹簧 */
+  --ease-quintic:  cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* ===== 阴影 ===== */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / .05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
+
+  /* 通用 */
+  --always-white: 0 0% 100%;
+  --always-black: 0 0% 0%;
+}
+
+/* ===== 主题语义 token：claude × dark（默认） ===== */
+[data-theme="claude"][data-mode="dark"] {
+  --bg-000: 60 2.1% 18.4%;
+  --bg-100: 60 2.7% 14.5%;
+  --bg-200: 30 3.3% 11.8%;
+  --bg-300: 60 2.6% 7.6%;
+  --bg-400: 0 0% 0%;
+  --bg-500: 0 0% 0%;
+  --text-000: 48 33.3% 97.1%;
+  --text-100: 48 33.3% 97.1%;
+  --text-200: 50 9% 73.7%;
+  --text-300: 50 9% 73.7%;
+  --text-400: 48 4.8% 59.2%;
+  --text-500: 48 4.8% 59.2%;
+  --border-100: 51 16.5% 84.5%;
+  --border-200: 51 16.5% 84.5%;
+  --border-300: 51 16.5% 84.5%;
+  --border-400: 51 16.5% 84.5%;
+  --accent-000: 210 65.5% 67.1%;
+  --accent-100: 210 70.9% 51.6%;
+  --accent-pro-000: 251 84.6% 74.5%;
+  --brand-100: 15 63.1% 59.6%;
+  --brand-clay: 14.8 63.1% 59.6%;
+  --danger-000: 0 98.4% 75.1%;
+  --danger-100: 0 67% 59.6%;
+  --oncolor-100: 0 0% 100%;
+}
+
+/* ===== 主题语义 token：claude × light ===== */
+[data-theme="claude"][data-mode="light"] {
+  --bg-000: 0 0% 100%;
+  --bg-100: 48 33.3% 97.1%;
+  --bg-200: 53 28.6% 94.5%;
+  --bg-300: 48 25% 92.2%;
+  --bg-400: 50 20.7% 88.6%;
+  --bg-500: 50 20.7% 88.6%;
+  --text-000: 60 2.6% 7.6%;
+  --text-100: 60 2.6% 7.6%;
+  --text-200: 60 2.5% 23.3%;
+  --text-300: 60 2.5% 23.3%;
+  --text-400: 51 3.1% 43.7%;
+  --text-500: 51 3.1% 43.7%;
+  --border-100: 30 3.3% 11.8%;
+  --border-200: 30 3.3% 11.8%;
+  --border-300: 30 3.3% 11.8%;
+  --border-400: 30 3.3% 11.8%;
+  --accent-000: 210 73.7% 40.2%;
+  --accent-100: 210 70.9% 51.6%;
+  --accent-pro-000: 251 34.2% 33.3%;
+  --brand-100: 15 54.2% 51.2%;
+  --danger-000: 0 58.6% 34.1%;
+  --danger-100: 0 56.2% 45.4%;
+  --oncolor-100: 0 0% 100%;
+}
+
+/* ========================================================================
+   2. 基础
+   ======================================================================== */
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+
+body {
+  margin: 0;
+  background: hsl(var(--bg-100));
+  color: hsl(var(--text-100));
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  transition: background-color .3s var(--ease-standard), color .3s var(--ease-standard);
+}
+
+/* ===== 暗色模式衬线字重补偿 ===== */
+[data-theme="claude"][data-mode="dark"] .font-claude-response { font-weight: 360; }
+[data-theme="claude"][data-mode="dark"] .font-claude-response-bold { font-weight: 530; }
+
+/* ===== 关闭 code 连字 ===== */
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-feature-settings: "calt" 0, "liga" 0;
+}
+
+/* ========================================================================
+   3. 页面布局
+   ======================================================================== */
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 96px 24px 192px;
+}
+
+header.hero {
+  margin-bottom: 96px;
+  animation: cds-reveal-in .5s var(--ease-out) both;
+}
+
+.hero-eyebrow {
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: hsl(var(--text-400));
+  margin-bottom: 16px;
+}
+
+.hero-title {
+  font-family: var(--font-serif);
+  font-size: 56px;
+  font-weight: 530;
+  line-height: 1.05;
+  margin: 0 0 24px;
+  letter-spacing: -.02em;
+}
+
+.hero-title .clay {
+  color: hsl(var(--brand-100));
+  font-style: italic;
+}
+
+.hero-subtitle {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.5;
+  color: hsl(var(--text-200));
+  max-width: 65ch;
+  margin: 0;
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: hsl(var(--bg-000));
+  border: .5px solid hsl(var(--border-300) / .15);
+  border-radius: 999px;
+  z-index: 100;
+}
+
+.theme-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--text-400));
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .3s var(--ease-button);
+}
+
+.theme-toggle button[aria-pressed="true"] {
+  background: hsl(var(--bg-300));
+  color: hsl(var(--text-100));
+}
+
+.theme-toggle button:hover {
+  color: hsl(var(--text-100));
+}
+
+section {
+  margin-bottom: 120px;
+  animation: cds-reveal-in .5s var(--ease-out) both;
+}
+
+.section-eyebrow {
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: hsl(var(--text-400));
+  margin-bottom: 8px;
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 530;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+  margin: 0 0 12px;
+}
+
+.section-lede {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  color: hsl(var(--text-200));
+  max-width: 65ch;
+  margin: 0 0 40px;
+}
+
+/* ========================================================================
+   4. Color palette
+   ======================================================================== */
+.token-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.swatch {
+  border-radius: 8px;
+  overflow: hidden;
+  border: .5px solid hsl(var(--border-300) / .15);
+  background: hsl(var(--bg-000));
+  transition: border-color .3s var(--ease-standard), transform .3s var(--ease-spring);
+}
+
+.swatch:hover {
+  border-color: hsl(var(--border-200) / .4);
+  transform: translateY(-2px);
+}
+
+.swatch-color {
+  height: 72px;
+  width: 100%;
+}
+
+.swatch-label {
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: hsl(var(--text-200));
+}
+
+.swatch-name { color: hsl(var(--text-100)); margin-bottom: 4px; font-weight: 500; }
+
+/* Brand showcase */
+.brand-callout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 32px;
+  background: hsl(var(--bg-200));
+  border-radius: 16px;
+  border: .5px solid hsl(var(--border-300) / .12);
+  margin-bottom: 32px;
+}
+
+.brand-chip {
+  width: 100%;
+  aspect-ratio: 1;
+  background: hsl(var(--brand-100));
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.brand-chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, transparent 60%);
+}
+
+.brand-name {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 530;
+  margin: 0 0 8px;
+}
+
+.brand-name em { color: hsl(var(--brand-100)); font-style: normal; }
+
+.brand-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: hsl(var(--text-300));
+  line-height: 1.7;
+}
+
+/* ========================================================================
+   5. Typography demo
+   ======================================================================== */
+.type-grid {
+  display: grid;
+  gap: 32px;
+  padding: 32px;
+  background: hsl(var(--bg-200));
+  border-radius: 16px;
+  border: .5px solid hsl(var(--border-300) / .12);
+}
+
+.type-row {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 32px;
+  align-items: baseline;
+}
+
+.type-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: hsl(var(--text-400));
+  line-height: 1.8;
+}
+
+.type-meta .name { color: hsl(var(--text-100)); font-weight: 500; display: block; margin-bottom: 4px; }
+
+.type-sample-title { font-family: var(--font-serif); font-size: 28px; font-weight: 530; line-height: 1.3; margin: 0; font-variation-settings: "opsz" 28; }
+.type-sample-body { font-family: var(--font-serif); font-size: 16px; font-weight: 360; line-height: 1.5; margin: 0; }
+.type-sample-ui   { font-family: var(--font-ui); font-size: 14px; line-height: 1.5; margin: 0; }
+.type-sample-mono { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; margin: 0; color: hsl(var(--text-200)); }
+
+/* ========================================================================
+   6. Motion showcase
+   ======================================================================== */
+.motion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.motion-card {
+  padding: 20px;
+  background: hsl(var(--bg-200));
+  border-radius: 12px;
+  border: .5px solid hsl(var(--border-300) / .15);
+  cursor: pointer;
+  transition: border-color .3s var(--ease-standard), background-color .3s var(--ease-standard);
+}
+
+.motion-card:hover { border-color: hsl(var(--border-200) / .35); background: hsl(var(--bg-000) / .5); }
+
+.motion-card-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: hsl(var(--text-300));
+  margin-bottom: 10px;
+}
+
+.motion-card-name { color: hsl(var(--text-100)); font-weight: 500; }
+
+.motion-card-stage {
+  height: 80px;
+  background: hsl(var(--bg-300));
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.motion-dot {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: hsl(var(--brand-100));
+  transform: translate(0, -50%);
+}
+
+.motion-card:hover .motion-dot { animation: motion-fly 1.6s var(--demo-ease, var(--ease-out)) infinite; }
+
+@keyframes motion-fly {
+  0%   { transform: translate(0, -50%); }
+  50%  { transform: translate(calc(220px - 60px), -50%); }
+  100% { transform: translate(0, -50%); }
+}
+
+.motion-card-help {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: hsl(var(--text-400));
+  line-height: 1.5;
+}
+
+/* ========================================================================
+   7. ★ Chat message demo
+   ======================================================================== */
+.chat-frame {
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 32px;
+  background: hsl(var(--bg-100));
+  border-radius: 20px;
+  border: .5px solid hsl(var(--border-300) / .1);
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(80% 50% at 50% 0%, hsl(var(--bg-000) / .4) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.chat-frame > * { position: relative; z-index: 1; }
+
+/* ----- 控制条 ----- */
+.chat-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.chat-btn {
+  appearance: none;
+  border: .5px solid hsl(var(--border-300) / .2);
+  background: hsl(var(--bg-200));
+  color: hsl(var(--text-200));
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all .3s var(--ease-button);
+}
+
+.chat-btn:hover {
+  border-color: hsl(var(--border-200) / .5);
+  color: hsl(var(--text-100));
+  transform: translateY(-.5px);
+}
+
+.chat-btn:active { transform: translateY(.5px); }
+
+.chat-btn-primary {
+  background: hsl(var(--brand-100));
+  color: hsl(var(--oncolor-100));
+  border-color: hsl(var(--brand-100));
+}
+
+.chat-btn-primary:hover {
+  background: hsl(var(--brand-clay) / .9);
+  border-color: hsl(var(--brand-clay) / .9);
+  color: hsl(var(--oncolor-100));
+}
+
+/* ----- Live demo: phase containers ----- */
+.live-phase {
+  margin-top: 12px;
+  padding-left: 8px;
+}
+
+.live-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.live-dots .label {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 360;
+  color: hsl(var(--text-500));
+}
+
+/* ----- 一条 message turn ----- */
+.message-turn {
+  margin: 24px 0 4px;
+}
+
+.message-turn.user .user-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* ----- user bubble ----- */
+.user-bubble {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 85%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: hsl(var(--bg-300));
+  color: hsl(var(--text-100));
+  font-family: var(--font-user-message);
+  font-size: 14px;
+  line-height: 21px;
+  word-break: break-word;
+  transition: all .3s var(--ease-standard);
+  animation: cds-reveal-in .4s var(--ease-out) both;
+}
+
+/* user action toolbar - hover/focus reveal */
+.user-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity .15s var(--ease-standard);
+}
+
+.message-turn:hover .user-actions,
+.message-turn:focus-within .user-actions {
+  opacity: 1;
+}
+
+/* ----- 32×32 action button ----- */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--text-300));
+  cursor: pointer;
+  transition: color .3s var(--ease-button),
+              background-color .3s var(--ease-button),
+              transform .3s var(--ease-button);
+}
+
+.action-btn:hover {
+  background: hsl(var(--bg-000) / .6);
+  color: hsl(var(--text-100));
+  transform: translateY(-.5px);
+}
+
+.action-btn:active { transform: translateY(.5px); }
+
+.action-btn svg { width: 16px; height: 16px; }
+
+/* ----- ★ Assistant response wrapper ----- */
+.assistant-response {
+  position: relative;
+  animation: cds-reveal-in .5s var(--ease-out) .15s both;
+}
+
+.font-claude-response {
+  font-family: var(--font-claude-response);
+  font-size: 14px;
+  line-height: 1.65rem;       /* 26.4px / 14px = 1.886 行高 */
+  color: hsl(var(--oncolor-100));
+}
+
+.font-claude-response p,
+.font-claude-response li,
+.font-claude-response h1,
+.font-claude-response h2,
+.font-claude-response h3 {
+  margin: 0 0 .375rem;
+}
+
+.font-claude-response strong { font-weight: 530; }
+
+.font-claude-response p { padding-left: .5rem; padding-right: 2rem; }
+
+/* ----- ★ Thinking 块 (group/status) ----- */
+/* 真实 claude.ai 行为: 折叠态只显示 summary, 展开态高度自适应到内容 */
+.thinking-grid {
+  display: grid;
+  grid-template-rows: auto 0fr;
+  min-width: 0;
+  transition: grid-template-rows .35s var(--ease-standard);
+  margin-bottom: 16px;
+}
+
+.thinking-grid[aria-expanded="true"] {
+  grid-template-rows: auto 1fr;
+}
+
+.thinking-header {
+  min-width: 0;
+  padding: 6px 0 6px 8px;
+}
+
+.thinking-body-wrap {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.thinking-button {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--text-500));
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 360;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  min-width: 0;
+  transition: color .15s var(--ease-standard);
+}
+
+.thinking-button:hover { color: hsl(var(--text-300)); }
+
+.thinking-button .summary-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.thinking-button .chevron {
+  display: inline-block;
+  transform: rotate(-90deg);
+  transition: transform .25s var(--ease-standard);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.thinking-grid[aria-expanded="true"] .chevron { transform: rotate(0deg); }
+
+.thinking-raw {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-left: 2px solid hsl(var(--border-400) / .2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.7;
+  color: hsl(var(--text-400));
+  overflow: hidden;
+  white-space: pre-wrap;
+  opacity: 0;
+  transition: opacity .25s var(--ease-standard);
+}
+
+.thinking-grid[aria-expanded="true"] .thinking-raw { opacity: 1; transition-delay: .1s; }
+
+/* ----- ★ Thinking body: 真实结构 - 多个搜索段 + reasoning 段 + Done ----- */
+.thinking-body {
+  font-family: var(--font-ui);
+  padding: 8px 0 4px;
+  padding-left: 8px;
+  display: flex;
+  flex-direction: column;
+  line-height: normal;
+  opacity: 0;
+  transition: opacity .25s var(--ease-standard);
+}
+
+.thinking-grid[aria-expanded="true"] .thinking-body { opacity: 1; transition-delay: .12s; }
+
+/* 一段搜索: header (group/row) + 展开后的结果卡片列表 */
+.search-section { display: flex; flex-direction: column; }
+
+.search-cards {
+  display: flex;
+  flex-direction: column;
+  padding-left: 22px;            /* 与 row 内文本对齐 */
+  margin: 2px 0 6px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height .35s var(--ease-standard), opacity .25s var(--ease-standard);
+}
+
+.search-section[data-expanded="true"] .search-cards {
+  max-height: 600px;
+  opacity: 1;
+}
+
+/* 单行结果卡片 (a tag) - flex flex-row gap-3 items-center px-2 py-1.5 */
+.result-card {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 8px;
+  width: 100%;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  color: inherit;
+  transition: background-color .15s var(--ease-standard);
+}
+
+.result-card:hover { background: hsl(var(--bg-200)); }
+
+.result-card-favicon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 2px;
+  background: hsl(var(--bg-300));
+}
+
+.result-card-title {
+  width: 0;
+  flex-grow: 1;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 360;
+  color: hsl(var(--text-300));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-card-site {
+  font-size: 11px;
+  color: hsl(var(--text-400));
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 段间 reasoning 段落 */
+.reasoning-para {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 360;
+  color: hsl(var(--text-400));
+  padding: 6px 16px 6px 10px;
+  margin: 0;
+}
+
+.search-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 20px;
+  width: 100%;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--text-300));
+  cursor: default;
+  transition: background-color .15s var(--ease-standard);
+}
+
+.search-row:hover { background: hsl(var(--bg-000) / .4); }
+
+.search-row-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.search-row-left svg { flex-shrink: 0; color: hsl(var(--text-400)); width: 14px; height: 14px; }
+
+.search-row-query {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 360;
+  color: hsl(var(--text-500));
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 0;
+  flex-grow: 1;
+}
+
+.search-row-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.search-row-count {
+  padding-left: 4px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 360;
+  color: hsl(var(--text-500));
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* "Done" marker (white, sans, 14px) */
+.search-done {
+  margin-top: 8px;
+  padding-left: 10px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  color: hsl(var(--text-100));
+}
+
+/* Streaming-in search row: shimmer query, hide count until "done" */
+.search-row.is-searching .search-row-query {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--text-500)) 0%,
+    hsl(var(--text-200)) 50%,
+    hsl(var(--text-500)) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmertext 1.6s linear infinite;
+}
+
+.search-row.is-searching .search-row-count { opacity: 0; }
+
+.search-row-count { transition: opacity .3s var(--ease-out); }
+
+/* small loading spinner on left side during search */
+.search-row.is-searching .search-row-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid hsl(var(--text-400) / .25);
+  border-top-color: hsl(var(--text-200));
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ----- 行内 code (★ danger 色) ----- */
+.font-claude-response code:not(pre code) {
+  border: .5px solid hsl(var(--border-300) / .25);
+  background-color: hsl(var(--text-200) / .05);
+  font-size: 0.9em;
+  color: hsl(var(--danger-000));
+  padding: 1px 4px;
+  border-radius: 0.3rem;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+}
+
+/* ----- 链接 ----- */
+.font-claude-response a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: hsl(var(--text-300) / .4);
+  text-underline-offset: 3px;
+  transition: text-decoration-color .15s var(--ease-standard);
+}
+
+.font-claude-response a:hover { text-decoration-color: hsl(var(--text-100)); }
+
+/* ----- ★ Citation chip (group/tag) ----- */
+.citation {
+  position: relative;
+  display: inline-block;
+}
+
+.cite-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: hsl(var(--bg-300));
+  border: .5px solid hsl(var(--border-300) / .2);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(var(--text-200));
+  transform: translateY(-1px);            /* ★ 上移 1px */
+  cursor: pointer;
+  margin: 0 2px;
+  transition: all .25s var(--ease-button);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.cite-tag:hover {
+  background: hsl(var(--bg-000));
+  color: hsl(var(--text-100));
+  border-color: hsl(var(--border-200) / .5);
+  transform: translateY(-1.6px) scale(1.03);
+}
+
+/* tooltip popover */
+.cite-popover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: 260px;
+  padding: 14px 16px;
+  background: hsl(var(--bg-000));
+  border: .5px solid hsl(var(--border-200) / .25);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.55;
+  color: hsl(var(--text-200));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s var(--ease-standard), transform .25s var(--ease-spring);
+  z-index: 10;
+}
+
+.cite-popover::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: hsl(var(--bg-000));
+  border-right: .5px solid hsl(var(--border-200) / .25);
+  border-bottom: .5px solid hsl(var(--border-200) / .25);
+  transform: translateX(-50%) translateY(-50%) rotate(45deg);
+}
+
+.citation:hover .cite-popover,
+.cite-tag:focus + .cite-popover {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.cite-source-name {
+  color: hsl(var(--text-100));
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.cite-url { color: hsl(var(--text-400)); font-family: var(--font-mono); font-size: 10px; margin-bottom: 8px; word-break: break-all; }
+
+.cite-excerpt { color: hsl(var(--text-300)); font-style: italic; }
+
+/* ----- Code block ----- */
+.code-block {
+  margin: 16px 0;
+  background: hsl(var(--bg-000) / .5);
+  border: .5px solid hsl(var(--border-400) / .15);
+  border-radius: 10px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: .5px solid hsl(var(--border-400) / .12);
+  color: hsl(var(--text-400));
+  font-size: 11px;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 14px 18px;
+  overflow-x: auto;
+  color: hsl(var(--text-100));
+}
+
+.code-block .tok-kw   { color: hsl(var(--accent-pro-000)); }
+.code-block .tok-str  { color: hsl(var(--danger-000)); }
+.code-block .tok-fn   { color: hsl(var(--accent-000)); }
+.code-block .tok-cmt  { color: hsl(var(--text-400)); font-style: italic; }
+.code-block .tok-num  { color: hsl(var(--brand-100)); }
+
+/* ----- ★ Artifact block (group/artifact-block) ----- */
+.artifact-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 20px 0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: .5px solid hsl(var(--border-300) / .15);
+  background: transparent;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: background-color .3s var(--ease-standard),
+              border-color .3s var(--ease-standard);
+}
+
+.artifact-block:hover {
+  background: hsl(var(--bg-000) / .5);
+  border-color: hsl(var(--border-200) / .5);
+}
+
+.artifact-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  background: hsl(var(--bg-300));
+  border: .5px solid hsl(var(--border-300) / .15);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: hsl(var(--text-200));
+  transition: transform .4s var(--ease-artifact);
+  transform-origin: center;
+}
+
+.artifact-icon svg { width: 22px; height: 22px; }
+
+.artifact-block:hover .artifact-icon {
+  transform: rotate(0.065rad) scale(1.035);  /* ★ +3.72° + 1.035× */
+}
+
+.artifact-block:hover .artifact-icon.alt {
+  transform: rotate(-0.065rad) scale(1.035); /* 另一种类型反向倾 */
+}
+
+.artifact-meta { flex: 1; min-width: 0; }
+
+.artifact-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: hsl(var(--text-100));
+  margin-bottom: 2px;
+}
+
+.artifact-subtitle {
+  font-size: 11px;
+  color: hsl(var(--text-400));
+  font-family: var(--font-mono);
+}
+
+.artifact-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: .5px solid hsl(var(--border-300) / .2);
+  color: hsl(var(--text-200));
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .3s var(--ease-button);
+}
+
+.artifact-action:hover {
+  background: hsl(var(--bg-000));
+  color: hsl(var(--text-100));
+  transform: translateY(-.5px);
+}
+
+/* ----- ★ Streaming chunks ----- */
+.font-claude-response.streaming p {
+  /* 每个段落作为整体淡入；真实场景下每个 token / chunk 是独立 span */
+}
+
+.font-claude-response.streaming .chunk {
+  display: inline;
+  opacity: 0;
+  animation: fadeInText .4s var(--ease-out) both;
+}
+
+@keyframes fadeInText {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* ----- ★ Loading dots (cds-dot-pulse) ----- */
+.loading-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.loading-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--text-300));
+  animation: pulse-dot 1.4s cubic-bezier(0.165, 0.84, 0.44, 1) infinite;
+}
+
+.loading-dots span:nth-child(2) { animation-delay: .15s; }
+.loading-dots span:nth-child(3) { animation-delay: .3s; }
+
+@keyframes pulse-dot {
+  0%, 65%, 100% { transform: scale(0.6); opacity: .4; }
+  20%           { transform: scale(1);   opacity: 1; }
+}
+
+/* ----- shimmertext ----- */
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--text-300)) 0%,
+    hsl(var(--text-100)) 50%,
+    hsl(var(--text-300)) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmertext 2.25s linear infinite;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 360;
+}
+
+@keyframes shimmertext {
+  0%   { background-position-x: 100%; }
+  65%  { background-position-x: 0%; }
+  100% { background-position-x: 0%; }
+}
+
+/* ----- 签名进场动画 ----- */
+@keyframes cds-reveal-in {
+  0%   { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* ========================================================================
+   8. Code & component anatomy panel
+   ======================================================================== */
+.anatomy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.anatomy-card {
+  padding: 24px;
+  background: hsl(var(--bg-200));
+  border-radius: 14px;
+  border: .5px solid hsl(var(--border-300) / .12);
+}
+
+.anatomy-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: hsl(var(--text-300));
+  margin-bottom: 16px;
+}
+
+.anatomy-name b { color: hsl(var(--text-100)); }
+
+.anatomy-card .kv {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: hsl(var(--text-300));
+  line-height: 1.7;
+}
+
+.anatomy-card .kv b { color: hsl(var(--text-100)); font-weight: 500; }
+
+/* ========================================================================
+   9. Sub-pixel hover demo
+   ======================================================================== */
+.hover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.hover-card {
+  padding: 20px 16px;
+  background: hsl(var(--bg-200));
+  border-radius: 10px;
+  border: .5px solid hsl(var(--border-300) / .12);
+  cursor: pointer;
+  transition: transform .3s var(--ease-button), border-color .3s var(--ease-standard);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: hsl(var(--text-300));
+}
+
+.hover-card:hover { border-color: hsl(var(--border-200) / .4); }
+
+.hover-card.h-05:hover { transform: translateY(-0.5px); }
+.hover-card.h-14:hover { transform: translateY(-1.4px); }
+.hover-card.h-28:hover { transform: translateY(-2.8px); }
+.hover-card.h-scale:hover { transform: scale(1.05); }
+
+.hover-card b { color: hsl(var(--text-100)); display: block; margin-bottom: 6px; font-family: var(--font-ui); font-size: 13px; font-weight: 500; }
+
+/* ========================================================================
+   10. Footer
+   ======================================================================== */
+footer {
+  margin-top: 80px;
+  padding-top: 24px;
+  border-top: .5px solid hsl(var(--border-300) / .12);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: hsl(var(--text-400));
+  line-height: 1.7;
+}
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" role="group" aria-label="主题切换">
+  <button data-mode="dark" aria-pressed="true">Dark</button>
+  <button data-mode="light" aria-pressed="false">Light</button>
+</div>
+
+<div class="page">
+
+  <!-- ============================================================
+       Hero
+       ============================================================ -->
+  <header class="hero">
+    <div class="hero-eyebrow">Design system · Extracted live from claude.ai</div>
+    <h1 class="hero-title">面向 <span class="clay">阅读</span> 的对话界面</h1>
+    <p class="hero-subtitle">
+      用户输入用现代无衬线，模型回复用衬线 + opsz variation。
+      行内代码染 danger 色。Thinking 用 CSS Grid rows 折叠。
+      搜索结果不开面板，化进文里。
+    </p>
+  </header>
+
+  <!-- ============================================================
+       Colors
+       ============================================================ -->
+  <section id="colors">
+    <div class="section-eyebrow">01 · Color</div>
+    <h2 class="section-title">温暖、克制、不刺眼的中性色。</h2>
+    <p class="section-lede">
+      11 个色族 × 30+ 阶。基底偏暖（hue 50-60、sat 10%），深色端走纯中性 (sat 0%)。
+      品牌色 Clay 跨明暗主题不变。
+    </p>
+
+    <!-- Brand callout -->
+    <div class="brand-callout">
+      <div class="brand-chip"></div>
+      <div>
+        <p class="brand-name">Clay <em>· brand</em></p>
+        <div class="brand-meta">
+          --brand-100:   hsl(15 63.1% 59.6%)<br>
+          --brand-clay-emphasized: hsl(15.1 54.2% 51.2%)<br>
+          <span style="color: hsl(var(--text-400))">介于 terracotta 与 salmon 之间，饱和度刻意压在 63%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Semantic tokens -->
+    <div class="token-grid" id="semantic-tokens">
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--bg-000))"></div><div class="swatch-label"><div class="swatch-name">--bg-000</div>elevated</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--bg-100))"></div><div class="swatch-label"><div class="swatch-name">--bg-100</div>page</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--bg-200))"></div><div class="swatch-label"><div class="swatch-name">--bg-200</div>sunken</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--bg-300))"></div><div class="swatch-label"><div class="swatch-name">--bg-300</div>bubble</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--text-100))"></div><div class="swatch-label"><div class="swatch-name" style="color:#000">--text-100</div><span style="color:#333">primary</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--text-300))"></div><div class="swatch-label"><div class="swatch-name">--text-300</div>secondary</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--text-500))"></div><div class="swatch-label"><div class="swatch-name">--text-500</div>muted</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--accent-000))"></div><div class="swatch-label"><div class="swatch-name">--accent-000</div>link</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--accent-pro-000))"></div><div class="swatch-label"><div class="swatch-name">--accent-pro-000</div>pro</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--brand-100))"></div><div class="swatch-label"><div class="swatch-name">--brand-100</div>clay</div></div>
+      <div class="swatch"><div class="swatch-color" style="background:hsl(var(--danger-000))"></div><div class="swatch-label"><div class="swatch-name">--danger-000</div>code / error</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       Typography
+       ============================================================ -->
+  <section id="typography">
+    <div class="section-eyebrow">02 · Typography</div>
+    <h2 class="section-title">Sans 给输入，Serif 给阅读。</h2>
+    <p class="section-lede">
+      用户消息用 Anthropic Sans；模型回复用 Anthropic Serif，
+      暗色模式字重降到 360（variable font 轴值）。代码强制关闭 ligature。
+    </p>
+
+    <div class="type-grid">
+      <div class="type-row">
+        <div class="type-meta">
+          <span class="name">.font-claude-response-title</span>
+          1.75rem / 1.3<br>
+          weight 600 (dark: 530)<br>
+          opsz 28<br>
+          serif
+        </div>
+        <p class="type-sample-title">优秀的对话界面，应该让人忘记界面本身。</p>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">
+          <span class="name">.font-claude-response-body</span>
+          14px / 26.4px (1.886)<br>
+          weight 400 / 360 (dark)<br>
+          serif
+        </div>
+        <p class="type-sample-body">阅读密度高、行高刻意放宽到 1.886，专门为衬线长段落优化。这是 Claude.ai 视觉气质的根基。</p>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">
+          <span class="name">.font-user-message</span>
+          14px / 21px (1.5)<br>
+          weight 400<br>
+          sans
+        </div>
+        <p class="type-sample-ui">用户输入是简洁的无衬线 — 视觉上"短暂、操作性"，不抢戏。</p>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">
+          <span class="name">.font-mono</span>
+          13px / 1.5<br>
+          weight 400<br>
+          mono · no ligatures
+        </div>
+        <p class="type-sample-mono">const x = () =&gt; arr.filter(y =&gt; y !== null);  // === 不连字</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       Motion
+       ============================================================ -->
+  <section id="motion">
+    <div class="section-eyebrow">03 · Motion</div>
+    <h2 class="section-title">六条曲线，覆盖所有场景。</h2>
+    <p class="section-lede">
+      hover 任意一张卡片预览。每个使用场景都精挑过缓动 —— 进场 vs 按钮 vs 弹簧 vs 跌落。
+    </p>
+
+    <div class="motion-grid">
+      <div class="motion-card" style="--demo-ease: var(--ease-out)">
+        <div class="motion-card-stage"><div class="motion-dot"></div></div>
+        <div class="motion-card-label"><span class="motion-card-name">--ease-out</span></div>
+        <div class="motion-card-help">cubic-bezier(0, 0, .2, 1)<br>进场、reveal-in</div>
+      </div>
+      <div class="motion-card" style="--demo-ease: var(--ease-standard)">
+        <div class="motion-card-stage"><div class="motion-dot"></div></div>
+        <div class="motion-card-label"><span class="motion-card-name">--ease-standard</span></div>
+        <div class="motion-card-help">cubic-bezier(0.4, 0, 0.2, 1)<br>Material 通用</div>
+      </div>
+      <div class="motion-card" style="--demo-ease: var(--ease-button)">
+        <div class="motion-card-stage"><div class="motion-dot"></div></div>
+        <div class="motion-card-label"><span class="motion-card-name">--ease-button</span></div>
+        <div class="motion-card-help">cubic-bezier(0.165, 0.85, 0.45, 1)<br>按钮 hover</div>
+      </div>
+      <div class="motion-card" style="--demo-ease: var(--ease-spring)">
+        <div class="motion-card-stage"><div class="motion-dot"></div></div>
+        <div class="motion-card-label"><span class="motion-card-name">--ease-spring</span></div>
+        <div class="motion-card-help">cubic-bezier(0.34, 1.3, 0.64, 1)<br>轻 overshoot</div>
+      </div>
+      <div class="motion-card" style="--demo-ease: var(--ease-artifact)">
+        <div class="motion-card-stage"><div class="motion-dot"></div></div>
+        <div class="motion-card-label"><span class="motion-card-name">--ease-artifact</span></div>
+        <div class="motion-card-help">cubic-bezier(0, 0.9, 0.5, 1.35)<br>artifact 弹簧</div>
+      </div>
+      <div class="motion-card" style="--demo-ease: var(--ease-quintic)">
+        <div class="motion-card-stage"><div class="motion-dot"></div></div>
+        <div class="motion-card-label"><span class="motion-card-name">--ease-quintic</span></div>
+        <div class="motion-card-help">cubic-bezier(0.22, 1, 0.36, 1)<br>优雅减速</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ★ Chat message
+       ============================================================ -->
+  <section id="messages">
+    <div class="section-eyebrow">04 · Chat messages</div>
+    <h2 class="section-title">完整的对话舞台。</h2>
+    <p class="section-lede">
+      包含 user bubble、thinking 块（点击展开）、内联 citation chip（hover 看预览）、
+      行内 code、代码块、artifact（hover 看弹簧）、动作按钮（悬停消息显形）、
+      streaming 重播、loading 指示器。
+    </p>
+
+    <div class="chat-frame">
+
+      <!-- Controls -->
+      <div class="chat-controls">
+        <button class="chat-btn chat-btn-primary" id="play-live">▶ Play live demo</button>
+        <button class="chat-btn" id="replay-stream">↻ Replay chunk fade-in</button>
+        <button class="chat-btn" id="toggle-loading">⏸ Toggle loading dots</button>
+        <button class="chat-btn" id="toggle-shimmer">✨ Toggle shimmer text</button>
+      </div>
+
+      <!-- Loading state (toggleable) -->
+      <div id="loading-state" style="display:none; padding: 16px 0; border-bottom: .5px solid hsl(var(--border-300) / .1); margin-bottom: 8px;">
+        <div class="thinking-button" style="cursor: default;">
+          <span class="shimmer-text">分析问题语境，准备多角度的回复...</span>
+        </div>
+        <div style="padding-left: 0; padding-top: 8px;">
+          <span class="loading-dots"><span></span><span></span><span></span></span>
+        </div>
+      </div>
+
+      <!-- ===== User turn ===== -->
+      <div class="message-turn user">
+        <div class="user-stack">
+          <div class="user-bubble">
+            Claude.ai 的设计系统里有什么让你觉得设计师特别用心的细节？
+          </div>
+          <div class="user-actions">
+            <button class="action-btn" aria-label="Edit"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 2l3 3-8 8H3v-3l8-8z"/></svg></button>
+            <button class="action-btn" aria-label="Copy"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"/></svg></button>
+            <button class="action-btn" aria-label="Retry"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0110.5-3.97M14 2v3h-3"/><path d="M14 8a6 6 0 01-10.5 3.97M2 14v-3h3"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Assistant turn ===== -->
+      <div class="message-turn assistant">
+        <div class="assistant-response">
+
+          <!-- ★ Thinking block: click to expand -->
+          <div class="thinking-grid" aria-expanded="false" id="thinking">
+            <div class="thinking-header">
+              <button class="thinking-button" id="thinking-btn">
+                <span class="summary-text">策划精选文章清单并确保恰当引用。</span>
+                <svg class="chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+              </button>
+            </div>
+            <div class="thinking-body-wrap">
+              <div class="thinking-body" id="thinking-body">
+                <!-- 真实 claude.ai 结构: search-section (row+cards) 与 reasoning-para 交替, Done 收尾 -->
+                <div class="search-section" data-expanded="false">
+                  <button class="search-row search-row-toggle">
+                    <div class="search-row-left">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+                      <div class="search-row-query">优秀产品经理 经典文章 推荐</div>
+                    </div>
+                    <div class="search-row-right"><span class="search-row-count">7 results</span></div>
+                  </button>
+                  <div class="search-cards">
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=csdn.net" alt=""><div class="result-card-title">俞军老师：适合产品经理的10本书 | 2019收藏版_俞军 互联网产品的必读书目有哪些-CSDN博客</div><div class="result-card-site">blog.csdn.net</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=segmentfault.com" alt=""><div class="result-card-title">PM 最容易忽视的项目管理能力：如何让大家心甘情愿地配合你？ - 个人文章 - SegmentFault 思否</div><div class="result-card-site">segmentfault.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=csdn.net" alt=""><div class="result-card-title">想做/做产品经理的注意！这36本书（2025版）帮你打通任督二脉！-CSDN博客</div><div class="result-card-site">blog.csdn.net</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=woshipm.com" alt=""><div class="result-card-title">9本经典PM图书串烧，变身产品经理达人 | 人人都是产品经理</div><div class="result-card-site">www.woshipm.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=zhihu.com" alt=""><div class="result-card-title">哪三本书是产品经理必读书？为什么？ - 徐李-PM 的回答</div><div class="result-card-site">www.zhihu.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=itheima.com" alt=""><div class="result-card-title">2021年产品经理必读书籍推荐</div><div class="result-card-site">www.itheima.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=tangjie.me" alt=""><div class="result-card-title">不容错过的产品经理书籍推荐</div><div class="result-card-site">tangjie.me</div></a>
+                  </div>
+                </div>
+
+                <p class="reasoning-para">I'm looking for some well-regarded articles from the product management field, particularly some foundational pieces that are widely recognized in the community.</p>
+
+                <div class="search-section" data-expanded="true">
+                  <button class="search-row search-row-toggle">
+                    <div class="search-row-left">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+                      <div class="search-row-query">Marty Cagan good product manager bad product manager essay</div>
+                    </div>
+                    <div class="search-row-right"><span class="search-row-count">9 results</span></div>
+                  </button>
+                  <div class="search-cards">
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=linkedin.com" alt=""><div class="result-card-title">How to build great product teams? Advice from Marty Cagan's "Inspired"​</div><div class="result-card-site">www.linkedin.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=medium.com" alt=""><div class="result-card-title">5 Things I learned about good product managers from Marty Cagan | by Rita Wang | Carousell Insider | Medium</div><div class="result-card-site">medium.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=medium.com" alt=""><div class="result-card-title">Why Marty Cagan Thinks Your Product Manager Might Be Useless | Cub Think Tank | by Chris Dunlop | Medium</div><div class="result-card-site">medium.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=svpg.com" alt=""><div class="result-card-title">Product Management - Start Here - Silicon Valley Product Group</div><div class="result-card-site">www.svpg.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=svpg.com" alt=""><div class="result-card-title">Good Product Team / Bad Product Team - Silicon Valley Product Group</div><div class="result-card-site">www.svpg.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=medium.com" alt=""><div class="result-card-title">What Makes Great Product Managers? Insights from Marty Cagan's "Inspired" | by Rohit Lokwani | Medium</div><div class="result-card-site">medium.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=amitbhatnagar.com" alt=""><div class="result-card-title">Five Product Myths I Believed (And Why I Was Wrong)</div><div class="result-card-site">blog.amitbhatnagar.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=edensoftlabs.com" alt=""><div class="result-card-title">What Marty Cagan Teaches About What a Product Manager Can and Cannot Delegate to Their Product Ops Team</div><div class="result-card-site">www.edensoftlabs.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=timwoods.io" alt=""><div class="result-card-title">Where do I start to be a great Product Manager- with Marty Cagan – Tim Woods</div><div class="result-card-site">timwoods.io</div></a>
+                  </div>
+                </div>
+
+                <p class="reasoning-para">I've got solid material already, but I want to round this out by looking into essays and insights from influential Chinese product leaders like Zhang Xiaolong and Liang Ning to capture that perspective.</p>
+
+                <div class="search-section" data-expanded="false">
+                  <button class="search-row search-row-toggle">
+                    <div class="search-row-left">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+                      <div class="search-row-query">张小龙 产品经理 演讲 微信 王慧文 产品思维</div>
+                    </div>
+                    <div class="search-row-right"><span class="search-row-count">6 results</span></div>
+                  </button>
+                  <div class="search-cards">
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=zhihu.com" alt=""><div class="result-card-title">万字长文|《微信背后的产品观》揭示了张小龙什么产品心法（上） - 知乎</div><div class="result-card-site">zhuanlan.zhihu.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=ifanr.com" alt=""><div class="result-card-title">张小龙 4 小时演讲：每天有 1 亿人教我做产品 | 爱范儿</div><div class="result-card-site">www.ifanr.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=thepaper.cn" alt=""><div class="result-card-title">张小龙4小时演讲全文：我的微信8年总结和下一步要做什么_10%公司_澎湃新闻-The Paper</div><div class="result-card-site">m.thepaper.cn</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=digitaling.com" alt=""><div class="result-card-title">那年，微信之父张小龙经典演讲164页PPT:《微信背后的产品观》 - 数英</div><div class="result-card-site">www.digitaling.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=douban.com" alt=""><div class="result-card-title">微信背后的产品观 - book.douban.com - 豆瓣</div><div class="result-card-site">book.douban.com</div></a>
+                    <a class="result-card" href="#"><img class="result-card-favicon" src="https://www.google.com/s2/favicons?sz=64&domain=pdai.tech" alt=""><div class="result-card-title">张小龙：微信背后的产品观 | Java 全栈知识体系</div><div class="result-card-site">pdai.tech</div></a>
+                  </div>
+                </div>
+
+                <p class="reasoning-para">Now I'm pulling together a curated list of the best pieces, being mindful to paraphrase the content and use quotes sparingly to avoid copyright issues. I'll organize these by language—Chinese and English classics—and include brief explanations for why each one stands out.</p>
+
+                <div class="search-done">Done</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Response body (now a sibling of thinking) -->
+          <div class="font-claude-response">
+              <p>
+                有四个我特别欣赏的<strong>反直觉决策</strong>：
+              </p>
+              <p>
+                <strong>第一</strong>，模型回复用<em>衬线字体</em>，用户输入用无衬线。前者气质是<span class="citation"><span class="cite-tag">阅读</span><span class="cite-popover"><div class="cite-source-name">为什么 Claude 用衬线</div><div class="cite-url">claude.ai/blog/typography</div><div class="cite-excerpt">"Serif slows the reader down, making them treat AI output as content to consider, not commands to execute."</div></span></span>，后者是<em>操作</em>。这一条字体选择，定义了"对话"和"指令"两种关系。
+              </p>
+              <p>
+                <strong>第二</strong>，行内代码用 <code>danger-000</code>（暗模式下偏粉红的红）。<code>const x = 1</code> 在文本流里跳出来，但又不像 <code>"#ff0000"</code> 那种刺眼的纯红。配合 <code>.5px</code> 的 hairline border，做出"贴纸"质感。
+              </p>
+              <p>
+                <strong>第三</strong>，Thinking 块的折叠用 CSS Grid <code>grid-template-rows</code> 过渡，不是传统的 <code>max-height</code> hack。这是 2023+ 的现代写法 —— 浏览器原生量取内容高度然后过渡，<em>零 JS</em>、零 ResizeObserver。<span class="citation"><span class="cite-tag">CSS-Tricks</span><span class="cite-popover"><div class="cite-source-name">Animating CSS Grid</div><div class="cite-url">css-tricks.com/css-grid-animations</div><div class="cite-excerpt">"Using grid-template-rows with auto values lets you animate height without knowing the content size in advance."</div></span></span>
+              </p>
+              <p>
+                <strong>第四</strong>，亚像素 hover 位移。看下面：
+              </p>
+
+              <!-- Code block -->
+              <div class="code-block">
+                <div class="code-block-header">
+                  <span>css</span>
+                  <button class="action-btn" aria-label="Copy" style="width:auto;height:auto;padding:4px 8px;font-size:11px;">Copy</button>
+                </div>
+<pre><span class="tok-cmt">/* Retina 屏才感觉得到的"呼吸" */</span>
+<span class="tok-fn">.group</span>:<span class="tok-kw">hover</span> <span class="tok-fn">.group-hover\:-translate-y-[0.5px]</span> {
+  <span class="tok-kw">transform</span>: <span class="tok-fn">translateY</span>(<span class="tok-num">-0.5px</span>);
+}</pre>
+              </div>
+
+              <p>
+                <code>0.5px</code> 的位移在普通屏上几乎不可见。但 Retina 用户会感受到一种"轻微呼吸"的反馈。<em>这是给高 DPI 用户的隐形礼物。</em>
+              </p>
+
+              <!-- Artifact -->
+              <div class="artifact-block">
+                <div class="artifact-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M8 12l3 3 5-5"/>
+                  </svg>
+                </div>
+                <div class="artifact-meta">
+                  <div class="artifact-title">claude-design-system.html</div>
+                  <div class="artifact-subtitle">Interactive document · 1 file</div>
+                </div>
+                <button class="artifact-action">
+                  Open
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l6-6M4 3h5v5"/></svg>
+                </button>
+              </div>
+
+              <p>
+                Hover 这个 artifact 卡片 —— 注意图标会微微<em>倾斜 +3.72° 并放大 1.035×</em>，配
+                <code>cubic-bezier(0, 0.9, 0.5, 1.35)</code> 的弹簧曲线（终值 1.35 → overshoot）。
+                <span class="citation"><span class="cite-tag">Apple HIG</span><span class="cite-popover"><div class="cite-source-name">Apple Human Interface Guidelines</div><div class="cite-url">developer.apple.com/design/hig</div><div class="cite-excerpt">"Reactive elements should feel physical — they have mass, momentum, and respond to interaction with a sense of weight."</div></span></span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Assistant action buttons -->
+          <div class="user-actions" style="margin-top: 12px;">
+            <button class="action-btn" aria-label="Copy"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"/></svg></button>
+            <button class="action-btn" aria-label="Retry"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0110.5-3.97M14 2v3h-3"/><path d="M14 8a6 6 0 01-10.5 3.97M2 14v-3h3"/></svg></button>
+            <button class="action-btn" aria-label="Good"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 14V8M2 8h2v6H2zm4 0l2-6 1 1v3h4l-1 5h-4"/></svg></button>
+            <button class="action-btn" aria-label="Bad"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2v6m4 0h-2V2h2zM10 8l-2 6-1-1v-3H3l1-5h4"/></svg></button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       Sub-pixel hover demo
+       ============================================================ -->
+  <section id="hover">
+    <div class="section-eyebrow">05 · Sub-pixel hover</div>
+    <h2 class="section-title">普通屏看不见，Retina 屏感受得到。</h2>
+    <p class="section-lede">
+      Hover 试试 —— 0.5px / 1.4px 在普通屏几乎"没动"，但配合一致的曲线产生柔和的"呼吸"感。
+    </p>
+
+    <div class="hover-grid">
+      <div class="hover-card h-05"><b>0.5px</b>极轻</div>
+      <div class="hover-card h-14"><b>1.4px</b>轻</div>
+      <div class="hover-card h-28"><b>2.8px</b>明显</div>
+      <div class="hover-card h-scale"><b>1.05×</b>缩放</div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       Component anatomy
+       ============================================================ -->
+  <section id="anatomy">
+    <div class="section-eyebrow">06 · Anatomy</div>
+    <h2 class="section-title">关键组件的核心规格。</h2>
+
+    <div class="anatomy-grid">
+      <div class="anatomy-card">
+        <div class="anatomy-name"><b>User bubble</b> · [data-user-message-bubble]</div>
+        <div class="kv">
+          <b>background</b><span>--bg-300 (#121212)</span>
+          <b>color</b><span>--text-100</span>
+          <b>font</b><span>Sans 14px / 21px</span>
+          <b>radius</b><span>12px</span>
+          <b>padding</b><span>10px 16px</span>
+          <b>max-width</b><span>85%</span>
+          <b>align</b><span>right (flex items-end)</span>
+        </div>
+      </div>
+
+      <div class="anatomy-card">
+        <div class="anatomy-name"><b>Assistant wrapper</b> · .font-claude-response</div>
+        <div class="kv">
+          <b>font-family</b><span>Anthropic Serif</span>
+          <b>font-size</b><span>14px</span>
+          <b>line-height</b><span>26.4px (1.886)</span>
+          <b>weight</b><span>360 (dark) / 400 (light)</span>
+          <b>color</b><span>oncolor-100 (white)</span>
+          <b>animation</b><span>cds-reveal-in 250ms</span>
+        </div>
+      </div>
+
+      <div class="anatomy-card">
+        <div class="anatomy-name"><b>Thinking block</b> · button.group/status</div>
+        <div class="kv">
+          <b>collapse</b><span>grid-template-rows transition</span>
+          <b>closed rows</b><span>39.6px auto</span>
+          <b>open rows</b><span>254.4px auto</span>
+          <b>color</b><span>--text-500 → --text-300 hover</span>
+          <b>font</b><span>Serif 14px/20px weight 360</span>
+          <b>ease</b><span>150ms cubic-bezier(.4,0,.2,1)</span>
+          <b>aria-expanded</b><span>false / true</span>
+        </div>
+      </div>
+
+      <div class="anatomy-card">
+        <div class="anatomy-name"><b>Citation chip</b> · span.group/tag</div>
+        <div class="kv">
+          <b>height</b><span>18px</span>
+          <b>shape</b><span>rounded-full pill</span>
+          <b>transform</b><span>translateY(-1px) (上标式)</span>
+          <b>content</b><span>站点名（非数字脚注）</span>
+          <b>tooltip</b><span>Radix data-state closed/open</span>
+          <b>ease</b><span>250ms button-spring</span>
+        </div>
+      </div>
+
+      <div class="anatomy-card">
+        <div class="anatomy-name"><b>Inline code</b> · .ReactMarkdown code</div>
+        <div class="kv">
+          <b>color</b><span>--danger-000 (★)</span>
+          <b>background</b><span>text-200 / 5% alpha</span>
+          <b>border</b><span>.5px border-300 / 25%</span>
+          <b>radius</b><span>0.3rem</span>
+          <b>padding</b><span>1px 4px</span>
+          <b>ligatures</b><span>关闭</span>
+        </div>
+      </div>
+
+      <div class="anatomy-card">
+        <div class="anatomy-name"><b>Artifact block</b> · .group/artifact-block</div>
+        <div class="kv">
+          <b>width</b><span>720px (近列宽)</span>
+          <b>border</b><span>.5px hairline / 15% → full on hover</span>
+          <b>icon rotate</b><span>±0.065rad (±3.72°)</span>
+          <b>icon scale</b><span>1.035×</span>
+          <b>ease</b><span>cubic-bezier(0, 0.9, 0.5, 1.35) 400ms</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Extracted live from claude.ai chat at 2026-05-25 via OpenCLI.<br>
+    All tokens, classes, computed styles, and keyframes are real.<br>
+    本复刻为学习/参考用，字体回退到系统衬线（Anthropic Sans/Serif 为受保护字体）。
+  </footer>
+</div>
+
+<script>
+// ===== Theme toggle =====
+const toggle = document.querySelector('.theme-toggle');
+toggle.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  const mode = btn.dataset.mode;
+  document.documentElement.setAttribute('data-mode', mode);
+  toggle.querySelectorAll('button').forEach(b => {
+    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+  });
+});
+
+// ===== Thinking block expand =====
+const thinking = document.getElementById('thinking');
+document.getElementById('thinking-btn').addEventListener('click', () => {
+  const open = thinking.getAttribute('aria-expanded') === 'true';
+  thinking.setAttribute('aria-expanded', open ? 'false' : 'true');
+});
+
+// ===== Replay streaming =====
+document.getElementById('replay-stream').addEventListener('click', () => {
+  // Wrap each space-separated word in the assistant response in a chunk span and re-fire animation
+  const resp = document.querySelector('.assistant-response .font-claude-response');
+  // Add .streaming class
+  resp.classList.add('streaming');
+  // Walk all <p> inside, split textNode children into chunks
+  const ps = resp.querySelectorAll('p');
+  ps.forEach((p, pIdx) => {
+    // Clear existing chunk wrappers
+    p.querySelectorAll('.chunk').forEach(s => { s.replaceWith(...s.childNodes); });
+    // Now wrap each text node's words/chars into chunks
+    const walk = (node) => {
+      [...node.childNodes].forEach(child => {
+        if (child.nodeType === 3) {                              // Text
+          const text = child.textContent;
+          if (!text.trim()) return;
+          const frag = document.createDocumentFragment();
+          // Split by character clusters to look like token streaming
+          const tokens = text.match(/(\s+|[A-Za-z]+|[一-龥]{1,2}|[^\s])/g) || [];
+          tokens.forEach((t, i) => {
+            const span = document.createElement('span');
+            span.className = 'chunk';
+            span.textContent = t;
+            span.style.animationDelay = `${(pIdx * 0.2) + (i * 0.025)}s`;
+            frag.appendChild(span);
+          });
+          child.replaceWith(frag);
+        } else if (child.nodeType === 1) {
+          // Don't recurse into elements like <code>, <strong>, <span class=citation>
+          if (!/^(code|strong|em|a|span)$/i.test(child.tagName)) {
+            walk(child);
+          } else {
+            // Wrap whole inline element as one chunk
+            const span = document.createElement('span');
+            span.className = 'chunk';
+            span.style.animationDelay = `${(pIdx * 0.2) + (0.025 * Math.random() * 20)}s`;
+            child.parentNode.insertBefore(span, child);
+            span.appendChild(child);
+          }
+        }
+      });
+    };
+    walk(p);
+  });
+});
+
+// ===== Loading toggle =====
+document.getElementById('toggle-loading').addEventListener('click', () => {
+  const el = document.getElementById('loading-state');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+});
+
+// ===== Shimmer toggle (already auto-runs; this toggles whether it's visible) =====
+document.getElementById('toggle-shimmer').addEventListener('click', () => {
+  const el = document.querySelector('#loading-state .shimmer-text');
+  el.style.animationPlayState = el.style.animationPlayState === 'paused' ? 'running' : 'paused';
+});
+
+// ===== ★ LIVE STREAMING DEMO =====
+// Plays the full chat lifecycle: dots → shimmer summary → search rows → response stream → citations + actions.
+// Re-runs idempotently; cancels any prior in-flight demo via a token.
+let demoToken = 0;
+
+const sleep = (ms, token) => new Promise((res, rej) => {
+  setTimeout(() => token === demoToken ? res() : rej('cancelled'), ms);
+});
+
+// Real response content (matches the static state but streamed live)
+const SCRIPT = {
+  thinkingSummary: '策划精选文章清单并确保恰当引用。',
+  searches: [
+    {
+      q: '优秀产品经理 经典文章 推荐',
+      count: 7,
+      cards: [
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=csdn.net', site: 'blog.csdn.net', title: '俞军老师：适合产品经理的10本书 | 2019收藏版_俞军 互联网产品的必读书目有哪些-CSDN博客' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=segmentfault.com', site: 'segmentfault.com', title: 'PM 最容易忽视的项目管理能力：如何让大家心甘情愿地配合你？ - 个人文章 - SegmentFault 思否' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=csdn.net', site: 'blog.csdn.net', title: '想做/做产品经理的注意！这36本书（2025版）帮你打通任督二脉！-CSDN博客' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=woshipm.com', site: 'www.woshipm.com', title: '9本经典PM图书串烧，变身产品经理达人 | 人人都是产品经理' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=zhihu.com', site: 'www.zhihu.com', title: '哪三本书是产品经理必读书？为什么？ - 徐李-PM 的回答' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=itheima.com', site: 'www.itheima.com', title: '2021年产品经理必读书籍推荐' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=tangjie.me', site: 'tangjie.me', title: '不容错过的产品经理书籍推荐' }
+      ],
+      reasoning: "I'm looking for some well-regarded articles from the product management field, particularly some foundational pieces that are widely recognized in the community."
+    },
+    {
+      q: 'Marty Cagan good product manager bad product manager essay',
+      count: 9,
+      cards: [
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=linkedin.com', site: 'www.linkedin.com', title: 'How to build great product teams? Advice from Marty Cagan\'s "Inspired"​' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=medium.com', site: 'medium.com', title: '5 Things I learned about good product managers from Marty Cagan | by Rita Wang | Carousell Insider | Medium' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=medium.com', site: 'medium.com', title: 'Why Marty Cagan Thinks Your Product Manager Might Be Useless | Cub Think Tank | by Chris Dunlop | Medium' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=svpg.com', site: 'www.svpg.com', title: 'Product Management - Start Here - Silicon Valley Product Group' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=svpg.com', site: 'www.svpg.com', title: 'Good Product Team / Bad Product Team - Silicon Valley Product Group' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=medium.com', site: 'medium.com', title: 'What Makes Great Product Managers? Insights from Marty Cagan\'s "Inspired" | by Rohit Lokwani | Medium' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=amitbhatnagar.com', site: 'blog.amitbhatnagar.com', title: 'Five Product Myths I Believed (And Why I Was Wrong)' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=edensoftlabs.com', site: 'www.edensoftlabs.com', title: 'What Marty Cagan Teaches About What a Product Manager Can and Cannot Delegate to Their Product Ops Team' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=timwoods.io', site: 'timwoods.io', title: 'Where do I start to be a great Product Manager- with Marty Cagan – Tim Woods' }
+      ],
+      reasoning: "I've got solid material already, but I want to round this out by looking into essays and insights from influential Chinese product leaders like Zhang Xiaolong and Liang Ning to capture that perspective."
+    },
+    {
+      q: '张小龙 产品经理 演讲 微信 王慧文 产品思维',
+      count: 6,
+      cards: [
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=zhihu.com', site: 'zhuanlan.zhihu.com', title: '万字长文|《微信背后的产品观》揭示了张小龙什么产品心法（上） - 知乎' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=ifanr.com', site: 'www.ifanr.com', title: '张小龙 4 小时演讲：每天有 1 亿人教我做产品 | 爱范儿' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=thepaper.cn', site: 'm.thepaper.cn', title: '张小龙4小时演讲全文：我的微信8年总结和下一步要做什么_10%公司_澎湃新闻-The Paper' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=digitaling.com', site: 'www.digitaling.com', title: '那年，微信之父张小龙经典演讲164页PPT:《微信背后的产品观》 - 数英' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=douban.com', site: 'book.douban.com', title: '微信背后的产品观 - book.douban.com - 豆瓣' },
+        { favicon: 'https://www.google.com/s2/favicons?sz=64&domain=pdai.tech', site: 'pdai.tech', title: '张小龙：微信背后的产品观 | Java 全栈知识体系' }
+      ],
+      reasoning: "Now I'm pulling together a curated list of the best pieces, being mindful to paraphrase the content and use quotes sparingly to avoid copyright issues. I'll organize these by language—Chinese and English classics—and include brief explanations for why each one stands out."
+    }
+  ],
+  paragraphs: [
+    {
+      type: 'p',
+      parts: [
+        { kind: 'text', value: '有四个我特别欣赏的' },
+        { kind: 'strong', value: '反直觉决策' },
+        { kind: 'text', value: '：' }
+      ]
+    },
+    {
+      type: 'p',
+      parts: [
+        { kind: 'strong', value: '第一' },
+        { kind: 'text', value: '，模型回复用' },
+        { kind: 'em', value: '衬线字体' },
+        { kind: 'text', value: '，用户输入用无衬线。前者气质是' },
+        { kind: 'citation', value: '阅读',
+          source: '为什么 Claude 用衬线', url: 'claude.ai/blog/typography',
+          excerpt: '"Serif slows the reader down, making them treat AI output as content to consider."' },
+        { kind: 'text', value: '，后者是' },
+        { kind: 'em', value: '操作' },
+        { kind: 'text', value: '。' }
+      ]
+    },
+    {
+      type: 'p',
+      parts: [
+        { kind: 'strong', value: '第二' },
+        { kind: 'text', value: '，行内代码用 ' },
+        { kind: 'code', value: 'danger-000' },
+        { kind: 'text', value: '。' },
+        { kind: 'code', value: 'const x = 1' },
+        { kind: 'text', value: ' 在文本流里跳出来，但又不像 ' },
+        { kind: 'code', value: '"#ff0000"' },
+        { kind: 'text', value: ' 那种刺眼的纯红。' }
+      ]
+    },
+    {
+      type: 'p',
+      parts: [
+        { kind: 'strong', value: '第三' },
+        { kind: 'text', value: '，Thinking 块用 CSS Grid ' },
+        { kind: 'code', value: 'grid-template-rows' },
+        { kind: 'text', value: ' 过渡折叠 —— ' },
+        { kind: 'em', value: '零 JS' },
+        { kind: 'text', value: '，浏览器原生量取高度。' },
+        { kind: 'citation', value: 'CSS-Tricks',
+          source: 'Animating CSS Grid', url: 'css-tricks.com/css-grid-animations',
+          excerpt: '"Using grid-template-rows with auto values lets you animate height without knowing the content size."' }
+      ]
+    }
+  ]
+};
+
+// ★ Snapshot the ORIGINAL static thinking-body / response / summary at page load
+const ORIGINAL_THINKING_BODY = document.getElementById('thinking-body').innerHTML;
+const ORIGINAL_RESPONSE = document.querySelector('.assistant-response > .font-claude-response').innerHTML;
+const ORIGINAL_SUMMARY = document.querySelector('.summary-text').textContent;
+
+// Click search-row to toggle its cards open/closed (matches real claude.ai)
+document.addEventListener('click', (e) => {
+  const row = e.target.closest('.search-row-toggle');
+  if (!row) return;
+  const section = row.closest('.search-section');
+  if (!section) return;
+  const cur = section.getAttribute('data-expanded') === 'true';
+  section.setAttribute('data-expanded', cur ? 'false' : 'true');
+});
+
+const SEARCH_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>';
+
+const liveDemo = async () => {
+  demoToken++;
+  const myToken = demoToken;
+  const wrapper = document.querySelector('.assistant-response');
+  const thinking = document.getElementById('thinking');
+  const thinkingBody = document.getElementById('thinking-body');
+  const responseBody = wrapper.querySelector(':scope > .font-claude-response');
+  if (!thinking || !thinkingBody || !responseBody) return;
+
+  // Reset for replay
+  thinking.setAttribute('aria-expanded', 'false');
+  responseBody.innerHTML = '';
+  responseBody.style.opacity = '1';
+  thinkingBody.innerHTML = '';
+  thinking.querySelector('.summary-text').textContent = ' ';
+  const actions = wrapper.querySelector('.user-actions');
+  if (actions) actions.style.display = 'none';
+
+  try {
+    // ============ Phase 1: loading dots ============
+    responseBody.insertAdjacentHTML('beforeend', `
+      <div class="live-phase" id="live-dots">
+        <div class="live-dots">
+          <span class="loading-dots"><span></span><span></span><span></span></span>
+          <span class="label">Claude is thinking...</span>
+        </div>
+      </div>`);
+    await sleep(1100, myToken);
+
+    // ============ Phase 2: shimmer summary appears + thinking expands ============
+    document.getElementById('live-dots')?.remove();
+    const summaryEl = thinking.querySelector('.summary-text');
+    summaryEl.classList.add('shimmer-text');
+    summaryEl.textContent = SCRIPT.thinkingSummary;
+    thinking.setAttribute('aria-expanded', 'true');
+    await sleep(500, myToken);
+
+    // ============ Phase 3: 多段交替 search section + reasoning para ============
+    for (let i = 0; i < SCRIPT.searches.length; i++) {
+      if (myToken !== demoToken) return;
+      const s = SCRIPT.searches[i];
+
+      // 3a) create search-section with searching row (no count, spinner shimmer query)
+      const sec = document.createElement('div');
+      sec.className = 'search-section';
+      sec.setAttribute('data-expanded', 'false');
+      sec.style.animation = 'cds-reveal-in .35s var(--ease-out) both';
+      sec.innerHTML = `
+        <button class="search-row search-row-toggle is-searching">
+          <div class="search-row-left">
+            <div class="search-row-spinner"></div>
+            <div class="search-row-query">${s.q}</div>
+          </div>
+          <div class="search-row-right">
+            <span class="search-row-count">${s.count} results</span>
+          </div>
+        </button>
+        <div class="search-cards"></div>`;
+      thinkingBody.appendChild(sec);
+      await sleep(1300, myToken);
+
+      // 3b) resolve: stop shimmer, swap spinner -> icon, fade in count
+      const row = sec.querySelector('.search-row');
+      row.classList.remove('is-searching');
+      const spinner = row.querySelector('.search-row-spinner');
+      if (spinner) {
+        const ic = document.createElement('span');
+        ic.style.cssText = 'display:inline-flex;width:14px;height:14px;color:hsl(var(--text-400));flex-shrink:0;';
+        ic.innerHTML = SEARCH_ICON_SVG;
+        spinner.replaceWith(ic);
+      }
+
+      // 3c) expand cards + stagger reveal
+      sec.setAttribute('data-expanded', 'true');
+      const cardsHost = sec.querySelector('.search-cards');
+      s.cards.forEach((c, ci) => {
+        const a = document.createElement('a');
+        a.className = 'result-card';
+        a.href = '#';
+        a.style.animation = `cds-reveal-in .35s var(--ease-out) ${ci * 0.06}s both`;
+        a.innerHTML = `
+          <img class="result-card-favicon" src="${c.favicon}" alt="">
+          <div class="result-card-title">${c.title.replace(/</g, '&lt;')}</div>
+          <div class="result-card-site">${c.site}</div>`;
+        cardsHost.appendChild(a);
+      });
+      // wait long enough for full card stagger + reading time
+      await sleep(1500 + s.cards.length * 60, myToken);
+
+      // 3d) reasoning paragraph reveal
+      const p = document.createElement('p');
+      p.className = 'reasoning-para';
+      p.style.opacity = '0';
+      p.style.transform = 'translateY(4px)';
+      p.textContent = s.reasoning;
+      thinkingBody.appendChild(p);
+      requestAnimationFrame(() => {
+        p.style.transition = 'opacity .4s var(--ease-out), transform .4s var(--ease-out)';
+        p.style.opacity = '1';
+        p.style.transform = 'translateY(0)';
+      });
+      await sleep(900, myToken);
+
+      // 3e) auto-collapse cards on non-final sections (keep middle one expanded like static)
+      if (i !== 1) sec.setAttribute('data-expanded', 'false');
+    }
+
+    // ============ Phase 4: "Done" marker + collapse thinking ============
+    const done = document.createElement('div');
+    done.className = 'search-done';
+    done.textContent = 'Done';
+    done.style.animation = 'cds-reveal-in .3s var(--ease-out) both';
+    thinkingBody.appendChild(done);
+    summaryEl.classList.remove('shimmer-text');
+    await sleep(900, myToken);
+    thinking.setAttribute('aria-expanded', 'false');
+    await sleep(450, myToken);
+
+    // ============ Phase 5: stream response paragraphs (chunk-by-chunk) ============
+    for (let pi = 0; pi < SCRIPT.paragraphs.length; pi++) {
+      if (myToken !== demoToken) return;
+      const para = SCRIPT.paragraphs[pi];
+      const p = document.createElement('p');
+      p.style.opacity = '0';
+      responseBody.appendChild(p);
+      requestAnimationFrame(() => { p.style.transition = 'opacity .25s'; p.style.opacity = '1'; });
+
+      let chunkDelay = 0;
+      for (const part of para.parts) {
+        if (myToken !== demoToken) return;
+        if (part.kind === 'citation') {
+          const c = document.createElement('span');
+          c.className = 'citation chunk';
+          c.style.animation = `fadeInText .35s var(--ease-out) ${chunkDelay}s both`;
+          c.innerHTML = `
+            <span class="cite-tag">${part.value}</span>
+            <span class="cite-popover">
+              <div class="cite-source-name">${part.source}</div>
+              <div class="cite-url">${part.url}</div>
+              <div class="cite-excerpt">${part.excerpt}</div>
+            </span>`;
+          p.appendChild(c);
+          chunkDelay += 0.05;
+        } else if (part.kind === 'strong' || part.kind === 'em' || part.kind === 'code') {
+          const el = document.createElement(part.kind);
+          el.textContent = part.value;
+          el.classList.add('chunk');
+          el.style.display = 'inline';
+          el.style.animation = `fadeInText .3s var(--ease-out) ${chunkDelay}s both`;
+          p.appendChild(el);
+          chunkDelay += 0.04;
+        } else {
+          const tokens = part.value.match(/(\s+|[A-Za-z0-9]+|[一-龥]{1,2}|[^\s])/g) || [part.value];
+          for (const tok of tokens) {
+            const span = document.createElement('span');
+            span.className = 'chunk';
+            span.textContent = tok;
+            span.style.animation = `fadeInText .25s var(--ease-out) ${chunkDelay}s both`;
+            p.appendChild(span);
+            chunkDelay += 0.025;
+          }
+        }
+      }
+      await sleep((chunkDelay + 0.3) * 1000, myToken);
+    }
+
+    // ============ Phase 6: cross-fade to the full static response (with code + artifact) ============
+    await sleep(200, myToken);
+    responseBody.style.transition = 'opacity .4s var(--ease-out)';
+    responseBody.style.opacity = '0.35';
+    await sleep(280, myToken);
+    if (myToken !== demoToken) return;
+    responseBody.innerHTML = ORIGINAL_RESPONSE;
+    thinkingBody.innerHTML = ORIGINAL_THINKING_BODY;
+    thinking.querySelector('.summary-text').textContent = ORIGINAL_SUMMARY;
+    responseBody.style.opacity = '1';
+    if (actions) {
+      actions.style.display = '';
+      actions.style.animation = 'cds-reveal-in .4s var(--ease-out) both';
+    }
+  } catch (e) {
+    if (e !== 'cancelled') console.error('liveDemo error:', e);
+  }
+};
+
+document.getElementById('play-live').addEventListener('click', liveDemo);
+</script>
+</body>
+</html>

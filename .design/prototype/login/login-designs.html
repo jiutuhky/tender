@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prose · 登录页 设计探索</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;450;500;600;700&family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500;1,8..60,600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500;1,6..72,600&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Shared tokens — lifted from index.html / preview.html / knowledge.html
+   so the login pages stay continuous with the rest of Prose.
+   ============================================================ */
+:root {
+  --bg:        oklch(98% 0.004 80);
+  --surface:   oklch(100% 0 0);
+  --surface-2: oklch(96% 0.005 80);
+  --surface-3: oklch(93% 0.006 70);
+  --fg:        oklch(20% 0.015 60);
+  --fg-2:      oklch(36% 0.015 60);
+  --muted:     oklch(54% 0.012 60);
+  --faint:     oklch(72% 0.008 60);
+  --border:    oklch(90% 0.008 70);
+  --border-2: oklch(84% 0.010 70);
+  --accent:    oklch(55% 0.12 50);
+  --accent-soft: oklch(94% 0.025 60);
+  --clay:      #D97757;
+  --clay-deep: #C86442;
+  --success:   oklch(50% 0.10 150);
+
+  /* dark editorial */
+  --dark-bg:   #1a1816;
+  --dark-bg-2: #221f1b;
+  --dark-bg-3: #2c2823;
+  --dark-fg:   #faf9f5;
+  --dark-fg-2: #d6d1c4;
+  --dark-fg-3: #9a9285;
+  --dark-faint: #6a6359;
+  --dark-border: rgba(255,255,255,0.07);
+
+  --font-sans: "Geist", "Inter", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-text: "Geist", "Inter", "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-serif: "Source Serif 4", "Newsreader", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --radius-sm: 3px;
+  --radius:    6px;
+  --radius-lg: 10px;
+}
+html, body { margin: 0; padding: 0; background: #f0eee9; }
+body {
+  font-family: var(--font-text);
+  font-feature-settings: "ss01", "ss03", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   Reusable login chrome (V1–V4)
+   ============================================================ */
+
+/* Wordmark — re-used across artboards */
+.lg-brand { display: inline-flex; align-items: center; gap: 10px; }
+.lg-brand-mark {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: 4px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+.lg-brand-mark.inverse {
+  background: var(--dark-fg);
+  color: var(--dark-bg);
+}
+.lg-brand-mark.clay {
+  background: var(--clay);
+  color: var(--dark-fg);
+}
+.lg-wordmark {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+.lg-wordmark.inverse { color: var(--dark-fg); }
+.lg-wordmark .lg-pipe {
+  display: inline-block;
+  width: 1px; height: 14px;
+  background: var(--border-2);
+  margin: 0 8px;
+  vertical-align: -2px;
+  font-style: normal;
+}
+.lg-wordmark.inverse .lg-pipe { background: var(--dark-border); }
+.lg-wordmark-sub {
+  font-family: var(--font-sans);
+  font-style: normal;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.lg-wordmark.inverse .lg-wordmark-sub { color: var(--dark-fg-3); }
+
+/* Form atoms */
+.lg-form { display: flex; flex-direction: column; gap: 18px; }
+.lg-field { display: flex; flex-direction: column; gap: 6px; }
+.lg-field .lg-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.lg-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+.lg-label-link {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--clay);
+  text-decoration: none;
+}
+.lg-label-link:hover { color: var(--clay-deep); }
+.lg-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.lg-input {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 6px;
+  padding: 11px 13px;
+  outline: none;
+  transition: border-color .14s, box-shadow .14s, background .14s;
+  box-shadow: 0 1px 0 oklch(100% 0 0 / 0.4) inset;
+}
+.lg-input:hover { border-color: oklch(76% 0.010 70); }
+.lg-input:focus {
+  border-color: var(--clay);
+  box-shadow: 0 0 0 3px oklch(70% 0.10 50 / 0.18);
+}
+.lg-input::placeholder { color: var(--faint); font-weight: 400; }
+.lg-input-icon {
+  position: absolute;
+  right: 12px;
+  display: grid; place-items: center;
+  color: var(--faint);
+  width: 16px; height: 16px;
+  cursor: pointer;
+}
+.lg-input-icon:hover { color: var(--muted); }
+.lg-input-icon svg { width: 14px; height: 14px; }
+
+/* Primary clay button — matches index.html .btn-primary archive overlay */
+.lg-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--clay);
+  color: #FAF9F5;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.005em;
+  user-select: none;
+  outline: none;
+  position: relative;
+  cursor: pointer;
+  box-shadow:
+    0 1px 3px rgba(180, 90, 30, 0.35),
+    0 2px 6px rgba(180, 90, 30, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
+}
+.lg-submit::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, oklch(100% 0 0 / 0.16), oklch(100% 0 0 / 0) 46%);
+  pointer-events: none;
+}
+.lg-submit:hover {
+  background: var(--clay-deep);
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px rgba(180, 90, 30, 0.40),
+    0 5px 12px rgba(180, 90, 30, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.lg-submit:active { transform: translateY(0); }
+.lg-submit svg { width: 14px; height: 14px; position: relative; }
+
+/* Divider with mono "OR" */
+.lg-divider {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.lg-divider::before, .lg-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
+.lg-divider.dark { color: var(--dark-faint); }
+.lg-divider.dark::before, .lg-divider.dark::after { background: var(--dark-border); }
+
+/* SSO row buttons */
+.lg-sso-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.lg-sso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--surface);
+  color: var(--fg-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 8px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(20, 20, 19, 0.03);
+  transition: border-color .14s, box-shadow .14s, color .14s;
+}
+.lg-sso:hover { border-color: var(--border-2); color: var(--fg); }
+.lg-sso svg { width: 14px; height: 14px; }
+
+/* meta foot */
+.lg-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.lg-meta a { color: var(--clay); text-decoration: none; }
+.lg-meta a:hover { color: var(--clay-deep); }
+
+/* Status dot animation reused */
+@keyframes lgpulse {
+  0%   { box-shadow: 0 0 0 0 oklch(55% 0.12 50 / 0.5); }
+  70%  { box-shadow: 0 0 0 6px oklch(55% 0.12 50 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(55% 0.12 50 / 0); }
+}
+@keyframes lgblink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes lgshimmer {
+  0%   { background-position-x: 100%; }
+  65%  { background-position-x: 0%; }
+  100% { background-position-x: 0%; }
+}
+.lg-typing-cursor {
+  display: inline-block;
+  width: 6px; height: 14px;
+  background: var(--clay);
+  vertical-align: -2px;
+  margin-left: 1px;
+  animation: lgblink 1.1s infinite;
+}
+
+/* Status-as-running pill (V4) */
+.lg-runchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-fg-2);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 450;
+}
+.lg-runchip .lg-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--clay);
+  flex-shrink: 0;
+  animation: lgpulse 1.6s infinite;
+}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="login-icons.jsx"></script>
+<script type="text/babel" src="login-v1-editorial.jsx"></script>
+<script type="text/babel" src="login-v1-variants.jsx"></script>
+<script type="text/babel">
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+  const W = 1360;
+  const H = 820;
+
+  function App() {
+    return (
+      <DesignCanvas>
+        <DCSection
+          id="login-v1"
+          title="V1 · 登录页 · 左栏三种叙事"
+          subtitle="参考 Linear / Cursor / Pitch / Superhuman / Arc Browser 的桌面级登录设计 — 右栏表单不变"
+        >
+          <DCArtboard id="v1a" label="A · 实时手稿  (Linear / Cursor 路线)" width={W} height={H}>
+            <V1A />
+          </DCArtboard>
+          <DCArtboard id="v1b" label="B · 客户声音  (Pitch / Superhuman 路线)" width={W} height={H}>
+            <V1B />
+          </DCArtboard>
+          <DCArtboard id="v1c" label="C · 杂志封面  (Arc / Things 3 路线)" width={W} height={H}>
+            <V1C />
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

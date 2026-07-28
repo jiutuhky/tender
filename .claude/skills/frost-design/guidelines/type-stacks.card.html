@@ -1,0 +1,24 @@
+<!-- @dsCard group="Type" viewport="700x140" name="Font stacks" subtitle="System stack — no webfonts, zero load cost" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; background: var(--canvas); padding: 18px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .chip { padding: 9px 15px; border-radius: 999px; background: var(--surface); box-shadow: var(--elev-1); font-size: 14px; font-weight: 600; color: var(--label); }
+  .chip small { font-weight: 400; color: var(--label-3); margin-left: 7px; }
+  .stack { font-family: var(--font-mono); font-size: 11px; color: var(--label-2); background: var(--surface-2); border-radius: var(--r-control); padding: 10px 12px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="chips">
+  <span class="chip">SF Pro Display<small>标题</small></span>
+  <span class="chip">SF Pro Text<small>正文</small></span>
+  <span class="chip">PingFang SC<small>中文 苹方</small></span>
+  <span class="chip" style="font-family:var(--font-mono)">SF Mono<small style="font-family:var(--font-ui)">数值与代码</small></span>
+</div>
+<div class="stack">--font-ui: "SF Pro Display","SF Pro Text",-apple-system,"PingFang SC","Noto Sans SC",system-ui,sans-serif</div>
+</body>
+</html>

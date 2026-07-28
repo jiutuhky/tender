@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="claude" data-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thinking Logo v3 · 双彗长尾 final</title>
+<style>
+:root {
+  --font-ui: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Anthropic Serif", Georgia, "Times New Roman", Times,
+                "PingFang SC", "Microsoft YaHei", serif;
+  --font-mono: "Anthropic Mono", ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-button:   cubic-bezier(0.165, 0.85, 0.45, 1);
+}
+
+[data-theme="claude"][data-mode="dark"] {
+  --bg-000: 60 2.1% 18.4%;
+  --bg-100: 60 2.7% 14.5%;
+  --bg-200: 30 3.3% 11.8%;
+  --bg-300: 60 2.6% 7.6%;
+  --text-100: 48 33.3% 97.1%;
+  --text-200: 50 9% 73.7%;
+  --text-300: 50 9% 73.7%;
+  --text-400: 48 4.8% 59.2%;
+  --text-500: 48 4.8% 59.2%;
+  --border-300: 51 16.5% 84.5%;
+  --brand-clay: 14.8 63.1% 59.6%;
+}
+[data-theme="claude"][data-mode="light"] {
+  --bg-000: 0 0% 100%;
+  --bg-100: 48 33.3% 97.1%;
+  --bg-200: 53 28.6% 94.5%;
+  --bg-300: 48 25% 92.2%;
+  --text-100: 60 2.6% 7.6%;
+  --text-200: 60 2.5% 23.3%;
+  --text-300: 60 2.5% 23.3%;
+  --text-400: 51 3.1% 43.7%;
+  --text-500: 51 3.1% 43.7%;
+  --border-300: 30 3.3% 11.8%;
+  --brand-clay: 15.1 54.2% 51.2%;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: hsl(var(--bg-100));
+  color: hsl(var(--text-100));
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .3s var(--ease-standard);
+}
+
+.theme-toggle {
+  position: fixed; top: 24px; right: 24px;
+  display: inline-flex; gap: 4px; padding: 4px;
+  background: hsl(var(--bg-000));
+  border: .5px solid hsl(var(--border-300) / .15);
+  border-radius: 999px; z-index: 100;
+}
+.theme-toggle button {
+  appearance: none; border: 0; background: transparent;
+  color: hsl(var(--text-400)); font: inherit; font-size: 13px;
+  padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  transition: all .3s var(--ease-button);
+}
+.theme-toggle button[aria-pressed="true"] {
+  background: hsl(var(--bg-300)); color: hsl(var(--text-100));
+}
+
+.lab { max-width: 980px; margin: 0 auto; padding: 56px 24px 120px; }
+
+.lab-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: hsl(var(--text-400)); margin-bottom: 10px;
+}
+.lab-title {
+  font-family: var(--font-serif);
+  font-size: 30px; font-weight: 530; letter-spacing: -.01em;
+  margin: 0 0 12px;
+}
+.lab-lede {
+  font-family: var(--font-serif);
+  font-size: 15px; color: hsl(var(--text-200));
+  max-width: 62ch; margin: 0 0 32px; line-height: 1.65;
+}
+
+/* ===== Hero showcase ===== */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.hero .panel {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex; align-items: center; justify-content: center;
+  border: .5px solid hsl(var(--border-300) / .1);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.hero .panel.dark { background: #1a1816; }
+.hero .panel.light { background: #f5f1e8; }
+.hero .panel .label {
+  position: absolute; top: 14px; left: 16px;
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: hsl(var(--text-400));
+}
+.hero .panel.light .label { color: #999186; }
+.logo-xl { width: 240px; height: 240px; display: block; }
+.hero .panel.dark .logo-xl { color: hsl(15 63% 60%); }
+.hero .panel.light .logo-xl { color: hsl(15 54% 51%); }
+
+/* ===== Size ladder ===== */
+.ladder {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.ladder .panel {
+  background: hsl(var(--bg-200));
+  border: .5px solid hsl(var(--border-300) / .12);
+  border-radius: 14px;
+  padding: 24px;
+}
+.ladder .panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.ladder .panel-title {
+  font-family: var(--font-serif); font-size: 14px; font-weight: 530;
+  color: hsl(var(--text-200));
+}
+.ladder .panel-sub {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: hsl(var(--text-400));
+}
+.size-row {
+  display: flex; align-items: center; gap: 18px;
+  padding: 12px 4px;
+  border-bottom: .5px solid hsl(var(--border-300) / .06);
+}
+.size-row:last-child { border-bottom: 0; }
+.size-row .size-label {
+  font-family: var(--font-mono); font-size: 11px;
+  color: hsl(var(--text-400));
+  width: 50px;
+}
+.size-row .holder {
+  display: flex; align-items: center; justify-content: center;
+  color: hsl(var(--brand-clay));
+}
+.size-row .holder.s12 { width: 12px; height: 12px; }
+.size-row .holder.s14 { width: 14px; height: 14px; }
+.size-row .holder.s16 { width: 16px; height: 16px; }
+.size-row .holder.s20 { width: 20px; height: 20px; }
+.size-row .holder.s24 { width: 24px; height: 24px; }
+.size-row .holder.s32 { width: 32px; height: 32px; }
+.size-row .holder svg { width: 100%; height: 100%; display: block; }
+
+/* ===== In-context section ===== */
+.context-section {
+  background: hsl(var(--bg-200));
+  border: .5px solid hsl(var(--border-300) / .12);
+  border-radius: 14px;
+  padding: 28px;
+  margin-bottom: 40px;
+}
+.context-section h2 {
+  font-family: var(--font-serif);
+  font-size: 17px; font-weight: 530;
+  margin: 0 0 4px;
+}
+.context-section .sub {
+  font-size: 12.5px; color: hsl(var(--text-400));
+  margin: 0 0 22px;
+}
+.thinking-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+}
+.thinking-row .icon-slot {
+  width: 24px; height: 24px;
+  justify-self: center;
+  color: hsl(var(--brand-clay));
+}
+.thinking-row .icon-slot svg { display: block; width: 100%; height: 100%; }
+.thinking-row .summary {
+  font-family: var(--font-serif);
+  font-size: 14px; line-height: 20px; font-weight: 360;
+  color: hsl(var(--text-500));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.thinking-row .chev {
+  color: hsl(var(--text-400));
+  transform: rotate(-90deg);
+}
+.thinking-stream {
+  border-top: .5px solid hsl(var(--border-300) / .08);
+  padding-top: 10px;
+}
+
+/* ===== Mock chat preview ===== */
+.chat-mock {
+  background: hsl(var(--bg-100));
+  border: .5px solid hsl(var(--border-300) / .08);
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-top: 4px;
+}
+.user-message {
+  font-family: var(--font-serif);
+  font-size: 14px; line-height: 22px;
+  color: hsl(var(--text-100));
+  padding: 10px 14px;
+  background: hsl(var(--bg-200));
+  border-radius: 12px;
+  max-width: 70%;
+  margin-left: auto;
+  margin-bottom: 18px;
+}
+.thinking-block {
+  margin-bottom: 18px;
+}
+.thinking-block .head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.thinking-block .icon-slot {
+  width: 24px; height: 24px;
+  color: hsl(var(--brand-clay));
+}
+.thinking-block .icon-slot svg { display: block; width: 100%; height: 100%; }
+.thinking-block .head-text {
+  font-family: var(--font-serif);
+  font-size: 14px; font-weight: 530;
+  color: hsl(var(--text-200));
+}
+
+/* ===== Speed indicator ===== */
+.speed-bar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 28px;
+  padding: 10px 14px;
+  background: hsl(var(--bg-200));
+  border: .5px solid hsl(var(--border-300) / .12);
+  border-radius: 999px;
+  width: max-content;
+}
+.speed-bar label {
+  font-family: var(--font-mono); font-size: 11px;
+  color: hsl(var(--text-400)); letter-spacing: .08em; text-transform: uppercase;
+}
+.speed-bar .pill {
+  appearance: none; border: 0; background: transparent;
+  color: hsl(var(--text-400)); font: inherit; font-size: 12px;
+  padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  transition: all .2s var(--ease-button);
+}
+.speed-bar .pill[aria-pressed="true"] {
+  background: hsl(var(--bg-300)); color: hsl(var(--text-100));
+}
+.speed-bar .pill:hover { color: hsl(var(--text-100)); }
+
+/* ===== Spec block ===== */
+.spec {
+  font-size: 13px; color: hsl(var(--text-400));
+  line-height: 1.7;
+  padding: 14px 18px;
+  background: hsl(var(--bg-200) / .5);
+  border-left: 2px solid hsl(var(--brand-clay));
+  border-radius: 0 8px 8px 0;
+}
+.spec code {
+  font-family: var(--font-mono); font-size: 12px;
+  background: hsl(var(--bg-300) / .6);
+  padding: 1px 5px; border-radius: 4px;
+  color: hsl(var(--text-200));
+}
+.spec strong { color: hsl(var(--text-200)); font-weight: 530; }
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" role="group" aria-label="主题切换">
+  <button data-mode="dark" aria-pressed="true">Dark</button>
+  <button data-mode="light" aria-pressed="false">Light</button>
+</div>
+
+<div class="lab">
+
+  <div class="lab-eyebrow">Messages · Thinking summary icon · v3 final</div>
+  <h1 class="lab-title">双彗长尾 · 终版</h1>
+  <p class="lab-lede">
+    保留 V5 方向。本轮调整：行星 <code style="font-family: var(--font-mono); font-size:13px;">r 4 → 5</code>（视觉重心更稳），
+    流星节奏 <code style="font-family: var(--font-mono); font-size:13px;">2.4 / 3.2s → 1.2 / 1.6s</code>（飞行感更急促有生气）。
+  </p>
+
+  <!-- ============================================
+       Hero — 大尺寸欣赏
+       ============================================ -->
+  <div class="hero">
+    <div class="panel dark">
+      <span class="label">DARK · 240PX</span>
+      <svg class="logo-xl" viewBox="0 0 32 32">
+        <!-- Comet 1 (28° tilt, fast direction) -->
+        <g transform="rotate(28 16 16)">
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="55 45" opacity=".15">
+            <animate attributeName="stroke-dashoffset" data-base="1.2s" dur="1.2s" from="0" to="-100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="28 72" opacity=".35">
+            <animate attributeName="stroke-dashoffset" data-base="1.2s" dur="1.2s" from="0" to="-100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="8 92" opacity=".75">
+            <animate attributeName="stroke-dashoffset" data-base="1.2s" dur="1.2s" from="0" to="-100" repeatCount="indefinite"/>
+          </ellipse>
+          <circle r="1.5" fill="currentColor">
+            <animateMotion data-base="1.2s" dur="1.2s" begin="-0.096s" repeatCount="indefinite"
+              path="M 27.5 16 A 11.5 4.2 0 1 1 4.5 16 A 11.5 4.2 0 1 1 27.5 16"/>
+          </circle>
+        </g>
+        <!-- Comet 2 (-28° tilt, slightly slower, reverse) -->
+        <g transform="rotate(-28 16 16)">
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="55 45" opacity=".15">
+            <animate attributeName="stroke-dashoffset" data-base="1.6s" dur="1.6s" from="0" to="100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="28 72" opacity=".35">
+            <animate attributeName="stroke-dashoffset" data-base="1.6s" dur="1.6s" from="0" to="100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="8 92" opacity=".75">
+            <animate attributeName="stroke-dashoffset" data-base="1.6s" dur="1.6s" from="0" to="100" repeatCount="indefinite"/>
+          </ellipse>
+          <circle r="1.5" fill="currentColor">
+            <animateMotion data-base="1.6s" dur="1.6s" begin="-1.504s" repeatCount="indefinite"
+              path="M 4.5 16 A 11.5 4.2 0 1 0 27.5 16 A 11.5 4.2 0 1 0 4.5 16"/>
+          </circle>
+        </g>
+        <!-- Planet (bigger: r=4) -->
+        <circle cx="16" cy="16" r="5" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="panel light">
+      <span class="label">LIGHT · 240PX</span>
+      <svg class="logo-xl" viewBox="0 0 32 32">
+        <g transform="rotate(28 16 16)">
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="55 45" opacity=".15">
+            <animate attributeName="stroke-dashoffset" data-base="1.2s" dur="1.2s" from="0" to="-100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="28 72" opacity=".35">
+            <animate attributeName="stroke-dashoffset" data-base="1.2s" dur="1.2s" from="0" to="-100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="8 92" opacity=".75">
+            <animate attributeName="stroke-dashoffset" data-base="1.2s" dur="1.2s" from="0" to="-100" repeatCount="indefinite"/>
+          </ellipse>
+          <circle r="1.5" fill="currentColor">
+            <animateMotion data-base="1.2s" dur="1.2s" begin="-0.096s" repeatCount="indefinite"
+              path="M 27.5 16 A 11.5 4.2 0 1 1 4.5 16 A 11.5 4.2 0 1 1 27.5 16"/>
+          </circle>
+        </g>
+        <g transform="rotate(-28 16 16)">
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="55 45" opacity=".15">
+            <animate attributeName="stroke-dashoffset" data-base="1.6s" dur="1.6s" from="0" to="100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="28 72" opacity=".35">
+            <animate attributeName="stroke-dashoffset" data-base="1.6s" dur="1.6s" from="0" to="100" repeatCount="indefinite"/>
+          </ellipse>
+          <ellipse cx="16" cy="16" rx="11.5" ry="4.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"
+            pathLength="100" stroke-dasharray="8 92" opacity=".75">
+            <animate attributeName="stroke-dashoffset" data-base="1.6s" dur="1.6s" from="0" to="100" repeatCount="indefinite"/>
+          </ellipse>
+          <circle r="1.5" fill="currentColor">
+            <animateMotion data-base="1.6s" dur="1.6s" begin="-1.504s" repeatCount="indefinite"
+              path="M 4.5 16 A 11.5 4.2 0 1 0 27.5 16 A 11.5 4.2 0 1 0 4.5 16"/>
+          </circle>
+        </g>
+        <circle cx="16" cy="16" r="5" fill="currentColor"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="speed-bar" role="group" aria-label="动画速度">
+    <label>Speed</label>
+    <button class="pill" data-speed="slow" aria-pressed="false">慢</button>
+    <button class="pill" data-speed="normal" aria-pressed="true">正常</button>
+    <button class="pill" data-speed="fast" aria-pressed="false">快</button>
+  </div>
+
+  <!-- ============================================
+       Size ladder
+       ============================================ -->
+  <div class="ladder">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">尺寸阶梯</div>
+        <div class="panel-sub">Dark</div>
+      </div>
+      <div class="size-row"><span class="size-label">12px</span><span class="holder s12" data-clone="src"></span></div>
+      <div class="size-row"><span class="size-label">14px</span><span class="holder s14" data-clone="src"></span></div>
+      <div class="size-row"><span class="size-label">16px ★</span><span class="holder s16" data-clone="src"></span></div>
+      <div class="size-row"><span class="size-label">20px</span><span class="holder s20" data-clone="src"></span></div>
+      <div class="size-row"><span class="size-label">24px</span><span class="holder s24" data-clone="src"></span></div>
+      <div class="size-row"><span class="size-label">32px</span><span class="holder s32" data-clone="src"></span></div>
+    </div>
+    <div class="panel" style="background: #f5f1e8; border-color: rgba(0,0,0,.06);">
+      <div class="panel-head">
+        <div class="panel-title" style="color:#39362f">尺寸阶梯</div>
+        <div class="panel-sub" style="color:#999186">Light</div>
+      </div>
+      <div class="size-row" style="border-color: rgba(0,0,0,.06);"><span class="size-label" style="color:#999186">12px</span><span class="holder s12" data-clone="src" style="color: hsl(15 54% 51%);"></span></div>
+      <div class="size-row" style="border-color: rgba(0,0,0,.06);"><span class="size-label" style="color:#999186">14px</span><span class="holder s14" data-clone="src" style="color: hsl(15 54% 51%);"></span></div>
+      <div class="size-row" style="border-color: rgba(0,0,0,.06);"><span class="size-label" style="color:#39362f">16px ★</span><span class="holder s16" data-clone="src" style="color: hsl(15 54% 51%);"></span></div>
+      <div class="size-row" style="border-color: rgba(0,0,0,.06);"><span class="size-label" style="color:#999186">20px</span><span class="holder s20" data-clone="src" style="color: hsl(15 54% 51%);"></span></div>
+      <div class="size-row" style="border-color: rgba(0,0,0,.06);"><span class="size-label" style="color:#999186">24px</span><span class="holder s24" data-clone="src" style="color: hsl(15 54% 51%);"></span></div>
+      <div class="size-row"><span class="size-label" style="color:#999186">32px</span><span class="holder s32" data-clone="src" style="color: hsl(15 54% 51%);"></span></div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       In-context — multiple thinking lines
+       ============================================ -->
+  <div class="context-section">
+    <h2>实际场景</h2>
+    <p class="sub">放在思考摘要的真实上下文里，图标尺寸 <code style="font-family:var(--font-mono);font-size:12px;background:hsl(var(--bg-300)/.6);padding:1px 5px;border-radius:4px;color:hsl(var(--text-200));">24×24</code> —— 拖尾细节在这个尺寸下能看清楚得多。</p>
+
+    <div class="chat-mock">
+      <div class="user-message">
+        给我推荐几本类似《思考，快与慢》的书，并说说为什么。
+      </div>
+
+      <div class="thinking-block">
+        <div class="head">
+          <span class="icon-slot" data-clone="src"></span>
+          <span class="head-text">正在思考</span>
+        </div>
+        <div class="thinking-stream">
+          <div class="thinking-row">
+            <span class="icon-slot" data-clone="src"></span>
+            <span class="summary">回顾 Kahneman 的双系统理论及其核心论点。</span>
+            <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+          </div>
+          <div class="thinking-row">
+            <span class="icon-slot" data-clone="src"></span>
+            <span class="summary">检索行为经济学与决策心理学领域的代表作。</span>
+            <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+          </div>
+          <div class="thinking-row">
+            <span class="icon-slot" data-clone="src"></span>
+            <span class="summary">筛选与原书风格、写作密度匹配的候选书目。</span>
+            <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+          </div>
+          <div class="thinking-row">
+            <span class="icon-slot" data-clone="src"></span>
+            <span class="summary">为每本书撰写简短的"为什么相似"理由说明。</span>
+            <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       Spec
+       ============================================ -->
+  <div class="spec">
+    <strong>实现要点：</strong>
+    <code>viewBox="0 0 32 32"</code> · 行星 <code>r=5</code> 居中 ·
+    两组椭圆轨道（不可见，仅作 dash 载体）<code>rx=11.5, ry=4.2</code>，旋转 <code>±28°</code> ·
+    每组三层 dasharray（<code>55/28/8</code>，对应透明度 <code>.15/.35/.75</code>）模拟尾巴自然渐隐 ·
+    头部圆点 <code>r=1.5</code>，通过 <code>animateMotion + begin</code> 偏移与最亮 dash 头对齐 ·
+    周期 <code>1.2s</code> / <code>1.6s</code>，两条流星反向异速。
+  </div>
+
+</div>
+
+<script>
+// ===== theme toggle =====
+const toggle = document.querySelector('.theme-toggle');
+toggle.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  document.documentElement.setAttribute('data-mode', btn.dataset.mode);
+  toggle.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+});
+
+// ===== Clone the dark hero svg into all "src" slots =====
+const srcSvg = document.querySelector('.hero .panel.dark svg');
+let cloneCount = 0;
+function uniqueIds(node) {
+  node.querySelectorAll('[id]').forEach(el => {
+    const old = el.id;
+    const neu = old + '-c' + (++cloneCount);
+    el.id = neu;
+    node.querySelectorAll('*').forEach(child => {
+      ['stroke','fill'].forEach(attr => {
+        const v = child.getAttribute(attr);
+        if (v && v.includes('#' + old)) child.setAttribute(attr, v.replace('#' + old, '#' + neu));
+      });
+    });
+  });
+}
+
+document.querySelectorAll('[data-clone="src"]').forEach(slot => {
+  const clone = srcSvg.cloneNode(true);
+  uniqueIds(clone);
+  slot.appendChild(clone);
+});
+
+// ===== speed control =====
+const speedBar = document.querySelector('.speed-bar');
+const SPEEDS = { slow: 0.55, normal: 1, fast: 1.7 };
+
+function applySpeed(name) {
+  const factor = SPEEDS[name] || 1;
+  document.documentElement.setAttribute('data-speed', name);
+
+  document.querySelectorAll('[data-base]').forEach(el => {
+    const base = parseFloat(el.getAttribute('data-base'));
+    if (!base) return;
+    el.setAttribute('dur', (base / factor).toFixed(2) + 's');
+    const beginAttr = el.getAttribute('begin');
+    if (beginAttr && beginAttr.startsWith('-') && beginAttr.endsWith('s')) {
+      if (!el.getAttribute('data-begin-base')) el.setAttribute('data-begin-base', beginAttr);
+      const origBegin = parseFloat(el.getAttribute('data-begin-base'));
+      el.setAttribute('begin', (origBegin / factor).toFixed(3) + 's');
+    }
+  });
+
+  // restart SMIL
+  document.querySelectorAll('svg').forEach(svg => {
+    if (svg.querySelector('[data-base]')) {
+      const parent = svg.parentNode;
+      const next = svg.nextSibling;
+      parent.removeChild(svg);
+      parent.insertBefore(svg, next);
+    }
+  });
+}
+
+speedBar.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-speed]');
+  if (!btn) return;
+  speedBar.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+  applySpeed(btn.dataset.speed);
+});
+</script>
+
+</body>
+</html>

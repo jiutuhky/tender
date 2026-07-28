@@ -1,0 +1,43 @@
+# Prose monorepo 根 .gitignore
+# frontend/、hagent/、hagent/web/ 各自的 .gitignore 负责各工程内的 node_modules/.next/.venv/.env 等；
+# 这里只补全跨目录通用的运行时产物与系统文件。
+
+# 运行日志（dev server / agent server / web）
+.logs_*.out
+*.log
+
+# 源码备份包
+/*.tar.gz
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# 临时
+*.tmp
+.gstack/
+
+# Claude Code 本地运行时与个人配置（.claude/skills/ 是源码，需入仓）
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/.credentials.json
+.claude/history.jsonl
+.claude/todos/
+.claude/projects/
+.claude/shell-snapshots/
+.claude/statsig/
+
+# 工具缓存（codegraph 索引 DB 与日志）
+.codegraph/
+
+# WSL/Windows 下载元数据
+*Zone.Identifier
+
+# 真实招标文件语料（本地测试样本，不入仓）
+/data/
+
+# 原型归档大文件（34MB 内联 base64，不入仓）
+/.design/prototype/archive/login.html

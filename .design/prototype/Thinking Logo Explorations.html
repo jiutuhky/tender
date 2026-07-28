@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="claude" data-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thinking Logo · 行星轨道动态 logo 探索</title>
+<style>
+/* ===== 底层 token（与 Claude Messages 一致） ===== */
+:root {
+  --font-ui: "Anthropic Sans", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Anthropic Serif", Georgia, "Times New Roman", Times,
+                "PingFang SC", "Microsoft YaHei", serif;
+  --font-mono: "Anthropic Mono", ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace;
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-button:   cubic-bezier(0.165, 0.85, 0.45, 1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .1), 0 4px 6px -4px rgb(0 0 0 / .1);
+}
+
+[data-theme="claude"][data-mode="dark"] {
+  --bg-000: 60 2.1% 18.4%;
+  --bg-100: 60 2.7% 14.5%;
+  --bg-200: 30 3.3% 11.8%;
+  --bg-300: 60 2.6% 7.6%;
+  --text-100: 48 33.3% 97.1%;
+  --text-200: 50 9% 73.7%;
+  --text-300: 50 9% 73.7%;
+  --text-400: 48 4.8% 59.2%;
+  --text-500: 48 4.8% 59.2%;
+  --border-300: 51 16.5% 84.5%;
+  --brand-100: 15 63.1% 59.6%;
+  --brand-clay: 14.8 63.1% 59.6%;
+  --accent-100: 210 70.9% 51.6%;
+  --accent-pro-000: 251 84.6% 74.5%;
+}
+
+[data-theme="claude"][data-mode="light"] {
+  --bg-000: 0 0% 100%;
+  --bg-100: 48 33.3% 97.1%;
+  --bg-200: 53 28.6% 94.5%;
+  --bg-300: 48 25% 92.2%;
+  --text-100: 60 2.6% 7.6%;
+  --text-200: 60 2.5% 23.3%;
+  --text-300: 60 2.5% 23.3%;
+  --text-400: 51 3.1% 43.7%;
+  --text-500: 51 3.1% 43.7%;
+  --border-300: 30 3.3% 11.8%;
+  --brand-100: 15 54.2% 51.2%;
+  --brand-clay: 15.1 54.2% 51.2%;
+  --accent-100: 210 70.9% 51.6%;
+  --accent-pro-000: 251 34.2% 33.3%;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; }
+body {
+  margin: 0;
+  background: hsl(var(--bg-100));
+  color: hsl(var(--text-100));
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: background-color .3s var(--ease-standard);
+}
+
+/* ===== 主题切换 ===== */
+.theme-toggle {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: hsl(var(--bg-000));
+  border: .5px solid hsl(var(--border-300) / .15);
+  border-radius: 999px;
+  z-index: 100;
+}
+.theme-toggle button {
+  appearance: none; border: 0; background: transparent;
+  color: hsl(var(--text-400)); font: inherit; font-size: 13px;
+  padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  transition: all .3s var(--ease-button);
+}
+.theme-toggle button[aria-pressed="true"] {
+  background: hsl(var(--bg-300));
+  color: hsl(var(--text-100));
+}
+
+/* ===== 页面外壳 ===== */
+.lab { max-width: 1180px; margin: 0 auto; padding: 56px 24px 120px; }
+
+.lab-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: hsl(var(--text-400)); margin-bottom: 10px;
+}
+.lab-title {
+  font-family: var(--font-serif);
+  font-size: 30px; font-weight: 530; letter-spacing: -.01em;
+  margin: 0 0 12px;
+}
+.lab-lede {
+  font-family: var(--font-serif);
+  font-size: 15px; color: hsl(var(--text-200));
+  max-width: 62ch; margin: 0 0 16px; line-height: 1.65;
+}
+.lab-notes {
+  font-size: 13px; color: hsl(var(--text-400));
+  max-width: 70ch; line-height: 1.7;
+  padding: 14px 16px;
+  border-left: 2px solid hsl(var(--brand-clay));
+  background: hsl(var(--bg-200) / .5);
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 40px;
+}
+.lab-notes code {
+  font-family: var(--font-mono); font-size: 12px;
+  background: hsl(var(--bg-300) / .6);
+  padding: 1px 5px; border-radius: 4px;
+  color: hsl(var(--text-200));
+}
+
+/* ===== 全局速度控制（demo） ===== */
+.speed-bar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 28px;
+  padding: 10px 14px;
+  background: hsl(var(--bg-200));
+  border: .5px solid hsl(var(--border-300) / .12);
+  border-radius: 999px;
+  width: max-content;
+}
+.speed-bar label {
+  font-family: var(--font-mono); font-size: 11px;
+  color: hsl(var(--text-400)); letter-spacing: .08em; text-transform: uppercase;
+}
+.speed-bar .pill {
+  appearance: none; border: 0; background: transparent;
+  color: hsl(var(--text-400)); font: inherit; font-size: 12px;
+  padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  transition: all .2s var(--ease-button);
+}
+.speed-bar .pill[aria-pressed="true"] {
+  background: hsl(var(--bg-300)); color: hsl(var(--text-100));
+}
+.speed-bar .pill:hover { color: hsl(var(--text-100)); }
+
+/* ===== 变体网格 ===== */
+.variants-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.variant-card {
+  background: hsl(var(--bg-200));
+  border: .5px solid hsl(var(--border-300) / .12);
+  border-radius: 14px;
+  padding: 22px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.variant-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.variant-head .left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.variant-num {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: .15em; color: hsl(var(--text-400));
+}
+.variant-title {
+  font-family: var(--font-serif);
+  font-size: 17px; font-weight: 530;
+  color: hsl(var(--text-100));
+  letter-spacing: -.005em;
+}
+.variant-tag {
+  font-family: var(--font-mono); font-size: 10px;
+  color: hsl(var(--text-400));
+  padding: 3px 8px;
+  border: .5px solid hsl(var(--border-300) / .2);
+  border-radius: 999px;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+.variant-desc {
+  font-size: 12.5px; color: hsl(var(--text-300));
+  line-height: 1.6;
+  margin: -4px 0 4px;
+}
+
+/* 大尺寸展示舞台 */
+.stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.stage .panel {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 140px;
+  background: hsl(var(--bg-100));
+  border: .5px solid hsl(var(--border-300) / .08);
+  border-radius: 10px;
+  position: relative;
+}
+.stage .panel.dark { background: #1a1816; }
+.stage .panel.light { background: #f5f1e8; }
+
+.stage .label {
+  position: absolute; top: 8px; left: 10px;
+  font-family: var(--font-mono); font-size: 9px;
+  color: hsl(var(--text-400) / .8);
+  letter-spacing: .1em; text-transform: uppercase;
+}
+
+.logo-xl { width: 80px; height: 80px; color: hsl(var(--brand-clay)); display: block; }
+.stage .panel.dark .logo-xl { color: hsl(15 63% 60%); }
+.stage .panel.light .logo-xl { color: hsl(15 54% 51%); }
+
+/* 实际场景（in-context） */
+.context {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 14px 16px;
+  background: hsl(var(--bg-100));
+  border: .5px solid hsl(var(--border-300) / .08);
+  border-radius: 10px;
+}
+.context-label {
+  font-family: var(--font-mono); font-size: 9px;
+  color: hsl(var(--text-400));
+  letter-spacing: .12em; text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.thinking-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  column-gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+.thinking-row .icon-slot {
+  width: 16px; height: 16px;
+  justify-self: center;
+  color: hsl(var(--brand-clay));
+}
+.thinking-row .icon-slot svg { display: block; width: 100%; height: 100%; }
+.thinking-row .summary {
+  font-family: var(--font-serif);
+  font-size: 14px; line-height: 20px; font-weight: 360;
+  color: hsl(var(--text-500));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.thinking-row .chev {
+  color: hsl(var(--text-400));
+  transform: rotate(-90deg);
+}
+
+/* === 全局动画速度 === */
+:root { --orbit-speed: 1; }
+[data-speed="slow"]   { --orbit-speed: 0.55; }
+[data-speed="normal"] { --orbit-speed: 1; }
+[data-speed="fast"]   { --orbit-speed: 1.7; }
+
+/* SMIL 动画速度通过设置 each <animate*> 的 dur，
+   但 CSS 控制 SMIL 不容易；我们对 CSS 动画用 var；
+   对 SMIL 单独通过 JS 设置 currentScale */
+.css-anim { animation-duration: calc(var(--base-dur, 3s) / var(--orbit-speed)) !important; }
+
+/* ============================================
+   ★ Variant 共用 CSS（用于 CSS-only 实现的变体）
+   ============================================ */
+
+/* V5 单环：CSS 旋转 wrapper + 偏移 dot */
+.v5-rotor {
+  transform-origin: 16px 16px;
+  animation: spin-360 4s linear infinite;
+  --base-dur: 4s;
+}
+@keyframes spin-360 { to { transform: rotate(360deg); } }
+
+/* V3 dashed 流动：stroke-dashoffset 通过 CSS animation */
+.v3-dash {
+  animation: dash-flow 1.4s linear infinite;
+  --base-dur: 1.4s;
+}
+@keyframes dash-flow {
+  to { stroke-dashoffset: -14; }
+}
+.v3-dash-2 {
+  animation: dash-flow-2 1.9s linear infinite;
+  --base-dur: 1.9s;
+}
+@keyframes dash-flow-2 {
+  to { stroke-dashoffset: 14; }
+}
+
+/* V6 comet trail rotor */
+.v6-rotor {
+  transform-origin: 16px 16px;
+  animation: spin-360 2.4s linear infinite;
+  --base-dur: 2.4s;
+}
+.v6-rotor-2 {
+  transform-origin: 16px 16px;
+  animation: spin-rev 3.6s linear infinite;
+  --base-dur: 3.6s;
+}
+@keyframes spin-rev { to { transform: rotate(-360deg); } }
+
+/* V7 微脉冲 */
+.pulse-planet {
+  transform-origin: 16px 16px;
+  animation: pulse 2.6s ease-in-out infinite;
+  --base-dur: 2.6s;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.18); opacity: .85; }
+}
+
+/* compare bar at bottom */
+.compare {
+  margin-top: 40px;
+  padding: 28px 26px;
+  background: hsl(var(--bg-200));
+  border: .5px solid hsl(var(--border-300) / .12);
+  border-radius: 14px;
+}
+.compare-title {
+  font-family: var(--font-serif);
+  font-size: 17px; font-weight: 530;
+  margin: 0 0 4px;
+}
+.compare-sub {
+  font-size: 12.5px; color: hsl(var(--text-400));
+  margin: 0 0 22px;
+}
+.compare-row {
+  display: grid;
+  grid-template-columns: 60px 24px 1fr;
+  column-gap: 14px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: .5px solid hsl(var(--border-300) / .06);
+}
+.compare-row:last-child { border-bottom: 0; }
+.compare-row .name {
+  font-family: var(--font-mono); font-size: 11px;
+  color: hsl(var(--text-300));
+}
+.compare-row .ic { width: 16px; height: 16px; color: hsl(var(--brand-clay)); }
+.compare-row .ic svg { display: block; width: 100%; height: 100%; }
+.compare-row .summary {
+  font-family: var(--font-serif);
+  font-size: 14px; line-height: 20px;
+  color: hsl(var(--text-500));
+}
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" role="group" aria-label="主题切换">
+  <button data-mode="dark" aria-pressed="true">Dark</button>
+  <button data-mode="light" aria-pressed="false">Light</button>
+</div>
+
+<div class="lab">
+
+  <div class="lab-eyebrow">Messages · Thinking summary icon</div>
+  <h1 class="lab-title">动态 logo：行星 + 轨道飞船</h1>
+  <p class="lab-lede">
+    思考摘要标题左侧的 16×16 icon —— 替换当前的射线 spark。
+    保留"思考即旋转"的隐喻，但换成更具体的<em>行星 + 飞船绕行</em>意象：
+    简约线条勾勒星体，正交的椭圆轨道，飞船沿轨道循环巡行。
+  </p>
+
+  <div class="lab-notes">
+    <strong>设计规则统一：</strong>
+    所有变体 viewBox 都是 <code>32×32</code>（实际渲染 16×16），中心点 <code>(16, 16)</code>，
+    在 24px 时间线槽中 <code>justify-self: center</code>。颜色继承自 <code>currentColor</code>，
+    在思考状态由 <code>--brand-clay</code> 驱动。stroke 全部 <code>0.7px</code>（视觉等效 hairline）。
+  </div>
+
+  <div class="speed-bar" role="group" aria-label="动画速度">
+    <label>Speed</label>
+    <button class="pill" data-speed="slow" aria-pressed="false">慢</button>
+    <button class="pill" data-speed="normal" aria-pressed="true">正常</button>
+    <button class="pill" data-speed="fast" aria-pressed="false">快</button>
+  </div>
+
+  <section class="variants-grid">
+
+    <!-- ============================================
+         V1 · Tilted dual orbit
+         ============================================ -->
+    <div class="variant-card">
+      <div class="variant-head">
+        <div class="left">
+          <div class="variant-num">VARIANT 01</div>
+          <div class="variant-title">双倾角对偶</div>
+        </div>
+        <div class="variant-tag">最经典</div>
+      </div>
+      <div class="variant-desc">
+        实心行星 + 两条 ±30° 倾角的椭圆轨道，两艘飞船反向异速绕行，形成"原子模型"的稳定感。
+      </div>
+      <div class="stage">
+        <div class="panel dark">
+          <span class="label">DARK</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(30 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".55"/>
+              <circle r="1.4" fill="currentColor">
+                <animateMotion data-base="3s" dur="3s" repeatCount="indefinite"
+                  path="M 27 16 A 11 4 0 1 1 5 16 A 11 4 0 1 1 27 16"/>
+              </circle>
+            </g>
+            <g transform="rotate(-30 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".55"/>
+              <circle r="1.4" fill="currentColor">
+                <animateMotion data-base="4.2s" dur="4.2s" repeatCount="indefinite"
+                  path="M 5 16 A 11 4 0 1 0 27 16 A 11 4 0 1 0 5 16"/>
+              </circle>
+            </g>
+            <circle cx="16" cy="16" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="panel light">
+          <span class="label">LIGHT</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(30 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".55"/>
+              <circle r="1.4" fill="currentColor">
+                <animateMotion data-base="3s" dur="3s" repeatCount="indefinite"
+                  path="M 27 16 A 11 4 0 1 1 5 16 A 11 4 0 1 1 27 16"/>
+              </circle>
+            </g>
+            <g transform="rotate(-30 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".55"/>
+              <circle r="1.4" fill="currentColor">
+                <animateMotion data-base="4.2s" dur="4.2s" repeatCount="indefinite"
+                  path="M 5 16 A 11 4 0 1 0 27 16 A 11 4 0 1 0 5 16"/>
+              </circle>
+            </g>
+            <circle cx="16" cy="16" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+      <div class="context">
+        <div class="context-label">in context · 16×16 in thinking timeline</div>
+        <div class="thinking-row">
+          <span class="icon-slot">
+            <svg viewBox="0 0 32 32">
+              <g transform="rotate(30 16 16)">
+                <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+                <circle r="2" fill="currentColor">
+                  <animateMotion data-base="3s" dur="3s" repeatCount="indefinite"
+                    path="M 27 16 A 11 4 0 1 1 5 16 A 11 4 0 1 1 27 16"/>
+                </circle>
+              </g>
+              <g transform="rotate(-30 16 16)">
+                <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+                <circle r="2" fill="currentColor">
+                  <animateMotion data-base="4.2s" dur="4.2s" repeatCount="indefinite"
+                    path="M 5 16 A 11 4 0 1 0 27 16 A 11 4 0 1 0 5 16"/>
+                </circle>
+              </g>
+              <circle cx="16" cy="16" r="3.8" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="summary">策划精选文章清单并确保恰当引用。</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         V2 · Crosshair orthogonal
+         ============================================ -->
+    <div class="variant-card">
+      <div class="variant-head">
+        <div class="left">
+          <div class="variant-num">VARIANT 02</div>
+          <div class="variant-title">十字正交</div>
+        </div>
+        <div class="variant-tag">最契合"正交"</div>
+      </div>
+      <div class="variant-desc">
+        一条扁平横向轨道 + 一条窄长纵向轨道 —— 真正<em>垂直</em>的两个轨道平面，模拟 3D 透视下的赤道/极轨。
+      </div>
+      <div class="stage">
+        <div class="panel dark">
+          <span class="label">DARK</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <!-- 横向轨道（远） -->
+            <ellipse cx="16" cy="16" rx="12" ry="3.2" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".5"/>
+            <!-- 纵向轨道（远） -->
+            <ellipse cx="16" cy="16" rx="3.2" ry="12" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".5"/>
+            <!-- 行星 -->
+            <circle cx="16" cy="16" r="2.6" fill="currentColor"/>
+            <!-- 横轨飞船 -->
+            <circle r="1.3" fill="currentColor">
+              <animateMotion data-base="3.4s" dur="3.4s" repeatCount="indefinite"
+                path="M 28 16 A 12 3.2 0 1 1 4 16 A 12 3.2 0 1 1 28 16"/>
+            </circle>
+            <!-- 纵轨飞船 -->
+            <circle r="1.3" fill="currentColor">
+              <animateMotion data-base="4s" dur="4s" repeatCount="indefinite"
+                path="M 16 4 A 3.2 12 0 1 1 16 28 A 3.2 12 0 1 1 16 4"/>
+            </circle>
+          </svg>
+        </div>
+        <div class="panel light">
+          <span class="label">LIGHT</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <ellipse cx="16" cy="16" rx="12" ry="3.2" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".5"/>
+            <ellipse cx="16" cy="16" rx="3.2" ry="12" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".5"/>
+            <circle cx="16" cy="16" r="2.6" fill="currentColor"/>
+            <circle r="1.3" fill="currentColor">
+              <animateMotion data-base="3.4s" dur="3.4s" repeatCount="indefinite"
+                path="M 28 16 A 12 3.2 0 1 1 4 16 A 12 3.2 0 1 1 28 16"/>
+            </circle>
+            <circle r="1.3" fill="currentColor">
+              <animateMotion data-base="4s" dur="4s" repeatCount="indefinite"
+                path="M 16 4 A 3.2 12 0 1 1 16 28 A 3.2 12 0 1 1 16 4"/>
+            </circle>
+          </svg>
+        </div>
+      </div>
+      <div class="context">
+        <div class="context-label">in context</div>
+        <div class="thinking-row">
+          <span class="icon-slot">
+            <svg viewBox="0 0 32 32">
+              <ellipse cx="16" cy="16" rx="12" ry="3.2" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".5"/>
+              <ellipse cx="16" cy="16" rx="3.2" ry="12" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".5"/>
+              <circle cx="16" cy="16" r="3" fill="currentColor"/>
+              <circle r="2" fill="currentColor">
+                <animateMotion data-base="3.4s" dur="3.4s" repeatCount="indefinite"
+                  path="M 28 16 A 12 3.2 0 1 1 4 16 A 12 3.2 0 1 1 28 16"/>
+              </circle>
+              <circle r="2" fill="currentColor">
+                <animateMotion data-base="4s" dur="4s" repeatCount="indefinite"
+                  path="M 16 4 A 3.2 12 0 1 1 16 28 A 3.2 12 0 1 1 16 4"/>
+              </circle>
+            </svg>
+          </span>
+          <span class="summary">策划精选文章清单并确保恰当引用。</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         V3 · Dashed flowing orbit (no ship)
+         ============================================ -->
+    <div class="variant-card">
+      <div class="variant-head">
+        <div class="left">
+          <div class="variant-num">VARIANT 03</div>
+          <div class="variant-title">虚线流</div>
+        </div>
+        <div class="variant-tag">最低噪</div>
+      </div>
+      <div class="variant-desc">
+        没有显式飞船 —— 轨道本身是流动的虚线，dashoffset 持续位移制造"小颗粒在轨道上排队前进"的视错。极简、不抢戏。
+      </div>
+      <div class="stage">
+        <div class="panel dark">
+          <span class="label">DARK</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(28 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.6" fill="none" stroke="currentColor" stroke-width="0.9"
+                stroke-dasharray="2 3" stroke-linecap="round" class="v3-dash"/>
+            </g>
+            <g transform="rotate(-28 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.6" fill="none" stroke="currentColor" stroke-width="0.9"
+                stroke-dasharray="2 3" stroke-linecap="round" class="v3-dash-2"/>
+            </g>
+            <circle cx="16" cy="16" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="panel light">
+          <span class="label">LIGHT</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(28 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.6" fill="none" stroke="currentColor" stroke-width="0.9"
+                stroke-dasharray="2 3" stroke-linecap="round" class="v3-dash"/>
+            </g>
+            <g transform="rotate(-28 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.6" fill="none" stroke="currentColor" stroke-width="0.9"
+                stroke-dasharray="2 3" stroke-linecap="round" class="v3-dash-2"/>
+            </g>
+            <circle cx="16" cy="16" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+      <div class="context">
+        <div class="context-label">in context</div>
+        <div class="thinking-row">
+          <span class="icon-slot">
+            <svg viewBox="0 0 32 32">
+              <g transform="rotate(28 16 16)">
+                <ellipse cx="16" cy="16" rx="11" ry="3.6" fill="none" stroke="currentColor" stroke-width="1.3"
+                  stroke-dasharray="2 3" stroke-linecap="round" class="v3-dash"/>
+              </g>
+              <g transform="rotate(-28 16 16)">
+                <ellipse cx="16" cy="16" rx="11" ry="3.6" fill="none" stroke="currentColor" stroke-width="1.3"
+                  stroke-dasharray="2 3" stroke-linecap="round" class="v3-dash-2"/>
+              </g>
+              <circle cx="16" cy="16" r="3.8" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="summary">策划精选文章清单并确保恰当引用。</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         V4 · Three-ring busy explorer
+         ============================================ -->
+    <div class="variant-card">
+      <div class="variant-head">
+        <div class="left">
+          <div class="variant-num">VARIANT 04</div>
+          <div class="variant-title">三轨繁忙</div>
+        </div>
+        <div class="variant-tag">最"思考密集"</div>
+      </div>
+      <div class="variant-desc">
+        三条轨道 0°/60°/-60°，三艘飞船异速循环 —— 更强的"多线程并行检索"信息量；但密度更高，16px 时会感觉繁。
+      </div>
+      <div class="stage">
+        <div class="panel dark">
+          <span class="label">DARK</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(0 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="0.6" opacity=".45"/>
+              <circle r="1.2" fill="currentColor">
+                <animateMotion data-base="2.4s" dur="2.4s" repeatCount="indefinite"
+                  path="M 27 16 A 11 3.5 0 1 1 5 16 A 11 3.5 0 1 1 27 16"/>
+              </circle>
+            </g>
+            <g transform="rotate(60 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="0.6" opacity=".45"/>
+              <circle r="1.2" fill="currentColor">
+                <animateMotion data-base="3.1s" dur="3.1s" repeatCount="indefinite"
+                  path="M 5 16 A 11 3.5 0 1 0 27 16 A 11 3.5 0 1 0 5 16"/>
+              </circle>
+            </g>
+            <g transform="rotate(-60 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="0.6" opacity=".45"/>
+              <circle r="1.2" fill="currentColor">
+                <animateMotion data-base="3.8s" dur="3.8s" repeatCount="indefinite"
+                  path="M 27 16 A 11 3.5 0 1 1 5 16 A 11 3.5 0 1 1 27 16"/>
+              </circle>
+            </g>
+            <circle cx="16" cy="16" r="2.4" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="panel light">
+          <span class="label">LIGHT</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(0 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="0.6" opacity=".45"/>
+              <circle r="1.2" fill="currentColor">
+                <animateMotion data-base="2.4s" dur="2.4s" repeatCount="indefinite"
+                  path="M 27 16 A 11 3.5 0 1 1 5 16 A 11 3.5 0 1 1 27 16"/>
+              </circle>
+            </g>
+            <g transform="rotate(60 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="0.6" opacity=".45"/>
+              <circle r="1.2" fill="currentColor">
+                <animateMotion data-base="3.1s" dur="3.1s" repeatCount="indefinite"
+                  path="M 5 16 A 11 3.5 0 1 0 27 16 A 11 3.5 0 1 0 5 16"/>
+              </circle>
+            </g>
+            <g transform="rotate(-60 16 16)">
+              <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="0.6" opacity=".45"/>
+              <circle r="1.2" fill="currentColor">
+                <animateMotion data-base="3.8s" dur="3.8s" repeatCount="indefinite"
+                  path="M 27 16 A 11 3.5 0 1 1 5 16 A 11 3.5 0 1 1 27 16"/>
+              </circle>
+            </g>
+            <circle cx="16" cy="16" r="2.4" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+      <div class="context">
+        <div class="context-label">in context</div>
+        <div class="thinking-row">
+          <span class="icon-slot">
+            <svg viewBox="0 0 32 32">
+              <g transform="rotate(0 16 16)">
+                <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="1" opacity=".45"/>
+                <circle r="1.8" fill="currentColor">
+                  <animateMotion data-base="2.4s" dur="2.4s" repeatCount="indefinite"
+                    path="M 27 16 A 11 3.5 0 1 1 5 16 A 11 3.5 0 1 1 27 16"/>
+                </circle>
+              </g>
+              <g transform="rotate(60 16 16)">
+                <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="1" opacity=".45"/>
+                <circle r="1.8" fill="currentColor">
+                  <animateMotion data-base="3.1s" dur="3.1s" repeatCount="indefinite"
+                    path="M 5 16 A 11 3.5 0 1 0 27 16 A 11 3.5 0 1 0 5 16"/>
+                </circle>
+              </g>
+              <g transform="rotate(-60 16 16)">
+                <ellipse cx="16" cy="16" rx="11" ry="3.5" fill="none" stroke="currentColor" stroke-width="1" opacity=".45"/>
+                <circle r="1.8" fill="currentColor">
+                  <animateMotion data-base="3.8s" dur="3.8s" repeatCount="indefinite"
+                    path="M 27 16 A 11 3.5 0 1 1 5 16 A 11 3.5 0 1 1 27 16"/>
+                </circle>
+              </g>
+              <circle cx="16" cy="16" r="3.2" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="summary">策划精选文章清单并确保恰当引用。</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         V5 · Single elegant ring
+         ============================================ -->
+    <div class="variant-card">
+      <div class="variant-head">
+        <div class="left">
+          <div class="variant-num">VARIANT 05</div>
+          <div class="variant-title">单环极简</div>
+        </div>
+        <div class="variant-tag">最克制</div>
+      </div>
+      <div class="variant-desc">
+        只有一条倾斜椭圆轨道、一艘飞船。最少的视觉元素，最大限度让位给摘要文本本身。可作为"轻量级思考"的默认。
+      </div>
+      <div class="stage">
+        <div class="panel dark">
+          <span class="label">DARK</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(-25 16 16)">
+              <ellipse cx="16" cy="16" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".5"/>
+              <circle r="1.5" fill="currentColor">
+                <animateMotion data-base="3.2s" dur="3.2s" repeatCount="indefinite"
+                  path="M 28 16 A 12 4.5 0 1 1 4 16 A 12 4.5 0 1 1 28 16"/>
+              </circle>
+            </g>
+            <circle cx="16" cy="16" r="3.2" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="panel light">
+          <span class="label">LIGHT</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <g transform="rotate(-25 16 16)">
+              <ellipse cx="16" cy="16" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="0.7" opacity=".5"/>
+              <circle r="1.5" fill="currentColor">
+                <animateMotion data-base="3.2s" dur="3.2s" repeatCount="indefinite"
+                  path="M 28 16 A 12 4.5 0 1 1 4 16 A 12 4.5 0 1 1 28 16"/>
+              </circle>
+            </g>
+            <circle cx="16" cy="16" r="3.2" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+      <div class="context">
+        <div class="context-label">in context</div>
+        <div class="thinking-row">
+          <span class="icon-slot">
+            <svg viewBox="0 0 32 32">
+              <g transform="rotate(-25 16 16)">
+                <ellipse cx="16" cy="16" rx="12" ry="4.5" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".5"/>
+                <circle r="2.2" fill="currentColor">
+                  <animateMotion data-base="3.2s" dur="3.2s" repeatCount="indefinite"
+                    path="M 28 16 A 12 4.5 0 1 1 4 16 A 12 4.5 0 1 1 28 16"/>
+                </circle>
+              </g>
+              <circle cx="16" cy="16" r="4" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="summary">策划精选文章清单并确保恰当引用。</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================
+         V6 · Comet trail
+         ============================================ -->
+    <div class="variant-card">
+      <div class="variant-head">
+        <div class="left">
+          <div class="variant-num">VARIANT 06</div>
+          <div class="variant-title">彗尾拖光</div>
+        </div>
+        <div class="variant-tag">最有方向感</div>
+      </div>
+      <div class="variant-desc">
+        飞船不只是个点 —— 用一段渐隐的弧线段拖在身后，旋转时形成清晰的<em>方向</em>与<em>速度</em>提示。两条相反方向，相互对话。
+      </div>
+      <div class="stage">
+        <div class="panel dark">
+          <span class="label">DARK</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <defs>
+              <linearGradient id="trail-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="currentColor" stop-opacity="0"/>
+                <stop offset="100%" stop-color="currentColor" stop-opacity="1"/>
+              </linearGradient>
+            </defs>
+            <!-- 轨道 1 -->
+            <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.5" opacity=".25"
+              transform="rotate(28 16 16)"/>
+            <!-- 彗尾 1 (rotating) -->
+            <g class="v6-rotor">
+              <g transform="rotate(28 16 16)">
+                <path d="M 16 12 A 11 4 0 0 1 26 14.5" fill="none" stroke="url(#trail-grad-1)"
+                  stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="26" cy="14.5" r="1.4" fill="currentColor"/>
+              </g>
+            </g>
+            <!-- 轨道 2 -->
+            <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.5" opacity=".25"
+              transform="rotate(-28 16 16)"/>
+            <g class="v6-rotor-2">
+              <g transform="rotate(-28 16 16)">
+                <path d="M 16 20 A 11 4 0 0 1 6 17.5" fill="none" stroke="url(#trail-grad-1)"
+                  stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="6" cy="17.5" r="1.4" fill="currentColor"/>
+              </g>
+            </g>
+            <circle cx="16" cy="16" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="panel light">
+          <span class="label">LIGHT</span>
+          <svg class="logo-xl" viewBox="0 0 32 32">
+            <defs>
+              <linearGradient id="trail-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="currentColor" stop-opacity="0"/>
+                <stop offset="100%" stop-color="currentColor" stop-opacity="1"/>
+              </linearGradient>
+            </defs>
+            <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.5" opacity=".3"
+              transform="rotate(28 16 16)"/>
+            <g class="v6-rotor">
+              <g transform="rotate(28 16 16)">
+                <path d="M 16 12 A 11 4 0 0 1 26 14.5" fill="none" stroke="url(#trail-grad-2)"
+                  stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="26" cy="14.5" r="1.4" fill="currentColor"/>
+              </g>
+            </g>
+            <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.5" opacity=".3"
+              transform="rotate(-28 16 16)"/>
+            <g class="v6-rotor-2">
+              <g transform="rotate(-28 16 16)">
+                <path d="M 16 20 A 11 4 0 0 1 6 17.5" fill="none" stroke="url(#trail-grad-2)"
+                  stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="6" cy="17.5" r="1.4" fill="currentColor"/>
+              </g>
+            </g>
+            <circle cx="16" cy="16" r="3" fill="currentColor"/>
+          </svg>
+        </div>
+      </div>
+      <div class="context">
+        <div class="context-label">in context</div>
+        <div class="thinking-row">
+          <span class="icon-slot">
+            <svg viewBox="0 0 32 32">
+              <defs>
+                <linearGradient id="trail-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="currentColor" stop-opacity="0"/>
+                  <stop offset="100%" stop-color="currentColor" stop-opacity="1"/>
+                </linearGradient>
+              </defs>
+              <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.9" opacity=".25"
+                transform="rotate(28 16 16)"/>
+              <g class="v6-rotor">
+                <g transform="rotate(28 16 16)">
+                  <path d="M 16 12 A 11 4 0 0 1 26 14.5" fill="none" stroke="url(#trail-grad-3)"
+                    stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="26" cy="14.5" r="2" fill="currentColor"/>
+                </g>
+              </g>
+              <ellipse cx="16" cy="16" rx="11" ry="4" fill="none" stroke="currentColor" stroke-width="0.9" opacity=".25"
+                transform="rotate(-28 16 16)"/>
+              <g class="v6-rotor-2">
+                <g transform="rotate(-28 16 16)">
+                  <path d="M 16 20 A 11 4 0 0 1 6 17.5" fill="none" stroke="url(#trail-grad-3)"
+                    stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="6" cy="17.5" r="2" fill="currentColor"/>
+                </g>
+              </g>
+              <circle cx="16" cy="16" r="3.8" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="summary">策划精选文章清单并确保恰当引用。</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4.5l3 3 3-3"/></svg>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============================================
+       并排比较：6 个 16×16 真实尺寸
+       ============================================ -->
+  <div class="compare">
+    <h2 class="compare-title">并排比较 · 真实 16×16 尺寸</h2>
+    <p class="compare-sub">这是你最终会看到的视觉密度 —— 列在一起看，谁更"安静"、谁更"忙"一目了然。</p>
+
+    <div class="compare-row">
+      <span class="name">V1</span>
+      <span class="ic" id="cmp-1"></span>
+      <span class="summary">分析 Marty Cagan 的产品管理框架并整理关键观点。</span>
+    </div>
+    <div class="compare-row">
+      <span class="name">V2</span>
+      <span class="ic" id="cmp-2"></span>
+      <span class="summary">分析 Marty Cagan 的产品管理框架并整理关键观点。</span>
+    </div>
+    <div class="compare-row">
+      <span class="name">V3</span>
+      <span class="ic" id="cmp-3"></span>
+      <span class="summary">分析 Marty Cagan 的产品管理框架并整理关键观点。</span>
+    </div>
+    <div class="compare-row">
+      <span class="name">V4</span>
+      <span class="ic" id="cmp-4"></span>
+      <span class="summary">分析 Marty Cagan 的产品管理框架并整理关键观点。</span>
+    </div>
+    <div class="compare-row">
+      <span class="name">V5</span>
+      <span class="ic" id="cmp-5"></span>
+      <span class="summary">分析 Marty Cagan 的产品管理框架并整理关键观点。</span>
+    </div>
+    <div class="compare-row">
+      <span class="name">V6</span>
+      <span class="ic" id="cmp-6"></span>
+      <span class="summary">分析 Marty Cagan 的产品管理框架并整理关键观点。</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== theme toggle =====
+const toggle = document.querySelector('.theme-toggle');
+toggle.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  document.documentElement.setAttribute('data-mode', btn.dataset.mode);
+  toggle.querySelectorAll('button').forEach(b => {
+    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+  });
+});
+
+// ===== speed control =====
+// SMIL animations 不能直接被 CSS 控制速度，
+// 所以我们把所有 [data-base] 的 dur 按倍率重设，
+// 并通过设置 root [data-speed] 让 CSS keyframes 也更新。
+const speedBar = document.querySelector('.speed-bar');
+const SPEEDS = { slow: 0.55, normal: 1, fast: 1.7 };
+
+function applySpeed(name) {
+  const factor = SPEEDS[name] || 1;
+  document.documentElement.setAttribute('data-speed', name);
+
+  // SMIL: animate / animateMotion / animateTransform
+  document.querySelectorAll('[data-base]').forEach(el => {
+    const base = parseFloat(el.getAttribute('data-base'));
+    if (!base) return;
+    const newDur = (base / factor).toFixed(2) + 's';
+    el.setAttribute('dur', newDur);
+  });
+
+  // CSS keyframe 速度通过修改 animation-duration 的变量基础
+  document.querySelectorAll('.v3-dash, .v3-dash-2, .v5-rotor, .v6-rotor, .v6-rotor-2, .pulse-planet').forEach(el => {
+    const cs = getComputedStyle(el);
+    const baseAttr = el.getAttribute('data-css-base');
+    let base = baseAttr ? parseFloat(baseAttr) : null;
+    if (base == null) {
+      // grab original duration from rendered style on first call
+      const orig = cs.animationDuration.split(',')[0].trim();
+      base = parseFloat(orig) || 3;
+      el.setAttribute('data-css-base', String(base));
+    }
+    el.style.animationDuration = (base / factor).toFixed(2) + 's';
+  });
+
+  // restart SMIL: clone & replace each <svg> with running animations
+  // (browsers need this to pick up new dur immediately for already-running anims)
+  document.querySelectorAll('svg').forEach(svg => {
+    if (svg.querySelector('[data-base]')) {
+      const parent = svg.parentNode;
+      const next = svg.nextSibling;
+      parent.removeChild(svg);
+      parent.insertBefore(svg, next);
+    }
+  });
+}
+
+speedBar.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-speed]');
+  if (!btn) return;
+  speedBar.querySelectorAll('button').forEach(b =>
+    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+  applySpeed(btn.dataset.speed);
+});
+
+// ===== compare row icons — 复制每个变体的 in-context svg 进去 =====
+function cloneVariantIcon(variantIdx, targetId) {
+  const variantCards = document.querySelectorAll('.variant-card');
+  const card = variantCards[variantIdx - 1];
+  if (!card) return;
+  const ctxSvg = card.querySelector('.context .icon-slot svg');
+  if (!ctxSvg) return;
+  const clone = ctxSvg.cloneNode(true);
+  // unique-ify gradient ids inside the clone to avoid id collision
+  const grads = clone.querySelectorAll('linearGradient, radialGradient');
+  grads.forEach(g => {
+    const oldId = g.id;
+    const newId = oldId + '-cmp' + variantIdx;
+    g.id = newId;
+    clone.querySelectorAll('[stroke^="url(#"], [fill^="url(#"]').forEach(el => {
+      ['stroke','fill'].forEach(attr => {
+        const v = el.getAttribute(attr);
+        if (v && v.includes('#' + oldId)) {
+          el.setAttribute(attr, v.replace('#' + oldId, '#' + newId));
+        }
+      });
+    });
+  });
+  document.getElementById(targetId).appendChild(clone);
+}
+
+for (let i = 1; i <= 6; i++) cloneVariantIcon(i, 'cmp-' + i);
+</script>
+
+</body>
+</html>

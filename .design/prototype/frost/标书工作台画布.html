@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>标书工作台画布</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+  /* ===== Frost design-system tokens (inlined from the imported design) ===== */
+  :root {
+    /* neutral ramp */
+    --canvas:#eef0f3; --surface:#ffffff; --surface-2:#f5f6f8;
+    --label:#1d1d1f; --label-2:#55555e; --label-3:#6b6b76;
+    --separator:rgba(60,60,67,.12);
+    /* accent */
+    --blue:#0064e1; --blue-press:#0052bc; --blue-soft:rgba(0,100,225,.10);
+    /* semantic */
+    --green:#34c759; --green-text:#1d8f45;
+    --orange:#ff9500; --orange-text:#b25e00;
+    --red:#ff3b30; --red-text:#d70015;
+    /* type */
+    --font-ui:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Noto Sans SC",system-ui,sans-serif;
+    --font-mono:"SF Mono",ui-monospace,Menlo,monospace;
+    /* elevation */
+    --elev-1:0 1px 2px rgba(18,24,38,.10),0 0 0 .5px rgba(18,24,38,.07);
+    --elev-2:0 10px 30px rgba(18,24,38,.12),0 2px 8px rgba(18,24,38,.06),0 0 0 .5px rgba(18,24,38,.05);
+    --elev-3:0 28px 80px rgba(12,18,32,.26),0 8px 24px rgba(12,18,32,.12),0 0 0 .5px rgba(12,18,32,.10);
+  }
+  html,body{margin:0;background:var(--canvas);}
+  *{box-sizing:border-box;}
+  @keyframes cardPop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes drawerIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+  @keyframes scrimIn{from{opacity:0}to{opacity:1}}
+  .wbInput::placeholder{color:var(--label-3);}
+  @media (prefers-reduced-motion: reduce){*{animation:none !important;}}
+</style>
+</head>
+<body>
+<div id="root" style="font-family:var(--font-ui);color:var(--label);background:var(--canvas);"></div>
+
+<script>
+/* =========================================================================
+   Tiny hyperscript -> real DOM helper.
+   Mirrors React.createElement closely enough that the design's render code
+   ports almost verbatim: h(tag, props, ...children).
+   ========================================================================= */
+const SVG_TAGS = new Set(['svg','path','circle','g','line','rect','defs','polyline','polygon']);
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const UNITLESS = new Set(['opacity','flex','flexGrow','flexShrink','order','fontWeight','zIndex','lineHeight','fillOpacity','strokeOpacity','strokeWidth','zoom']);
+
+function applyStyle(node, style){
+  for (const k in style){
+    let v = style[k];
+    if (v == null) continue;
+    if (typeof v === 'number' && !UNITLESS.has(k)) v = v + 'px';
+    node.style[k] = v;
+  }
+}
+function appendChildren(node, children){
+  for (const c of children){
+    if (c == null || c === false || c === true) continue;
+    if (Array.isArray(c)){ appendChildren(node, c); continue; }
+    if (c instanceof Node){ node.appendChild(c); continue; }
+    node.appendChild(document.createTextNode(String(c)));
+  }
+}
+function camelToKebab(s){ return s.replace(/[A-Z]/g, m => '-' + m.toLowerCase()); }
+
+function h(tag, props, ...children){
+  const isSvg = SVG_TAGS.has(tag);
+  const node = isSvg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
+  if (props){
+    for (const key in props){
+      const val = props[key];
+      if (val == null || key === 'key') continue;
+      if (key === 'style'){ applyStyle(node, val); continue; }
+      if (key === 'className'){
+        if (isSvg) node.setAttribute('class', val); else node.className = val;
+        continue;
+      }
+      if (key.startsWith('on') && typeof val === 'function'){
+        node.addEventListener(key.slice(2).toLowerCase(), val);
+        continue;
+      }
+      node.setAttribute(isSvg ? camelToKebab(key) : key, val);
+    }
+  }
+  appendChildren(node, children);
+  return node;
+}
+function clear(node){ while (node.firstChild) node.removeChild(node.firstChild); }
+
+/* =========================================================================
+   Workbench logic — ported from the imported DCLogic component (canvas "B",
+   the outline-spine "大纲星图" view that renderVals() selects).
+   ========================================================================= */
+class Workbench {
+  constructor(){
+    this.opt = 'B';
+    this.uid = 1;
+    this.props = { showConnections:true, showGrid:false, connectionStyle:'曲线' };
+
+    this.META = {
+      req:{title:'技术需求清单',icon:'list-dashes',stage:'解析',status:'已生成',sc:'green',w:218,h:170},
+      knowledge:{title:'知识库素材',icon:'stack',stage:'素材',status:'引用 6 处',sc:'blue',w:222,h:184},
+      matrix:{title:'应答矩阵',icon:'table',stage:'应答',status:'进行中',sc:'blue',w:250,h:200},
+      deviation:{title:'技术偏差表',icon:'rows',stage:'应答',status:'草稿',sc:'gray',w:228,h:158},
+      outline:{title:'投标大纲',icon:'tree-structure',stage:'大纲',status:'已生成',sc:'green',w:226,h:206},
+      chapter:{title:'技术方案 · 总体设计',icon:'file-text',stage:'章节',status:'草稿',sc:'gray',w:260,h:208},
+      chart:{title:'实施进度计划',icon:'chart-bar',stage:'章节',status:'已生成',sc:'green',w:238,h:166},
+      assemble:{title:'投标文件 · 成稿',icon:'files',stage:'成稿',status:'编制中',sc:'blue',w:226,h:182}
+    };
+    this.spine = {x:556,y:58,w:206,headerH:44,rowH:30,nodes:[
+      {t:'一  投标函与附录',s:'green',ind:0},
+      {t:'二  商务及报价响应',s:'green',ind:0},
+      {t:'三  技术方案',s:'blue',ind:0},
+      {t:'3.1  总体技术架构',s:'gray',ind:1},
+      {t:'3.2  技术需求逐条响应',s:'green',ind:1},
+      {t:'3.3  技术偏差表',s:'gray',ind:1},
+      {t:'四  项目实施与服务',s:'gray',ind:0},
+      {t:'五  资质证明材料',s:'green',ind:0},
+      {t:'六  拟投入人员',s:'gray',ind:0}
+    ]};
+    this.size = {w:1240,h:920};
+    this.state = {
+      view:{s:0.72,px:30,py:50},
+      cards:this.initCards(),
+      drawer:null
+    };
+    this.drag = null;
+    this.onMove = this.onMove.bind(this);
+    this.onUp = this.onUp.bind(this);
+    window.addEventListener('mousemove', this.onMove);
+    window.addEventListener('mouseup', this.onUp);
+  }
+
+  initCards(){
+    const m = this.META;
+    const mk = (type,x,y) => ({id:type,type,x,y,w:m[type].w,h:m[type].h});
+    return [ mk('req',118,52), mk('matrix',104,288), mk('deviation',128,556),
+             mk('chapter',912,68), mk('knowledge',912,298), mk('chart',912,512), mk('assemble',556,520) ];
+  }
+
+  /* ---- interaction ---- */
+  startPan(e){
+    this.drag = {type:'pan',sx:e.clientX,sy:e.clientY,ox:this.state.view.px,oy:this.state.view.py,moved:false};
+    document.body.style.cursor = 'grabbing';
+  }
+  onCardDown(id,e){
+    e.stopPropagation();
+    const c = this.state.cards.find(c => c.id === id); if (!c) return;
+    this.drag = {type:'card',id,sx:e.clientX,sy:e.clientY,ox:c.x,oy:c.y,moved:false};
+    document.body.style.cursor = 'grabbing';
+  }
+  onMove(e){
+    const d = this.drag; if (!d) return;
+    const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
+    if (d.type === 'pan'){
+      this.state.view.px = d.ox + dx;
+      this.state.view.py = d.oy + dy;
+    } else {
+      const s = this.state.view.s;
+      const c = this.state.cards.find(c => c.id === d.id);
+      if (c){ c.x = d.ox + dx / s; c.y = d.oy + dy / s; c.isNew = false; }
+    }
+    this.renderWorld();
+  }
+  onUp(){
+    const d = this.drag; this.drag = null; document.body.style.cursor = '';
+    if (d && d.type === 'card' && !d.moved) this.openCard(d.id);
+  }
+  zoom(dz){
+    const v = this.state.view;
+    v.s = Math.min(1.4, Math.max(0.4, +(v.s + dz).toFixed(2)));
+    this.renderWorld(); this.updateScale();
+  }
+  fit(){ this.state.view = {s:0.72,px:30,py:50}; this.renderWorld(); this.updateScale(); }
+  reset(){
+    this.state.view = {s:0.72,px:30,py:50};
+    this.state.cards = this.initCards();
+    this.state.drawer = null;
+    this.renderWorld(); this.renderDrawer(); this.updateScale();
+  }
+  openCard(id){ this.state.drawer = {id}; this.renderDrawer(); }
+  openOutline(){ this.state.drawer = {id:'__outline'}; this.renderDrawer(); }
+  closeDrawer(){ this.state.drawer = null; this.renderDrawer(); }
+  addArtifact(type,title){
+    const m = this.META[type], v = this.state.view;
+    const cx = (-v.px + 480) / v.s, cy = (-v.py + 150) / v.s + (this.uid * 8);
+    const card = {id:type + '_' + (this.uid++),type,title,x:cx,y:cy,w:m.w,h:m.h,isNew:true};
+    this.state.cards.push(card);
+    this.state.drawer = {id:card.id};
+    this.renderWorld(); this.renderDrawer();
+  }
+
+  /* ---- small helpers ---- */
+  scPair(sc){ return ({green:['rgba(52,199,89,.15)','var(--green-text)'],blue:['var(--blue-soft)','var(--blue)'],gray:['rgba(60,60,67,.10)','var(--label-2)'],orange:['rgba(255,149,0,.15)','var(--orange-text)']})[sc] || ['rgba(60,60,67,.10)','var(--label-2)']; }
+  dotColor(k){ return k === 'gray' ? 'var(--label-3)' : 'var(--' + k + ')'; }
+  dot(k){ return h('span',{style:{width:8,height:8,borderRadius:999,background:this.dotColor(k),display:'inline-block',flex:'0 0 auto'}}); }
+  iconTile(name){ return h('span',{style:{width:24,height:24,borderRadius:7,background:'var(--blue-soft)',color:'var(--blue)',display:'grid',placeItems:'center',fontSize:14,flex:'0 0 auto'}},h('i',{className:'ph ph-' + name})); }
+  statusBadge(sc,label){ const [bg,fg] = this.scPair(sc); return h('span',{style:{display:'inline-flex',alignItems:'center',gap:5,fontSize:11,fontWeight:600,color:fg,background:bg,padding:'2px 8px',borderRadius:999,whiteSpace:'nowrap'}}, h('span',{style:{width:6,height:6,borderRadius:999,background:fg}}), label); }
+  chip(t){ return h('span',{style:{fontSize:10,fontWeight:600,color:'var(--blue)',background:'var(--blue-soft)',padding:'2px 7px',borderRadius:999,whiteSpace:'nowrap'}},t); }
+
+  /* ---- card preview bodies ---- */
+  preview(type){
+    if (type === 'req'){
+      const cats = [['功能',18,.9],['性能',9,.5],['接口',7,.4],['安全',11,.62]];
+      return h('div',{style:{display:'flex',flexDirection:'column',gap:7}},
+        cats.map((k,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',gap:8}},
+          h('span',{style:{width:30,fontSize:11,color:'var(--label-2)'}},k[0]),
+          h('div',{style:{flex:1,height:6,borderRadius:999,background:'var(--surface-2)',overflow:'hidden'}},h('div',{style:{width:(k[2]*100)+'%',height:'100%',background:'var(--blue)',borderRadius:999}})),
+          h('span',{style:{width:18,textAlign:'right',fontSize:11,fontVariantNumeric:'tabular-nums',color:'var(--label-3)'}},k[1]))),
+        h('div',{style:{marginTop:1,fontSize:11,color:'var(--label-3)'}},'实质性条款 ',h('b',{style:{color:'var(--orange-text)'}},'6'),' 项'));
+    }
+    if (type === 'matrix'){
+      const rows = [['多物理场耦合','满足','green'],['1000万网格规模','满足','green'],['PLM 系统接口','部分','orange']];
+      return h('div',null,
+        h('div',{style:{display:'flex',fontSize:10.5,color:'var(--label-3)',paddingBottom:4}},h('span',{style:{flex:1}},'需求条目'),h('span',{style:{width:42}},'响应'),h('span',{style:{width:26,textAlign:'right'}},'偏离')),
+        rows.map((r,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',padding:'5px 0',borderTop:'1px solid var(--separator)',fontSize:11.5}},
+          h('span',{style:{flex:1,color:'var(--label)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},r[0]),
+          h('span',{style:{width:42,color:'var(--label-2)'}},r[1]),
+          h('span',{style:{width:26,display:'flex',justifyContent:'flex-end'}},this.dot(r[2])))),
+        h('div',{style:{marginTop:8,display:'flex',alignItems:'center',gap:7,fontSize:10.5,color:'var(--blue)'}},'生成 32 / 45',h('div',{style:{flex:1,height:4,borderRadius:999,background:'var(--surface-2)',overflow:'hidden'}},h('div',{style:{width:'71%',height:'100%',background:'var(--blue)'}}))));
+    }
+    if (type === 'outline'){
+      const items = [['一  投标函与附录','green'],['二  商务及报价响应','green'],['三  技术方案','blue'],['四  项目实施与服务','gray'],['五  资质证明材料','green']];
+      return h('div',{style:{display:'flex',flexDirection:'column',gap:6}},
+        items.map((it,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,fontSize:11.5,color:'var(--label)'}},this.dot(it[1]),h('span',{style:{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},it[0]))),
+        h('div',{style:{marginTop:1,fontSize:11,color:'var(--label-3)'}},'共 8 章 · 引用 12 处'));
+    }
+    if (type === 'chapter'){
+      return h('div',null,
+        h('div',{style:{fontSize:12,fontWeight:600,color:'var(--label)',marginBottom:7}},'3.1  总体技术架构'),
+        [.94,.99,.72].map((w,i) => h('div',{key:i,style:{height:7,borderRadius:999,background:'var(--surface-2)',width:(w*100)+'%',marginBottom:6}})),
+        h('div',{style:{display:'flex',gap:5,marginTop:4}},this.chip('业绩 A-203'),this.chip('ISO9001'),this.chip('+4')));
+    }
+    if (type === 'knowledge'){
+      const rows = [['identification-card','资质证照',12],['buildings','业绩案例',8],['files','人员简历',15]];
+      return h('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+        rows.map((r,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',gap:9}},
+          h('span',{style:{width:24,height:24,borderRadius:7,background:'var(--surface-2)',display:'grid',placeItems:'center',color:'var(--label-2)',fontSize:13}},h('i',{className:'ph ph-' + r[0]})),
+          h('span',{style:{flex:1,fontSize:12,color:'var(--label)'}},r[1]),
+          h('span',{style:{fontSize:11,fontWeight:600,fontVariantNumeric:'tabular-nums',color:'var(--green-text)',background:'rgba(52,199,89,.15)',padding:'1px 8px',borderRadius:999}},r[2]))));
+    }
+    if (type === 'chart'){
+      const bars = [[0,.5,'blue'],[.18,.46,'blue'],[.4,.4,'green'],[.56,.42,'gray']];
+      return h('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+        bars.map((b,i) => h('div',{key:i,style:{height:8,borderRadius:999,background:'var(--surface-2)',position:'relative'}},
+          h('div',{style:{position:'absolute',top:0,bottom:0,left:(b[0]*100)+'%',width:(b[1]*100)+'%',borderRadius:999,background:this.dotColor(b[2]),opacity:b[2]==='gray'?.45:.9}}))),
+        h('div',{style:{fontSize:10.5,color:'var(--label-3)',marginTop:1}},'实施周期 6 个月 · 4 里程碑'));
+    }
+    if (type === 'deviation'){
+      const rows = [['国产化适配','正偏离','blue'],['接口协议版本','负偏离','orange'],['响应时限','无偏离','green']];
+      return h('div',null, rows.map((r,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderTop:i?'1px solid var(--separator)':'none',fontSize:11.5}},
+        h('span',{style:{flex:1,color:'var(--label)'}},r[0]),this.dot(r[2]),h('span',{style:{fontSize:11,color:'var(--label-2)'}},r[1]))));
+    }
+    if (type === 'assemble'){
+      return h('div',null,
+        h('div',{style:{display:'flex',alignItems:'baseline',gap:7,marginBottom:8}},h('span',{style:{fontSize:24,fontWeight:700,color:'var(--label)',fontVariantNumeric:'tabular-nums'}},'33%'),h('span',{style:{fontSize:11,color:'var(--label-3)'}},'4 / 12 章已编制')),
+        h('div',{style:{height:6,borderRadius:999,background:'var(--surface-2)',overflow:'hidden',marginBottom:9}},h('div',{style:{width:'33%',height:'100%',background:'var(--blue)'}})),
+        h('div',{style:{fontSize:11,color:'var(--label-2)'}},'约 1.2 万字 · 待补 资质附件 与 报价表'));
+    }
+    return null;
+  }
+
+  /* ---- card ---- */
+  buildCard(c){
+    const m = this.META[c.type];
+    const inProg = m.status === '进行中';
+    return h('div',{key:c.id, onMouseDown:(e) => this.onCardDown(c.id,e),
+      style:{position:'absolute',left:c.x,top:c.y,width:c.w,background:'var(--surface)',borderRadius:14,boxShadow:'var(--elev-2)',overflow:'hidden',cursor:'grab',userSelect:'none',animation:c.isNew?'cardPop .32s cubic-bezier(.32,.72,0,1)':undefined}},
+      inProg?h('div',{style:{height:3,background:'linear-gradient(90deg,var(--blue) 71%,var(--surface-2) 71%)'}}):null,
+      h('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'10px 12px',borderBottom:'1px solid var(--separator)'}},
+        this.iconTile(m.icon),
+        h('span',{style:{flex:1,fontSize:12.5,fontWeight:600,color:'var(--label)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},c.title || m.title),
+        h('span',{style:{fontSize:10.5,fontWeight:600,color:'var(--label-3)',background:'var(--surface-2)',padding:'2px 7px',borderRadius:999,whiteSpace:'nowrap'}},m.stage)),
+      h('div',{style:{padding:'11px 12px'}}, this.preview(c.type)),
+      h('div',{style:{display:'flex',alignItems:'center',padding:'8px 12px',borderTop:'1px solid var(--separator)'}},
+        this.statusBadge(m.sc,m.status),
+        h('span',{style:{marginLeft:'auto',fontSize:11,color:'var(--label-3)',display:'inline-flex',alignItems:'center',gap:3}},'展开',h('i',{className:'ph ph-arrow-right'}))));
+  }
+
+  /* ---- background spine ---- */
+  spineNodeY(i){ const s = this.spine; return s.y + s.headerH + i*s.rowH + s.rowH/2; }
+  bgB(){
+    const s = this.spine;
+    return h('div',{onMouseDown:(e) => e.stopPropagation(),style:{position:'absolute',left:s.x,top:s.y,width:s.w,background:'var(--surface)',borderRadius:16,boxShadow:'var(--elev-2)',overflow:'hidden'}},
+      h('div',{style:{height:s.headerH,display:'flex',alignItems:'center',gap:8,padding:'0 13px',borderBottom:'1px solid var(--separator)',background:'rgba(0,100,225,.04)'}},
+        h('i',{className:'ph ph-tree-structure',style:{color:'var(--blue)',fontSize:15}}),
+        h('span',{style:{fontSize:13,fontWeight:700,color:'var(--label)'}},'投标文件大纲'),
+        h('span',{style:{marginLeft:'auto',fontSize:10.5,fontWeight:600,color:'var(--blue)',background:'var(--blue-soft)',padding:'1px 7px',borderRadius:999}},'主轴')),
+      s.nodes.map((n,i) => h('div',{key:i,onClick:() => this.openOutline(),style:{height:s.rowH,display:'flex',alignItems:'center',gap:8,padding:'0 13px',paddingLeft:13+n.ind*16,cursor:'pointer',background:n.s==='blue'?'var(--blue-soft)':'transparent',fontSize:n.ind?11:12,fontWeight:n.s==='blue'?700:(n.ind?400:600),color:n.ind?'var(--label-2)':'var(--label)'}},
+        this.dot(n.s),h('span',{style:{flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},n.t))));
+  }
+
+  /* ---- links ---- */
+  pathD(sx,sy,tx,ty,ortho){
+    if (ortho){ const mx = (sx+tx)/2; return 'M '+sx+' '+sy+' L '+mx+' '+sy+' L '+mx+' '+ty+' L '+tx+' '+ty; }
+    const co = Math.max(40, Math.abs(tx-sx)*0.45);
+    return 'M '+sx+' '+sy+' C '+(sx+co)+' '+sy+', '+(tx-co)+' '+ty+', '+tx+' '+ty;
+  }
+  linkSvg(segs,w,ht,ortho){
+    const paths = [], dots = [];
+    segs.forEach((g,i) => {
+      paths.push(h('path',{key:'p'+i,d:this.pathD(g.sx,g.sy,g.tx,g.ty,ortho&&!g.v),fill:'none',stroke:'var(--blue)',strokeWidth:1.6,strokeOpacity:.45,strokeLinecap:'round'}));
+      dots.push(h('circle',{key:'a'+i,cx:g.sx,cy:g.sy,r:3,fill:'var(--blue)',fillOpacity:.7}));
+      dots.push(h('circle',{key:'b'+i,cx:g.tx,cy:g.ty,r:3,fill:'var(--blue)',fillOpacity:.7}));
+    });
+    return h('svg',{width:w,height:ht,style:{position:'absolute',left:0,top:0,overflow:'visible',pointerEvents:'none'}},paths,dots);
+  }
+  linksB(cards,ortho){
+    const by = {}; cards.forEach(c => by[c.id] = c);
+    const s = this.spine;
+    const defs = [{a:'req',n:4},{a:'matrix',n:4},{a:'deviation',n:5},{a:'chapter',n:3},{a:'knowledge',n:7},{a:'chart',n:6}];
+    const segs = [];
+    defs.forEach(d => { const c = by[d.a]; if (!c) return; const ny = this.spineNodeY(d.n);
+      if (c.x < s.x){ segs.push({sx:c.x+c.w,sy:c.y+c.h/2,tx:s.x,ty:ny}); }
+      else { segs.push({sx:s.x+s.w,sy:ny,tx:c.x,ty:c.y+c.h/2}); } });
+    const asm = by['assemble']; if (asm){ const spineBottom = s.y + s.headerH + s.nodes.length*s.rowH; segs.push({v:true,sx:s.x+s.w/2,sy:spineBottom,tx:asm.x+asm.w/2,ty:asm.y}); }
+    return this.linkSvg(segs,1240,920,ortho);
+  }
+
+  /* ---- drawer detail ---- */
+  tableEl(head,rows){
+    return h('div',{style:{border:'1px solid var(--separator)',borderRadius:10,overflow:'hidden'}},
+      h('div',{style:{display:'flex',background:'var(--surface-2)'}},head.map((c,i) => h('span',{key:i,style:{flex:c.f,padding:'9px 11px',fontSize:11.5,fontWeight:600,color:'var(--label-2)'}},c.t))),
+      rows.map((r,i) => h('div',{key:i,style:{display:'flex',borderTop:'1px solid var(--separator)'}},r.map((cell,j) => h('span',{key:j,style:{flex:head[j].f,padding:'10px 11px',fontSize:12.5,color:'var(--label)',display:'flex',alignItems:'center',gap:6,minWidth:0}},cell)))));
+  }
+  secTitle(t,sub){ return h('div',{style:{margin:'2px 0 10px'}},h('div',{style:{fontSize:14,fontWeight:700,color:'var(--label)'}},t), sub?h('div',{style:{fontSize:12,color:'var(--label-3)',marginTop:2}},sub):null); }
+  detail(type){
+    if (type === 'req'){
+      const groups = [['功能需求',18,2,'3.1.2 支持多物理场（结构/流体/电磁）耦合建模','3.1.7 提供参数化建模与批量工况管理'],['性能需求',9,1,'3.2.1 单次求解网格规模 ≥ 1000 万','3.2.4 支持国产 CPU 并行加速'],['接口需求',7,2,'3.3.2 与 PLM / PDM 系统双向集成','3.3.5 开放 REST 求解调度 API'],['安全需求',11,1,'3.4.1 满足等保三级要求','3.4.3 全链路数据加密与审计']];
+      return h('div',null, this.secTitle('技术需求清单','从招标文件第三章提取，共 45 条，按四类归档'),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:12}}, groups.map((g,i) => h('div',{key:i,style:{border:'1px solid var(--separator)',borderRadius:12,padding:'12px 14px',background:'var(--surface)'}},
+          h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},h('span',{style:{fontSize:13,fontWeight:700,color:'var(--label)'}},g[0]),h('span',{style:{fontSize:11,color:'var(--label-3)'}},g[1]+' 条'),g[2]?h('span',{style:{marginLeft:'auto',fontSize:10.5,fontWeight:600,color:'var(--orange-text)',background:'rgba(255,149,0,.15)',padding:'1px 8px',borderRadius:999}},'实质性 '+g[2]):null),
+          [g[3],g[4]].map((it,j) => h('div',{key:j,style:{display:'flex',gap:8,padding:'5px 0',fontSize:12.5,color:'var(--label-2)'}},h('i',{className:'ph ph-dot-outline',style:{color:'var(--blue)',marginTop:1}}),it))))));
+    }
+    if (type === 'matrix'){
+      const sd = (k,t) => h('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},this.dot(k),t);
+      const head = [{t:'#',f:'0 0 30px'},{t:'招标需求条目',f:'2.4'},{t:'应答方式',f:'1.1'},{t:'偏离',f:'1.2'},{t:'引用来源',f:'1.3'}];
+      const rows = [
+        ['1','多物理场耦合求解',sd('green','完全满足'),'无偏离','业绩 A-203'],
+        ['2','网格规模 ≥ 1000 万',sd('green','完全满足'),'无偏离','性能测试报告'],
+        ['3','国产化适配（鲲鹏/麒麟）',sd('green','满足'),'正偏离','资质 · 适配证明'],
+        ['4','7×24 运维响应 ≤ 2h',sd('green','满足'),'无偏离','服务承诺函'],
+        ['5','与 PLM 系统接口',sd('orange','部分满足'),'负偏离','方案 4.3'],
+        ['6','数据加密 · 等保三级',sd('green','满足'),'无偏离','资质 · 等保']
+      ];
+      return h('div',null, this.secTitle('应答矩阵','逐条映射招标需求与投标响应 · 生成 32 / 45'), this.tableEl(head,rows));
+    }
+    if (type === 'outline' || type === '__outline'){
+      const rows = [['一  投标函与投标函附录','green','已生成','1.2k'],['二  商务及报价响应','green','已生成','3.4k'],['三  技术方案','blue','编写中','—'],['　3.1  总体技术架构','gray','草稿','1.2k'],['　3.2  技术需求逐条响应','green','已生成','5.1k'],['　3.3  技术偏差表','gray','草稿','0.6k'],['四  项目实施与服务','gray','待生成','—'],['五  资质证明材料','green','已生成','—'],['六  拟投入人员','gray','待生成','—']];
+      return h('div',null, this.secTitle('投标大纲','8 章 · 引用 12 处 · 与招标评分项一一对应'),
+        h('div',{style:{display:'flex',flexDirection:'column'}}, rows.map((r,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 4px',borderTop:i?'1px solid var(--separator)':'none'}},
+          this.dot(r[1]),h('span',{style:{flex:1,fontSize:13,color:'var(--label)',fontWeight:r[0].indexOf('　')<0?600:400}},r[0]),
+          h('span',{style:{fontSize:11,color:'var(--label-3)',fontVariantNumeric:'tabular-nums',width:42,textAlign:'right'}},r[3]),
+          this.statusBadge(r[1],r[2])))));
+    }
+    if (type === 'chapter'){
+      return h('div',null, this.secTitle('技术方案 · 总体设计'),
+        h('div',{style:{fontSize:15,fontWeight:700,margin:'4px 0 8px'}},'3.1  总体技术架构'),
+        h('p',{style:{fontSize:13.5,lineHeight:1.85,color:'var(--label)',margin:'0 0 14px'}},'本项目采用分层微服务架构，将仿真求解、前后处理、数据管理与协同设计四个域解耦。求解层基于国产 CPU 与异构加速实现并行扩展，前后处理层提供 Web 端可视化建模，数据层以统一仿真数据中台支撑版本与权限治理。'),
+        h('div',{style:{fontSize:14,fontWeight:600,margin:'2px 0 6px'}},'3.1.1  求解引擎'),
+        h('p',{style:{fontSize:13.5,lineHeight:1.85,color:'var(--label)',margin:'0 0 14px'}},'求解引擎支持结构、流体、电磁多物理场耦合，单次求解网格规模可达 1000 万以上，并通过区域分解实现近线性并行加速，满足招标第 3.2 条性能指标。'),
+        this.tableEl([{t:'技术指标',f:'1.6'},{t:'招标要求',f:'1'},{t:'本方案',f:'1'}],[['网格规模','≥1000万','1600万'],['并行效率','—','≥85%'],['国产化','要求','全栈适配']]),
+        h('div',{style:{display:'flex',gap:6,flexWrap:'wrap',margin:'14px 0 4px'}}, this.chip('引用 业绩案例 A-203'),this.chip('引用 ISO9001'),this.chip('引用 性能测试报告')),
+        h('div',{style:{fontSize:11.5,color:'var(--label-3)',marginTop:8}},'约 1,240 字 · 引用 6 处 · 草稿'));
+    }
+    if (type === 'knowledge'){
+      const groups = [['资质证照','identification-card',[['营业执照','长期有效'],['ISO 9001 质量体系','2026-08'],['信息系统集成二级','2027-03'],['等保三级备案','有效']]],['业绩案例','buildings',[['某航空院所仿真平台','¥1,860万 · 2024'],['某车企 CAE 云','¥920万 · 2023'],['某高校多物理场中心','¥540万 · 2023']]],['人员简历','files',[['项目经理 · PMP','12 年经验'],['技术负责人 · 博士','流体仿真'],['国产化适配工程师','鲲鹏认证']]]];
+      return h('div',null, this.secTitle('知识库素材','按需引用至章节，自动生成脚注与附件清单'),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:14}}, groups.map((g,i) => h('div',{key:i},
+          h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},h('i',{className:'ph ph-'+g[1],style:{color:'var(--blue)',fontSize:15}}),h('span',{style:{fontSize:13,fontWeight:700}},g[0]),h('span',{style:{fontSize:11,color:'var(--label-3)'}},g[2].length+' 项')),
+          h('div',{style:{display:'flex',flexDirection:'column',gap:6}}, g[2].map((it,j) => h('div',{key:j,style:{display:'flex',alignItems:'center',gap:10,padding:'9px 11px',background:'var(--surface-2)',borderRadius:10}},
+            h('span',{style:{flex:1,fontSize:12.5,color:'var(--label)'}},it[0]),h('span',{style:{fontSize:11,color:'var(--label-3)'}},it[1]),
+            h('button',{style:{border:'none',background:'var(--blue-soft)',color:'var(--blue)',fontSize:11,fontWeight:600,padding:'3px 9px',borderRadius:7,cursor:'pointer'}},'引用'))))))));
+    }
+    if (type === 'chart'){
+      const tasks = [['需求与方案设计',0,.22,'green'],['核心求解开发',.18,.36,'blue'],['前后处理与集成',.4,.3,'blue'],['国产化适配测试',.62,.2,'gray'],['试运行与交付',.8,.18,'gray']];
+      const months = ['M1','M2','M3','M4','M5','M6'];
+      return h('div',null, this.secTitle('实施进度计划','总周期 6 个月 · 4 个里程碑'),
+        h('div',{style:{display:'flex',gap:0,paddingLeft:128,marginBottom:6}}, months.map((m,i) => h('span',{key:i,style:{flex:1,fontSize:10.5,color:'var(--label-3)',textAlign:'center'}},m))),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:9}}, tasks.map((t,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',gap:8}},
+          h('span',{style:{width:120,fontSize:12,color:'var(--label)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},t[0]),
+          h('div',{style:{flex:1,height:14,borderRadius:7,background:'var(--surface-2)',position:'relative'}},h('div',{style:{position:'absolute',top:0,bottom:0,left:(t[1]*100)+'%',width:(t[2]*100)+'%',borderRadius:7,background:this.dotColor(t[3]),opacity:t[3]==='gray'?.45:.9}}))))),
+        h('div',{style:{display:'flex',gap:14,marginTop:14,fontSize:11,color:'var(--label-3)'}}, h('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},this.dot('green'),'已完成'),h('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},this.dot('blue'),'进行中'),h('span',{style:{display:'inline-flex',alignItems:'center',gap:5}},this.dot('gray'),'计划')));
+    }
+    if (type === 'deviation'){
+      const head = [{t:'招标条目',f:'1.2'},{t:'招标要求',f:'1.4'},{t:'投标响应',f:'1.4'},{t:'偏离',f:'1'}];
+      const rows = [['国产化适配','建议支持','全栈适配',h('span',{style:{display:'inline-flex',gap:5,alignItems:'center'}},this.dot('blue'),'正偏离')],['接口协议','OPC-UA 1.04','OPC-UA 1.05',h('span',{style:{display:'inline-flex',gap:5,alignItems:'center'}},this.dot('orange'),'负偏离')],['运维响应','≤4h','≤2h',h('span',{style:{display:'inline-flex',gap:5,alignItems:'center'}},this.dot('blue'),'正偏离')],['数据加密','等保三级','等保三级',h('span',{style:{display:'inline-flex',gap:5,alignItems:'center'}},this.dot('green'),'无偏离')]];
+      return h('div',null, this.secTitle('技术偏差表','逐项说明响应与招标要求的偏离情况'), this.tableEl(head,rows));
+    }
+    if (type === 'assemble'){
+      const chs = [['一  投标函与附录','green'],['二  商务及报价响应','green'],['三  技术方案','blue'],['四  项目实施与服务','gray'],['五  资质证明材料','green'],['六  拟投入人员','gray']];
+      return h('div',null, this.secTitle('投标文件 · 成稿','汇编各章节为最终投标文件'),
+        h('div',{style:{display:'flex',alignItems:'baseline',gap:8,marginBottom:6}},h('span',{style:{fontSize:30,fontWeight:700,fontVariantNumeric:'tabular-nums'}},'33%'),h('span',{style:{fontSize:12,color:'var(--label-3)'}},'4 / 12 章已编制 · 约 1.2 万字')),
+        h('div',{style:{height:8,borderRadius:999,background:'var(--surface-2)',overflow:'hidden',marginBottom:16}},h('div',{style:{width:'33%',height:'100%',background:'var(--blue)'}})),
+        h('div',{style:{display:'flex',flexDirection:'column'}}, chs.map((c,i) => h('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 4px',borderTop:i?'1px solid var(--separator)':'none'}},
+          h('i',{className:c[1]==='green'?'ph ph-check-circle':(c[1]==='blue'?'ph ph-circle-half':'ph ph-circle-dashed'),style:{color:this.dotColor(c[1]),fontSize:16}}),
+          h('span',{style:{flex:1,fontSize:13,color:'var(--label)'}},c[0]),
+          this.statusBadge(c[1],c[1]==='green'?'已编制':(c[1]==='blue'?'编写中':'待补'))))));
+    }
+    return null;
+  }
+
+  drawerEl(){
+    const d = this.state.drawer; if (!d) return null;
+    let type, title, m;
+    if (d.id === '__outline'){ type = '__outline'; m = this.META.outline; title = '投标大纲'; }
+    else { const c = this.state.cards.find(c => c.id === d.id); if (!c) return null; type = c.type; m = this.META[type]; title = c.title || m.title; }
+    return h('div',{onMouseDown:(e) => e.stopPropagation(),style:{position:'absolute',inset:0,zIndex:30,display:'flex',justifyContent:'flex-end'}},
+      h('div',{onClick:() => this.closeDrawer(),style:{position:'absolute',inset:0,background:'rgba(18,24,34,.16)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',animation:'scrimIn .2s ease'}}),
+      h('div',{style:{position:'relative',width:548,height:'100%',background:'var(--surface)',boxShadow:'-18px 0 50px rgba(12,18,32,.18)',display:'flex',flexDirection:'column',animation:'drawerIn .32s cubic-bezier(.32,.72,0,1)'}},
+        h('div',{style:{display:'flex',alignItems:'center',gap:11,padding:'16px 18px',borderBottom:'1px solid var(--separator)'}},
+          this.iconTile(m.icon),
+          h('div',{style:{flex:1,minWidth:0}},h('div',{style:{fontSize:14.5,fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},title),h('div',{style:{fontSize:11,color:'var(--label-3)',marginTop:1}},m.stage+' · 产物')),
+          this.statusBadge(m.sc,m.status),
+          h('button',{onClick:() => this.closeDrawer(),'aria-label':'关闭',style:{width:32,height:32,border:'none',background:'var(--surface-2)',color:'var(--label-2)',borderRadius:8,display:'grid',placeItems:'center',fontSize:16,cursor:'pointer'}},h('i',{className:'ph ph-x'}))),
+        h('div',{style:{flex:1,minHeight:0,overflow:'auto',padding:'18px 20px'}}, this.detail(type)),
+        h('div',{style:{display:'flex',gap:10,padding:'12px 18px',borderTop:'1px solid var(--separator)',background:'var(--surface)'}},
+          h('button',{style:{display:'inline-flex',alignItems:'center',gap:7,height:38,padding:'0 16px',border:'none',borderRadius:10,fontSize:13,fontWeight:600,color:'#fff',background:'linear-gradient(180deg,#1979f2,var(--blue))',boxShadow:'inset 0 1px 0 rgba(255,255,255,.3)',cursor:'pointer'}},h('i',{className:'ph ph-arrow-line-down'}),'插入到文档'),
+          h('button',{style:{display:'inline-flex',alignItems:'center',gap:7,height:38,padding:'0 16px',border:'1px solid var(--separator)',borderRadius:10,fontSize:13,fontWeight:600,color:'var(--label)',background:'var(--surface)',cursor:'pointer'}},h('i',{className:'ph ph-arrows-clockwise'}),'重新生成'),
+          h('span',{style:{flex:1}}),
+          h('button',{'aria-label':'更多',style:{width:38,height:38,border:'1px solid var(--separator)',borderRadius:10,background:'var(--surface)',color:'var(--label-2)',display:'grid',placeItems:'center',fontSize:17,cursor:'pointer'}},h('i',{className:'ph ph-dots-three'})))));
+  }
+
+  /* ---- chat ---- */
+  chatEl(){
+    const userBubble = (t) => h('div',{style:{alignSelf:'flex-end',maxWidth:'82%',background:'var(--blue)',color:'#fff',padding:'9px 14px',borderRadius:'16px 16px 4px 16px',fontSize:13.5,lineHeight:1.65}},t);
+    const tool = (icon,col,t,mono) => h('span',{style:{display:'inline-flex',alignItems:'center',gap:7,alignSelf:'flex-start',padding:'5px 11px',borderRadius:999,background:'var(--surface-2)',boxShadow:'inset 0 0 0 1px var(--separator)',fontSize:12,color:'var(--label-2)'}},h('i',{className:'ph ph-'+icon,style:{color:col,fontSize:14}}),t,mono?h('span',{style:{fontFamily:'var(--font-mono)',fontSize:11,color:'var(--label-3)'}},mono):null);
+    const refChip = (id,icon,label) => h('button',{onClick:() => this.openCard(id),style:{display:'inline-flex',alignItems:'center',gap:6,border:'1px solid var(--separator)',background:'var(--surface)',borderRadius:9,padding:'6px 10px',fontSize:12,fontWeight:600,color:'var(--label)',cursor:'pointer',boxShadow:'var(--elev-1)'}},h('i',{className:'ph ph-'+icon,style:{color:'var(--blue)'}}),label);
+    const b = (t) => h('strong',{style:{fontWeight:700}},t);
+    return h('div',{style:{height:'100%',overflow:'auto',padding:'8px 18px 14px',display:'flex',flexDirection:'column',gap:16}},
+      userBubble('解析这份招标文件，提取技术需求，生成应答矩阵和投标大纲。'),
+      h('div',{style:{display:'flex',flexDirection:'column',gap:9,maxWidth:'92%'}},
+        tool('file-text','var(--blue)','已读取','招标文件.md'),
+        tool('check-circle','var(--green-text)','技术需求解析完成'),
+        h('p',{style:{margin:0,fontSize:13.5,lineHeight:1.8,color:'var(--label)'}},'已从第三章提取 ',b('45 条'),' 技术需求，按 ',b('功能 / 性能 / 接口 / 安全'),' 四类归档，标出 6 条实质性条款。')),
+      h('div',{style:{display:'flex',flexDirection:'column',gap:8,maxWidth:'94%'}},
+        h('span',{style:{fontSize:12,color:'var(--label-3)'}},'已在画布生成 3 个产物'),
+        h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}}, refChip('req','list-dashes','技术需求清单'),refChip('matrix','table','应答矩阵'),refChip('outline','tree-structure','投标大纲'))),
+      userBubble('技术方案先起草总体设计，引用我们的业绩与资质。'),
+      h('div',{style:{display:'flex',flexDirection:'column',gap:9,maxWidth:'92%'}},
+        tool('sparkle','var(--blue)','正在起草章节'),
+        h('p',{style:{margin:0,fontSize:13.5,lineHeight:1.8,color:'var(--label)'}},'正在编写 ',b('技术方案 · 总体设计'),'，已匹配 业绩案例 A-203 与 ISO 资质，引用 6 处。'),
+        h('div',{style:{display:'flex',gap:8}}, refChip('chapter','file-text','查看章节草稿'),refChip('chart','chart-bar','实施进度'))));
+  }
+
+  /* ---- chrome (built once) ---- */
+  buildChrome(){
+    const tabBtn = (label,active) => h('button',{style:{height:30,padding:'0 16px',border:'none',borderRadius:7,font:'inherit',fontSize:13,fontWeight:active?600:500,color:active?'var(--label)':'var(--label-2)',background:active?'var(--surface)':'transparent',boxShadow:active?'0 1px 3px rgba(18,24,38,.16),0 0 0 .5px rgba(18,24,38,.05)':'none',cursor:'pointer'}},label);
+    const topbar = h('div',{style:{display:'flex',alignItems:'center',gap:14,padding:'0 18px',borderBottom:'1px solid var(--separator)',background:'rgba(255,255,255,.72)',backdropFilter:'blur(40px) saturate(180%)',WebkitBackdropFilter:'blur(40px) saturate(180%)'}},
+      h('span',{style:{display:'flex',alignItems:'center',gap:9}},
+        h('span',{style:{width:30,height:30,borderRadius:8,background:'linear-gradient(150deg,#5FB0FF,#1670EC 52%,#0A3FA8)',display:'grid',placeItems:'center',color:'#fff',fontSize:16,boxShadow:'0 2px 6px rgba(10,63,168,.35)'}},h('i',{className:'ph ph-stack'})),
+        h('span',{style:{fontSize:15,fontWeight:700,letterSpacing:'-0.01em'}},'Prose')),
+      h('span',{style:{width:1,height:18,background:'var(--separator)'}}),
+      h('span',{style:{display:'flex',alignItems:'center',gap:7,fontSize:13,color:'var(--label-2)'}},
+        h('span',null,'工作台'),h('i',{className:'ph ph-caret-right',style:{fontSize:11,color:'var(--label-3)'}}),
+        h('span',null,'仿真软件开发服务采购'),h('i',{className:'ph ph-caret-right',style:{fontSize:11,color:'var(--label-3)'}}),
+        h('span',{style:{color:'var(--label)',fontWeight:600}},'招标文件解析')),
+      h('span',{style:{flex:1}}),
+      h('span',{style:{display:'inline-flex',padding:2,gap:2,background:'rgba(60,60,67,.09)',borderRadius:9}}, tabBtn('工作台',true),tabBtn('文档预览',false),tabBtn('知识库',false)),
+      h('button',{'aria-label':'搜索',style:{width:32,height:32,border:'none',background:'transparent',color:'var(--label-2)',borderRadius:8,display:'grid',placeItems:'center',fontSize:17,cursor:'pointer'}},h('i',{className:'ph ph-magnifying-glass'})),
+      h('button',{'aria-label':'通知',style:{width:32,height:32,border:'none',background:'transparent',color:'var(--label-2)',borderRadius:8,display:'grid',placeItems:'center',fontSize:17,cursor:'pointer'}},h('i',{className:'ph ph-bell'})),
+      h('span',{style:{width:32,height:32,borderRadius:'50%',background:'linear-gradient(150deg,#8fb6e8,#3a6fb5)',color:'#fff',display:'grid',placeItems:'center',fontSize:12,fontWeight:600}},'LH'));
+
+    /* chat column */
+    const chatCol = h('div',{style:{display:'flex',flexDirection:'column',minHeight:0,borderRight:'1px solid var(--separator)',background:'var(--surface)'}},
+      h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'16px 18px 12px'}},
+        h('span',{style:{width:30,height:30,borderRadius:8,background:'var(--blue-soft)',color:'var(--blue)',display:'grid',placeItems:'center',fontSize:16}},h('i',{className:'ph ph-sparkle'})),
+        h('span',{style:{display:'flex',flexDirection:'column'}},
+          h('span',{style:{fontSize:13.5,fontWeight:700}},'标书智能解析'),
+          h('span',{style:{fontSize:11,color:'var(--green-text)',display:'inline-flex',alignItems:'center',gap:5}},h('span',{style:{width:6,height:6,borderRadius:999,background:'var(--green)'}}),'在线 · 已连接知识库'))),
+      h('div',{style:{flex:1,minHeight:0}}, this.chatEl()),
+      h('div',{style:{padding:'10px 16px 16px',borderTop:'1px solid var(--separator)'}},
+        h('div',{style:{border:'1px solid var(--separator)',borderRadius:14,background:'var(--surface)',boxShadow:'var(--elev-1)',padding:'10px 12px',display:'flex',flexDirection:'column',gap:10}},
+          h('input',{className:'wbInput',type:'text',placeholder:'向标书智能体描述下一步…',style:{border:'none',outline:'none',background:'transparent',font:'inherit',fontSize:13,color:'var(--label)'}}),
+          h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+            h('button',{style:{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 11px',border:'1px solid var(--separator)',background:'var(--surface)',borderRadius:8,font:'inherit',fontSize:12,color:'var(--label-2)',cursor:'pointer'}},h('i',{className:'ph ph-paperclip'}),'上传'),
+            h('button',{style:{display:'inline-flex',alignItems:'center',gap:6,height:30,padding:'0 11px',border:'1px solid var(--separator)',background:'var(--surface)',borderRadius:8,font:'inherit',fontSize:12,color:'var(--label-2)',cursor:'pointer'}},h('i',{className:'ph ph-list-dashes'}),'样本'),
+            h('span',{style:{flex:1}}),
+            h('button',{'aria-label':'发送',style:{width:34,height:34,border:'none',borderRadius:'50%',display:'grid',placeItems:'center',color:'#fff',fontSize:15,background:'linear-gradient(180deg,#1979f2,var(--blue))',boxShadow:'0 1px 3px rgba(0,80,200,.4),inset 0 1px 0 rgba(255,255,255,.3)',cursor:'pointer'}},h('i',{className:'ph ph-paper-plane-tilt'}))))));
+
+    /* canvas toolbar */
+    this.scaleLabelEl = h('span',{style:{fontSize:12,fontVariantNumeric:'tabular-nums',color:'var(--label)',minWidth:40,textAlign:'center'}},Math.round(this.state.view.s*100)+'%');
+    const toolbar = h('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:'1px solid var(--separator)',background:'rgba(245,246,248,.8)',backdropFilter:'blur(40px)',WebkitBackdropFilter:'blur(40px)',zIndex:6}},
+      h('span',{style:{display:'inline-flex',alignItems:'center',gap:7,fontSize:13,fontWeight:600,color:'var(--label)'}},h('i',{className:'ph ph-squares-four',style:{color:'var(--blue)',fontSize:15}}),'大纲视图'),
+      h('span',{style:{fontSize:12,color:'var(--label-3)'}},'招标文件解析结果 · 工作进行中'),
+      h('span',{style:{flex:1}}),
+      h('span',{style:{display:'inline-flex',alignItems:'center',gap:2,background:'var(--surface)',border:'1px solid var(--separator)',borderRadius:9,padding:2,boxShadow:'var(--elev-1)'}},
+        h('button',{'aria-label':'缩小',onClick:() => this.zoom(-0.1),style:{width:28,height:28,border:'none',background:'transparent',color:'var(--label-2)',borderRadius:7,display:'grid',placeItems:'center',fontSize:15,cursor:'pointer'}},h('i',{className:'ph ph-minus'})),
+        this.scaleLabelEl,
+        h('button',{'aria-label':'放大',onClick:() => this.zoom(0.1),style:{width:28,height:28,border:'none',background:'transparent',color:'var(--label-2)',borderRadius:7,display:'grid',placeItems:'center',fontSize:15,cursor:'pointer'}},h('i',{className:'ph ph-plus'}))),
+      h('button',{'aria-label':'适应画布',onClick:() => this.fit(),style:{width:32,height:32,border:'1px solid var(--separator)',background:'var(--surface)',color:'var(--label-2)',borderRadius:8,display:'grid',placeItems:'center',fontSize:15,cursor:'pointer',boxShadow:'var(--elev-1)'}},h('i',{className:'ph ph-corners-out'})),
+      h('button',{'aria-label':'重置画布',onClick:() => this.reset(),style:{width:32,height:32,border:'1px solid var(--separator)',background:'var(--surface)',color:'var(--label-2)',borderRadius:8,display:'grid',placeItems:'center',fontSize:15,cursor:'pointer',boxShadow:'var(--elev-1)'}},h('i',{className:'ph ph-arrow-counter-clockwise'})));
+
+    /* viewport */
+    this.worldEl = h('div',{style:{position:'absolute',left:0,top:0,width:this.size.w,height:this.size.h,transformOrigin:'0 0'}});
+    this.drawerHost = h('div');
+    const chips = h('div',{style:{display:'flex',gap:8,pointerEvents:'auto'}},
+      h('button',{onClick:() => this.addArtifact('matrix','应答矩阵 · 补充'),style:{display:'inline-flex',alignItems:'center',gap:6,height:32,padding:'0 13px',border:'1px solid var(--separator)',background:'var(--surface)',borderRadius:9,font:'inherit',fontSize:12.5,fontWeight:600,color:'var(--label)',cursor:'pointer',boxShadow:'var(--elev-1)'}},h('i',{className:'ph ph-table',style:{color:'var(--blue)'}}),'合成应答矩阵'),
+      h('button',{onClick:() => this.addArtifact('outline','投标大纲 · 备选'),style:{display:'inline-flex',alignItems:'center',gap:6,height:32,padding:'0 13px',border:'1px solid var(--separator)',background:'var(--surface)',borderRadius:9,font:'inherit',fontSize:12.5,fontWeight:600,color:'var(--label)',cursor:'pointer',boxShadow:'var(--elev-1)'}},h('i',{className:'ph ph-tree-structure',style:{color:'var(--blue)'}}),'生成大纲'),
+      h('button',{onClick:() => this.addArtifact('chapter','技术方案 · 性能指标'),style:{display:'inline-flex',alignItems:'center',gap:6,height:32,padding:'0 13px',border:'1px solid var(--separator)',background:'var(--surface)',borderRadius:9,font:'inherit',fontSize:12.5,fontWeight:600,color:'var(--label)',cursor:'pointer',boxShadow:'var(--elev-1)'}},h('i',{className:'ph ph-pencil-simple-line',style:{color:'var(--blue)'}}),'起草章节'));
+    const composer = h('div',{style:{pointerEvents:'auto',display:'flex',alignItems:'center',gap:10,width:'min(680px,86%)',background:'var(--surface)',border:'1px solid var(--separator)',borderRadius:16,boxShadow:'0 12px 30px rgba(12,18,32,.16),0 0 0 .5px rgba(12,18,32,.06)',padding:'8px 8px 8px 14px'}},
+      h('span',{style:{display:'inline-flex',alignItems:'center',gap:6,fontSize:12,fontWeight:600,color:'var(--blue)',background:'var(--blue-soft)',padding:'5px 10px',borderRadius:9,whiteSpace:'nowrap'}},h('i',{className:'ph ph-sparkle'}),'标书智能体'),
+      h('input',{className:'wbInput',type:'text',placeholder:'描述你想要的制品，智能体会生成到画布…',style:{border:'none',outline:'none',background:'transparent',flex:1,font:'inherit',fontSize:13.5,color:'var(--label)'}}),
+      h('button',{'aria-label':'生成',style:{width:36,height:36,border:'none',borderRadius:11,display:'grid',placeItems:'center',color:'#fff',fontSize:16,background:'linear-gradient(180deg,#1979f2,var(--blue))',boxShadow:'0 1px 3px rgba(0,80,200,.4),inset 0 1px 0 rgba(255,255,255,.3)',cursor:'pointer'}},h('i',{className:'ph ph-arrow-up'})));
+    const floating = h('div',{onMouseDown:(e) => e.stopPropagation(),style:{position:'absolute',left:0,right:0,bottom:18,display:'flex',flexDirection:'column',alignItems:'center',gap:10,zIndex:8,pointerEvents:'none'}}, chips, composer);
+    const viewport = h('div',{onMouseDown:(e) => this.startPan(e),style:{position:'relative',flex:1,minHeight:0,overflow:'hidden',cursor:'grab'}}, this.worldEl, floating, this.drawerHost);
+
+    const canvasRegion = h('div',{style:{position:'relative',display:'flex',flexDirection:'column',minHeight:0,background:'var(--surface-2)'}}, toolbar, viewport);
+    const body = h('div',{style:{display:'grid',gridTemplateColumns:'368px 1fr',minHeight:0}}, chatCol, canvasRegion);
+    const frame = h('div',{style:{width:'100vw',height:'100vh',overflow:'hidden',background:'var(--surface)',display:'grid',gridTemplateRows:'56px 1fr'}}, topbar, body);
+
+    const root = document.getElementById('root');
+    clear(root);
+    root.appendChild(frame);
+  }
+
+  /* ---- dynamic renders ---- */
+  renderWorld(){
+    const v = this.state.view;
+    this.worldEl.style.transform = 'translate('+v.px+'px,'+v.py+'px) scale('+v.s+')';
+    this.worldEl.style.backgroundImage = this.props.showGrid ? 'radial-gradient(circle, rgba(60,60,67,.16) 1px, transparent 1px)' : 'none';
+    this.worldEl.style.backgroundSize = '24px 24px';
+    clear(this.worldEl);
+    const ortho = (this.props.connectionStyle || '曲线') === '直角';
+    this.worldEl.appendChild(this.bgB());
+    if (this.props.showConnections !== false) this.worldEl.appendChild(this.linksB(this.state.cards, ortho));
+    this.state.cards.forEach(c => this.worldEl.appendChild(this.buildCard(c)));
+  }
+  renderDrawer(){ clear(this.drawerHost); const d = this.drawerEl(); if (d) this.drawerHost.appendChild(d); }
+  updateScale(){ this.scaleLabelEl.textContent = Math.round(this.state.view.s*100)+'%'; }
+
+  mount(){ this.buildChrome(); this.renderWorld(); this.renderDrawer(); }
+}
+
+new Workbench().mount();
+</script>
+</body>
+</html>

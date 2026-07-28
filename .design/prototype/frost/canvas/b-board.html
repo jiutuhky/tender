@@ -1,0 +1,320 @@
+<!doctype html>
+<!--
+  范式 B · 自由制品板（Freeform artifact board）
+  ============================================
+  无限画布是创作台：智能体产出的每个制品作为可拖拽卡片落到板上。
+  你自由摆放、框选多张、对选中追问；智能体把选中的卡合成新卡。
+  最接近 Lovart 本体（底部提示栏 + 自由卡片），但无固定流程。
+  交互：拖卡片、拖空白框选、滚轮缩放、提示栏对选中卡下发→生成新卡。
+  低保真：内容为真实标书域素材，视觉细节从简。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>范式 B · 自由制品板</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+:root{
+  --canvas:#eef0f3; --surface:#fff; --surface-2:#f5f6f8;
+  --label:#1d1d1f; --label-2:#55555e; --label-3:#6b6b76;
+  --separator:rgba(60,60,67,.12);
+  --blue:#0064e1; --blue-soft:rgba(0,100,225,.10);
+  --green-text:#1d8f45; --orange-text:#b25e00; --red-text:#d70015;
+  --font-ui:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",system-ui,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,Menlo,"JetBrains Mono",monospace;
+  --r-ctl:7px; --r-card:14px; --r-panel:18px;
+  --elev-1:0 1px 2px rgba(18,24,38,.10),0 0 0 .5px rgba(18,24,38,.07);
+  --elev-2:0 10px 30px rgba(18,24,38,.12),0 2px 8px rgba(18,24,38,.06),0 0 0 .5px rgba(18,24,38,.05);
+  --elev-3:0 28px 80px rgba(12,18,32,.26),0 8px 24px rgba(12,18,32,.12),0 0 0 .5px rgba(12,18,32,.10);
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font-ui);background:var(--canvas);color:var(--label);font-size:14px;
+  letter-spacing:-.008em;-webkit-font-smoothing:antialiased;overflow:hidden}
+.app{height:100vh;display:flex;flex-direction:column}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+.mono{font-family:var(--font-mono);font-size:.85em;letter-spacing:0}
+
+.topbar{height:52px;flex:0 0 52px;display:flex;align-items:center;gap:12px;padding:0 16px;z-index:30;
+  background:rgba(255,255,255,.68);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);
+  border-bottom:1px solid var(--separator);box-shadow:inset 0 1px 0 rgba(255,255,255,.55)}
+.tb-back{display:flex;align-items:center;gap:6px;color:var(--label-2);font-size:13px;padding:6px 10px;border-radius:var(--r-ctl)}
+.tb-back:hover{background:rgba(60,60,67,.08)}
+.tb-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.tb-brand .mk{width:24px;height:24px;border-radius:6px;background:linear-gradient(150deg,#5fb0ff,#0a3fa8);display:grid;place-items:center;color:#fff;font-size:13px}
+.tb-crumb{color:var(--label-3);font-size:13px}.tb-crumb b{color:var(--label);font-weight:600}
+.tb-spacer{flex:1}
+.tb-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;background:var(--surface);box-shadow:var(--elev-1);font-size:12.5px;color:var(--label-2)}
+.zoom{display:inline-flex;align-items:center;background:var(--surface);border-radius:var(--r-ctl);box-shadow:var(--elev-1)}
+.zoom button{width:30px;height:30px;display:grid;place-items:center;color:var(--label-2);font-size:15px}
+.zoom button:hover{background:var(--surface-2)}
+.zoom .lvl{min-width:46px;text-align:center;font-size:12px;color:var(--label-2);font-variant-numeric:tabular-nums}
+
+.stage{position:relative;flex:1;overflow:hidden}
+.viewport{position:absolute;inset:0;cursor:grab}
+.viewport.panning{cursor:grabbing}
+.world{position:absolute;top:0;left:0;width:3200px;height:2400px;transform-origin:0 0;
+  background-image:radial-gradient(rgba(60,60,67,.13) 1.1px,transparent 1.1px);background-size:26px 26px}
+
+/* 制品卡 */
+.card{position:absolute;background:var(--surface);border-radius:var(--r-card);box-shadow:var(--elev-1);
+  display:flex;flex-direction:column;cursor:grab;overflow:hidden;
+  transition:box-shadow .16s var(--ease),outline-color .12s}
+.card:active{cursor:grabbing}
+.card.sel{outline:2px solid var(--blue);outline-offset:2px;box-shadow:var(--elev-2)}
+.card .ch{display:flex;align-items:center;gap:8px;padding:10px 13px;border-bottom:1px solid var(--separator)}
+.card .ci{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:14px;background:var(--surface-2);color:var(--label-2)}
+.card .ct{font-size:13px;font-weight:700;letter-spacing:-.01em}
+.card .cm{margin-left:auto;font-size:11px;color:var(--label-3)}
+.card .cb{padding:11px 13px 13px;font-size:12.5px;color:var(--label-2);line-height:1.6}
+.card.gen{outline:2px solid var(--blue);outline-offset:2px}
+.card .ci.accent{background:linear-gradient(150deg,#5fb0ff,#0a3fa8);color:#fff}
+.kv2{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px}
+.kv2 .k{color:var(--label-3)}
+.mini{display:flex;gap:7px;margin-top:6px}
+.mtile{flex:1;background:var(--surface-2);border-radius:8px;padding:7px 4px;text-align:center}
+.mtile .n{font-size:16px;font-weight:700}.mtile .l{font-size:10px;color:var(--label-3)}
+.li{display:flex;gap:7px;margin:4px 0}.li .s{color:var(--label-3);flex:0 0 14px}
+.nb{display:inline-block;font-size:9.5px;font-weight:600;padding:0 5px;border-radius:999px;margin-left:5px;vertical-align:middle}
+.nb.star{color:var(--red-text);background:rgba(255,59,48,.12)}
+.nb.tri{color:var(--orange-text);background:rgba(255,149,0,.14)}
+.appear{animation:appear .42s var(--ease)}
+@keyframes appear{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.appear{animation:none}}
+
+/* 框选橡皮筋 */
+.marquee{position:absolute;border:1.5px solid var(--blue);background:rgba(0,100,225,.08);border-radius:4px;pointer-events:none;z-index:15;display:none}
+
+/* 选择 HUD */
+.selhud{position:absolute;top:14px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:22;
+  display:flex;align-items:center;gap:10px;padding:7px 9px 7px 15px;border-radius:999px;
+  background:rgba(29,29,31,.9);color:#fff;font-size:12.5px;box-shadow:var(--elev-2);
+  opacity:0;transition:opacity .2s,transform .24s var(--ease);pointer-events:none}
+.selhud.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.selhud button{color:#fff;font-size:12px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.16);display:inline-flex;align-items:center;gap:5px}
+.selhud button:hover{background:rgba(255,255,255,.28)}
+
+/* 底部提示栏 */
+.dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(680px,calc(100% - 48px));z-index:20}
+.dock-chips{display:flex;gap:8px;justify-content:center;margin-bottom:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:999px;font-size:12.5px;color:var(--label-2);
+  background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid rgba(255,255,255,.5);box-shadow:var(--elev-1)}
+.chip:hover{color:var(--label);background:rgba(255,255,255,.92)}
+.chip i{color:var(--blue);font-size:14px}
+.prompt{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border-radius:18px;
+  background:rgba(255,255,255,.78);backdrop-filter:blur(40px) saturate(190%);-webkit-backdrop-filter:blur(40px) saturate(190%);
+  border:1px solid rgba(255,255,255,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),var(--elev-2)}
+.prompt .skill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--label-2);padding:6px 10px;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--separator);white-space:nowrap}
+.prompt .skill i{color:var(--blue)}
+.prompt .skill b{color:var(--label);font-weight:600}
+.prompt input{flex:1;border:none;outline:none;background:transparent;font:inherit;font-size:14px;color:var(--label)}
+.prompt input::placeholder{color:var(--label-3)}
+.prompt .send{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:16px;
+  background:linear-gradient(180deg,#1979f2,var(--blue));box-shadow:0 1px 2px rgba(0,80,190,.35),inset 0 1px 0 rgba(255,255,255,.25);transition:transform .12s var(--ease)}
+.prompt .send:active{transform:scale(.94)}
+.prompt .send.busy{opacity:.6;pointer-events:none}
+.hint{position:absolute;left:16px;bottom:18px;font-size:11.5px;color:var(--label-3);z-index:10;background:rgba(255,255,255,.6);padding:5px 11px;border-radius:999px;backdrop-filter:blur(10px)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <a class="tb-back" href="index.html"><i class="ph ph-arrow-left"></i>返回</a>
+    <span class="tb-brand"><span class="mk"><i class="ph ph-stack"></i></span>Prose</span>
+    <span class="tb-crumb">范式 B · <b>自由制品板</b></span>
+    <span class="tb-spacer"></span>
+    <span class="tb-pill"><i class="ph ph-squares-four"></i><span id="cardCount">6</span> 个制品</span>
+    <div class="zoom">
+      <button id="zout"><i class="ph ph-minus"></i></button>
+      <span class="lvl" id="lvl">100%</span>
+      <button id="zin"><i class="ph ph-plus"></i></button>
+      <button id="zfit"><i class="ph ph-corners-out"></i></button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="viewport" id="vp">
+      <div class="world" id="world"></div>
+      <div class="marquee" id="marquee"></div>
+    </div>
+
+    <div class="hint"><i class="ph ph-hand-grabbing"></i> 拖卡片 · 拖空白框选 · 滚轮缩放</div>
+
+    <div class="selhud" id="selhud">
+      <span id="selText">已选 0</span>
+      <button data-act="merge"><i class="ph ph-arrows-merge"></i>合成应答表</button>
+      <button data-act="ask"><i class="ph ph-chat-circle-dots"></i>追问</button>
+    </div>
+
+    <div class="dock">
+      <div class="dock-chips">
+        <button class="chip" data-cmd="把选中的卡合成一份应答表"><i class="ph ph-arrows-merge"></i>合成应答表</button>
+        <button class="chip" data-cmd="根据这些卡生成投标大纲"><i class="ph ph-tree-structure"></i>生成大纲</button>
+        <button class="chip" data-cmd="为技术要求逐条起草章节"><i class="ph ph-article"></i>起草章节</button>
+      </div>
+      <div class="prompt">
+        <span class="skill"><i class="ph ph-sparkle"></i>标书智能体 · <b id="ctxN">板上全部</b></span>
+        <input id="pInput" placeholder="描述你想要的制品，智能体会把它生成到板上…">
+        <button class="send" id="sendBtn"><i class="ph ph-arrow-up"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- 卡片数据（真实标书域素材） ---------- */
+const CARDS=[
+  {id:'c1',x:140,y:120,w:236,icon:'ph-identification-card',t:'基本信息',m:'01',body:`
+    <div class="kv2"><span class="k">预算</span><span>2,700,000 元</span>
+      <span class="k">方式</span><span>公开招标</span>
+      <span class="k">截止</span><span class="mono">2024-08-21 09:30</span>
+      <span class="k">编号</span><span class="mono">CGZB-2024-0731</span></div>`},
+  {id:'c2',x:430,y:96,w:252,icon:'ph-gear-six',t:'技术要求',m:'12 项 · 05',body:`
+    <div class="li"><span class="s">1</span><span>求解器内核<span class="nb star">★</span> 有限元/有限体积双内核</span></div>
+    <div class="li"><span class="s">2</span><span>并行计算<span class="nb tri">▲</span> MPI 加速比 ≥ 80%</span></div>
+    <div class="li"><span class="s">4</span><span>国产化适配<span class="nb star">★</span> 麒麟/鲲鹏</span></div>`},
+  {id:'c3',x:730,y:150,w:212,icon:'ph-chart-bar',t:'评分标准',m:'03',body:`
+    <div class="mini"><div class="mtile"><div class="n">60</div><div class="l">技术</div></div>
+      <div class="mtile"><div class="n">10</div><div class="l">商务</div></div>
+      <div class="mtile"><div class="n">30</div><div class="l">价格</div></div></div>
+    <div style="font-size:11px;color:var(--label-3);margin-top:8px">综合评分法</div>`},
+  {id:'c4',x:150,y:392,w:212,icon:'ph-handshake',t:'商务要求',m:'9 项 · 04',body:`
+    <div class="li"><span class="s">1</span><span>交付周期<span class="nb star">★</span> 180 日历天</span></div>
+    <div class="li"><span class="s">2</span><span>质保期<span class="nb star">★</span> ≥ 24 个月</span></div>`},
+  {id:'c5',x:430,y:372,w:236,icon:'ph-tree-structure',t:'投标大纲 v2',m:'草稿',body:`
+    <div class="li"><span class="s">一</span><span>综合说明</span></div>
+    <div class="li"><span class="s">二</span><span>技术方案（引用 技术要求）</span></div>
+    <div class="li"><span class="s">三</span><span>商务部分（引用 商务要求）</span></div>`},
+  {id:'c6',x:720,y:400,w:252,icon:'ph-article',t:'章节草稿 · 第 3 章',m:'1,840 字',body:`
+    <div style="color:var(--label-2)">技术方案 · 总体架构<br>本方案采用分层微服务架构，求解器内核以双精度有限元为主、有限体积为辅，支持千万级网格…</div>`},
+];
+let nextId=7;
+
+/* ---------- 渲染 ---------- */
+const world=document.getElementById('world');
+const cardEls={};
+function renderCard(c,isGen){
+  const el=document.createElement('div');
+  el.className='card'+(isGen?' gen appear':'');
+  el.style.cssText=`left:${c.x}px;top:${c.y}px;width:${c.w}px`;
+  el.innerHTML=`<div class="ch"><span class="ci ${isGen?'accent':''}"><i class="ph ${c.icon}"></i></span>
+      <span class="ct">${c.t}</span><span class="cm">${c.m}</span></div>
+      <div class="cb">${c.body}</div>`;
+  world.appendChild(el);cardEls[c.id]=el;bindDrag(el,c);
+}
+CARDS.forEach(c=>renderCard(c));
+document.getElementById('cardCount').textContent=CARDS.length;
+
+/* ---------- 平移 / 缩放 ---------- */
+const vp=document.getElementById('vp'),lvl=document.getElementById('lvl');
+let tx=0,ty=0,scale=1;
+function apply(){world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;lvl.textContent=Math.round(scale*100)+'%';}
+apply();
+const toWorld=(cx,cy)=>{const r=vp.getBoundingClientRect();return{x:(cx-r.left-tx)/scale,y:(cy-r.top-ty)/scale};};
+vp.addEventListener('wheel',e=>{e.preventDefault();const r=vp.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const ns=Math.min(2,Math.max(.4,scale*(1-e.deltaY*0.0012)));tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;apply();},{passive:false});
+function zoomBy(f){const r=vp.getBoundingClientRect(),mx=r.width/2,my=r.height/2;const ns=Math.min(2,Math.max(.4,scale*f));tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;apply();}
+document.getElementById('zin').onclick=()=>zoomBy(1.15);
+document.getElementById('zout').onclick=()=>zoomBy(1/1.15);
+document.getElementById('zfit').onclick=()=>{tx=0;ty=0;scale=1;apply();};
+
+/* ---------- 选择状态 ---------- */
+const selected=new Set();
+const selhud=document.getElementById('selhud'),selText=document.getElementById('selText'),ctxN=document.getElementById('ctxN');
+function refreshSel(){
+  Object.entries(cardEls).forEach(([id,el])=>el.classList.toggle('sel',selected.has(id)));
+  if(selected.size){selhud.classList.add('show');selText.textContent='已选 '+selected.size;
+    ctxN.textContent='选中 '+selected.size+' 张';}
+  else{selhud.classList.remove('show');ctxN.textContent='板上全部';}
+}
+
+/* ---------- 卡片拖拽 ---------- */
+function bindDrag(el,c){
+  el.addEventListener('pointerdown',e=>{
+    e.stopPropagation();
+    // 点选：未按 shift 则单选该卡
+    if(!e.shiftKey&&!selected.has(c.id)){selected.clear();}
+    selected.add(c.id);refreshSel();
+    let moved=false;const px=e.clientX,py=e.clientY;const start={};
+    selected.forEach(id=>start[id]={x:CARDS.find(k=>k.id===id).x,y:CARDS.find(k=>k.id===id).y});
+    el.setPointerCapture(e.pointerId);
+    const move=ev=>{const dx=(ev.clientX-px)/scale,dy=(ev.clientY-py)/scale;if(Math.abs(dx)+Math.abs(dy)>2)moved=true;
+      selected.forEach(id=>{const k=CARDS.find(k=>k.id===id);k.x=start[id].x+dx;k.y=start[id].y+dy;cardEls[id].style.left=k.x+'px';cardEls[id].style.top=k.y+'px';});};
+    const up=ev=>{el.releasePointerCapture(e.pointerId);el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);
+      if(!moved&&e.shiftKey&&selected.size>1){selected.delete(c.id);refreshSel();}};
+    el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);
+  });
+}
+
+/* ---------- 空白处：平移 or 框选 ---------- */
+const marquee=document.getElementById('marquee');
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.card')||e.target.closest('.dock')||e.target.closest('.selhud'))return;
+  const spacePan=e.altKey; // alt 拖拽=纯平移；默认空白拖拽=框选
+  const r=vp.getBoundingClientRect();const ox=e.clientX-r.left,oy=e.clientY-r.top;
+  if(spacePan){
+    let sxx=e.clientX-tx,syy=e.clientY-ty;vp.classList.add('panning');vp.setPointerCapture(e.pointerId);
+    const mv=ev=>{tx=ev.clientX-sxx;ty=ev.clientY-syy;apply();};
+    const up=()=>{vp.classList.remove('panning');vp.removeEventListener('pointermove',mv);vp.removeEventListener('pointerup',up);};
+    vp.addEventListener('pointermove',mv);vp.addEventListener('pointerup',up);return;
+  }
+  // 框选
+  if(!e.shiftKey){selected.clear();refreshSel();}
+  marquee.style.display='block';let curx=ox,cury=oy;
+  const draw=()=>{const x=Math.min(ox,curx),y=Math.min(oy,cury),w=Math.abs(curx-ox),h=Math.abs(cury-oy);
+    marquee.style.cssText=`display:block;left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
+    // 命中检测（世界坐标）
+    const a=toWorld(r.left+x,r.top+y),b=toWorld(r.left+x+w,r.top+y+h);
+    CARDS.forEach(c=>{const cw=c.w,chh=cardEls[c.id].offsetHeight;
+      const hit=c.x<b.x&&c.x+cw>a.x&&c.y<b.y&&c.y+chh>a.y;
+      if(hit)selected.add(c.id);});refreshSel();};
+  vp.setPointerCapture(e.pointerId);
+  const mv=ev=>{curx=ev.clientX-r.left;cury=ev.clientY-r.top;draw();};
+  const up=()=>{marquee.style.display='none';vp.removeEventListener('pointermove',mv);vp.removeEventListener('pointerup',up);};
+  vp.addEventListener('pointermove',mv);vp.addEventListener('pointerup',up);
+});
+
+/* ---------- 智能体生成新卡 ---------- */
+const sendBtn=document.getElementById('sendBtn'),input=document.getElementById('pInput');
+function spawn(title,meta,icon,body){
+  const r=vp.getBoundingClientRect();const center=toWorld(r.left+r.width/2,r.top+r.height*0.42);
+  const c={id:'c'+(nextId++),x:center.x-130,y:center.y-70,w:260,icon,t:title,m:meta,body};
+  CARDS.push(c);renderCard(c,true);document.getElementById('cardCount').textContent=CARDS.length;
+  selected.clear();selected.add(c.id);refreshSel();
+  setTimeout(()=>cardEls[c.id].classList.remove('gen'),1400);
+}
+function generate(cmd){
+  sendBtn.classList.add('busy');sendBtn.innerHTML='<i class="ph ph-spinner"></i>';
+  const usingSel=selected.size>0;
+  setTimeout(()=>{
+    if(/合成|应答/.test(cmd)){
+      spawn('技术应答表（合成）','由 '+(usingSel?selected.size:3)+' 张卡 · 草稿','ph-list-checks',`
+        <div class="li"><span class="s">1</span><span>求解器内核<span class="nb star">★</span> → 全面响应</span></div>
+        <div class="li"><span class="s">2</span><span>并行计算<span class="nb tri">▲</span> → 响应，加速比 82%</span></div>
+        <div class="li"><span class="s">4</span><span>国产化<span class="nb star">★</span> → 响应，附适配清单</span></div>`);
+    }else if(/大纲/.test(cmd)){
+      spawn('投标大纲（生成）','8 章 · 引用 5 维','ph-tree-structure',`
+        <div class="li"><span class="s">一</span><span>综合说明</span></div>
+        <div class="li"><span class="s">二</span><span>技术方案</span></div>
+        <div class="li"><span class="s">三</span><span>商务部分</span></div>
+        <div class="li"><span class="s">四</span><span>资信业绩</span></div>`);
+    }else if(/章节|起草/.test(cmd)){
+      spawn('章节草稿 · 第 2 章','技术方案 · 2,310 字','ph-article',`
+        <div style="color:var(--label-2)">本章针对招标技术要求逐条编写响应，覆盖求解器、并行、前后处理与国产化四个维度…</div>`);
+    }else{
+      spawn(cmd.slice(0,12)||'新制品','智能体生成','ph-sparkle',`<div style="color:var(--label-2)">已根据指令生成草稿制品，可拖拽摆放或继续追问。</div>`);
+    }
+    sendBtn.classList.remove('busy');sendBtn.innerHTML='<i class="ph ph-arrow-up"></i>';
+  },800);
+}
+sendBtn.onclick=()=>{const v=input.value.trim()||'合成应答表';generate(v);input.value='';};
+input.addEventListener('keydown',e=>{if(e.key==='Enter'){sendBtn.onclick();}});
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>generate(c.dataset.cmd));
+document.querySelectorAll('.selhud button').forEach(b=>b.onclick=()=>{
+  if(b.dataset.act==='merge')generate('合成应答表');else{input.focus();}});
+</script>
+</body>
+</html>

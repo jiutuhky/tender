@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bid Response Matrix"
+  short_description: "Extract bid requirements into response matrices"
+  default_prompt: "Use $bid-response-matrix to parse the uploaded tender files and build the four response matrices."
