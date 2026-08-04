@@ -1,0 +1,429 @@
+{
+ "logId": "fixture-multipage",
+ "result": {
+  "layoutParsingResults": [
+   {
+    "prunedResult": {
+     "page_count": null,
+     "width": 1191,
+     "height": 1684,
+     "model_settings": {
+      "use_doc_preprocessor": false,
+      "use_layout_detection": true,
+      "use_chart_recognition": false,
+      "use_seal_recognition": false,
+      "use_ocr_for_image_block": false,
+      "format_block_content": false,
+      "merge_layout_blocks": true,
+      "markdown_ignore_labels": [
+       "number",
+       "footnote",
+       "header",
+       "header_image",
+       "footer",
+       "footer_image",
+       "aside_text"
+      ],
+      "return_layout_polygon_points": true
+     },
+     "parsing_res_list": [
+      {
+       "block_label": "text",
+       "block_content": "十九、本招标文件通用条款主要依据军队采购相关法规规定拟制，专用条款由采购机构根据项目情况拟制；对招标文件有疑问的，由编制招标文件的采购机构解释。军队相关规定未明确事项可参照政府采购相关法规规定执行。",
+       "block_bbox": [
+        175,
+        149,
+        1013,
+        235
+       ],
+       "block_id": 0,
+       "block_order": 1,
+       "group_id": 0,
+       "global_block_id": 484,
+       "global_group_id": 484
+      },
+      {
+       "block_label": "paragraph_title",
+       "block_content": "二十、其他说明：1. 投标供应商编制投标文件时，须对涉密资料进行脱密处理。",
+       "block_bbox": [
+        176,
+        241,
+        857,
+        265
+       ],
+       "block_id": 1,
+       "block_order": 2,
+       "group_id": 1,
+       "global_block_id": 485,
+       "global_group_id": 485
+      },
+      {
+       "block_label": "text",
+       "block_content": "2. 供应商一般不得以代理方式，使用受处罚供应商的产品，参加军队采购活动。确需配套使用的，选用该产品的金额不得超过项目总金额的30%。",
+       "block_bbox": [
+        175,
+        274,
+        1004,
+        329
+       ],
+       "block_id": 2,
+       "block_order": 3,
+       "group_id": 2,
+       "global_block_id": 486,
+       "global_group_id": 486
+      },
+      {
+       "block_label": "text",
+       "block_content": "3. 被列入军队采购失信名单，在禁止期内，其法定代表人控股或管理的其他企业禁止参加军队采购活动。",
+       "block_bbox": [
+        175,
+        335,
+        1013,
+        391
+       ],
+       "block_id": 3,
+       "block_order": 4,
+       "group_id": 3,
+       "global_block_id": 487,
+       "global_group_id": 487
+      },
+      {
+       "block_label": "text",
+       "block_content": "4. 保证金退还无须供应商提供信息，支付流程较多，请耐心等待，保函形式不需要我站办理退还保证金相关手续。缴纳方式上鼓励采取银行保函形式。",
+       "block_bbox": [
+        175,
+        398,
+        1014,
+        453
+       ],
+       "block_id": 4,
+       "block_order": 5,
+       "group_id": 4,
+       "global_block_id": 488,
+       "global_group_id": 488
+      },
+      {
+       "block_label": "text",
+       "block_content": "5. 供应商如须询问评审现场相关事宜，请投标授权代表赴相应评审室现场询问。",
+       "block_bbox": [
+        174,
+        461,
+        868,
+        485
+       ],
+       "block_id": 5,
+       "block_order": 6,
+       "group_id": 5,
+       "global_block_id": 489,
+       "global_group_id": 489
+      },
+      {
+       "block_label": "text",
+       "block_content": "6. 未中标保证金退还联系人：张助理；电话：13066509615；中标保证金退还联系人：国助理；电话：18002477706。",
+       "block_bbox": [
+        174,
+        492,
+        987,
+        546
+       ],
+       "block_id": 6,
+       "block_order": 7,
+       "group_id": 6,
+       "global_block_id": 490,
+       "global_group_id": 490
+      },
+      {
+       "block_label": "paragraph_title",
+       "block_content": "第四章 投标供应商须知前附表",
+       "block_bbox": [
+        347,
+        592,
+        843,
+        634
+       ],
+       "block_id": 7,
+       "block_order": 8,
+       "group_id": 7,
+       "global_block_id": 491,
+       "global_group_id": 491
+      },
+      {
+       "block_label": "paragraph_title",
+       "block_content": "一、投标供应商须知前附表",
+       "block_bbox": [
+        175,
+        659,
+        522,
+        692
+       ],
+       "block_id": 8,
+       "block_order": 9,
+       "group_id": 8,
+       "global_block_id": 492,
+       "global_group_id": 492
+      },
+      {
+       "block_label": "text",
+       "block_content": "本表是对本项目需重点关注内容的集中说明。专用文件与通用文件存在不一致的地方，以专用文件要求为准。",
+       "block_bbox": [
+        175,
+        710,
+        1014,
+        765
+       ],
+       "block_id": 9,
+       "block_order": 10,
+       "group_id": 9,
+       "global_block_id": 493,
+       "global_group_id": 493
+      },
+      {
+       "block_label": "table",
+       "block_content": "<table><tr><td>序号</td><td>招投标相关事项</td><td>项目具体要求（见专用文件）</td><td>通用要求（见通用文件）</td></tr><tr><td>1</td><td>项目概况</td><td>项目名称：信保体系建设数据资源池项目采购机构：联勤保障部队第四采购服务站项目预算：270万元</td><td></td></tr><tr><td>2</td><td>投标供应商资格条件</td><td>详见公告</td><td>第3.2条</td></tr><tr><td>3</td><td>招标文件申领（下载）时间</td><td>详见公告</td><td>第7.1条</td></tr><tr><td>4</td><td>组织现场踏勘或召开标前答疑会</td><td>详见公告</td><td>第7.2条</td></tr><tr><td>5</td><td>信息发布媒体</td><td>www.plap.mil.cn</td><td>第 8.1 条</td></tr><tr><td>6</td><td>中标供应商数量</td><td>详见公告</td><td>第 35.3 条</td></tr><tr><td>7</td><td>投标有效期</td><td>从提交投标文件的截止之日起 180 日</td><td>第 16.1 条</td></tr><tr><td>8</td><td>投标报价的其他要求</td><td>无</td><td></td></tr><tr><td>9</td><td>投标保证金</td><td>采购包 1 保证金金额：\\n30,000.00 元\\n缴交渠道：转账,保函\\n账户名称：中国人民解放军 32680 部队收缴户\\n开户银行：建行沈阳保工支行\\n银行账号：\\n6232810730000389515\\n其他说明：\\n1、缴纳截止时间为本项目投标（报价）截止时间，以保证金账户实际收款为准；\\n2、采用线下缴纳的，投标单位应当从银行账户转账至保证金账户，在汇款时要在备注信息中注明本项目的编号及用途。</td><td>第 18 条</td></tr><tr><td>10</td><td>投标受理时间</td><td>详见公告</td><td>第 10.1 条和第 20.1 条</td></tr><tr><td>11</td><td>开标方式</td><td>到现场开标</td><td>第 22.2 条</td></tr><tr><td>12</td><td>开标时间及地点</td><td>详见公告</td><td>第 22.1 条</td></tr><tr><td>13</td><td>资格性审查标准</td><td>本章附表 1</td><td>第 24.1 条</td></tr><tr><td>14</td><td>符合性审查标准</td><td>本章附表 2</td><td>第 24.2 条</td></tr><tr><td>15</td><td>商务评审标准</td><td>本章附表 3</td><td>第 24.3 条第（1）项</td></tr><tr><td>16</td><td>技术评审标准</td><td>本章附表 4</td><td>第 24.3 条第（2）项</td></tr><tr><td>17</td><td>价格评审标准</td><td>本章附表 5</td><td>第 24.3 条第（3）项</td></tr><tr><td>18</td><td>非实质性负偏离的项数</td><td>无要求。</td><td>第 29.1 条第（2）项</td></tr><tr><td>19</td><td>评审方法</td><td>采购包 1：综合评分法</td><td>第 23.2 条和第 31.1 条</td></tr><tr><td>20</td><td>质疑受理单位及联系方式</td><td>受理单位： 联勤保障部队第四采购服务站\\n联系人： 王助理； 封助理\\n联系方式：\\n024-28862188/18909884980；\\n024-28862199/18909884990；\\n邮箱：zhiyishouli@163.com</td><td>第 44.4 条</td></tr><tr><td>21</td><td>受理、处理投诉申请</td><td>处理部门： 采购服务站拒收</td><td>第 45.4 条</td></tr><tr><td></td><td>部门及联系方式</td><td>质疑函或者未在规定期限内作出答复，以及对采购服务站质疑答复及处理结果不满意的，质疑供应商可以在质疑答复期满之日起15个工作日内，向上级采购管理部门提出书面投诉。\\n联系人： 李助理； 杨助理；\\n董助理\\n联系方式： 027-59561755；\\n027-59561763； 027-59561765</td><td></td></tr><tr><td>22</td><td>受理、处理投诉复议申请部门及联系方式</td><td>处理部门： 投诉人对采购管理部门作出的投诉处理决定不服，可以自收到投诉处理决定书之日起15个工作日内，向军委后勤保障部采购服务中心提出投诉复议申请。\\n联系人： 李助理\\n联系方式：\\n010-66945693/010-63864550</td><td>第 46.4 条</td></tr><tr><td>23</td><td>其他补充内容</td><td>采购包 1：允许供应商超品目限价报价\\n1.评审专家须独立评审，先评主观分、再评客观分。\\n2.关键性技术指标参数前标记“★”符号。一般性指标参数前不作标记。“★”号条款均为实质性响应指标要求，应当全部响应。若有一项带“★”条款未响应或不满足，均视为非实质性响应招标文件，按无效投标处理。带“★”条款需提供技术支持材料（以具体项目为准，技术支持材料可以从（不限于）以下支持材料选择：产品规格表、产品宣传彩页、技术白皮书、制造商官方网站发布的产品信息、说明书等或检测机构出具的检测报告等技术材料支持的。技术要求中已明确需提供证明材料的，以明确的内容为准。）。\\n3.标“▲”的重要指标参数存在正偏离、一般性指标参数存</td><td>第 49 条</td></tr><tr><td></td><td></td><td>在正偏离需加分的，投标供应商必须提供相关证明材料（以具体项目为准，技术支持材料可以从（不限于）以下支持材料选择：产品规格表、产品宣传彩页、技术白皮书、制造商官方网站发布的产品信息、说明书等或检测机构出具的检测报告等技术材料支持的。技术要求中已明确需提供证明材料的，以明确的内容为准。）。另外，针对产品规格表、产品宣传彩页、技术白皮书等缺少规定格式的证明材料，须加盖生产厂家公章，否则不予加分。\\n4.供应商投标（报价）文件制作问题提示指南见附件。</td><td></td></tr></table>",
+       "block_bbox": [
+        168,
+        765,
+        1023,
+        1517
+       ],
+       "block_id": 10,
+       "block_order": null,
+       "group_id": 10,
+       "global_block_id": 494,
+       "global_group_id": 494
+      }
+     ]
+    },
+    "markdown": {
+     "text": "十九、本招标文件通用条款主要依据军队采购相关法规规定拟制，专用条款由采购机构根据项目情况拟制；对招标文件有疑问的，由编制招标文件的采购机构解释。军队相关规定未明确事项可参照政府采购相关法规规定执行。\n\n## 二十、其他说明：1. 投标供应商编制投标文件时，须对涉密资料进行脱密处理。\n\n2. 供应商一般不得以代理方式，使用受处罚供应商的产品，参加军队采购活动。确需配套使用的，选用该产品的金额不得超过项目总金额的30%。\n\n3. 被列入军队采购失信名单，在禁止期内，其法定代表人控股或管理的其他企业禁止参加军队采购活动。\n\n4. 保证金退还无须供应商提供信息，支付流程较多，请耐心等待，保函形式不需要我站办理退还保证金相关手续。缴纳方式上鼓励采取银行保函形式。\n\n5. 供应商如须询问评审现场相关事宜，请投标授权代表赴相应评审室现场询问。\n\n6. 未中标保证金退还联系人：张助理；电话：13066509615；中标保证金退还联系人：国助理；电话：18002477706。\n\n## 第四章 投标供应商须知前附表\n\n## 一、投标供应商须知前附表\n\n本表是对本项目需重点关注内容的集中说明。专用文件与通用文件存在不一致的地方，以专用文件要求为准。\n\n\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td style='text-align: center; word-wrap: break-word;'>序号</td><td style='text-align: center; word-wrap: break-word;'>招投标相关事项</td><td style='text-align: center; word-wrap: break-word;'>项目具体要求（见专用文件）</td><td style='text-align: center; word-wrap: break-word;'>通用要求（见通用文件）</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>1</td><td style='text-align: center; word-wrap: break-word;'>项目概况</td><td style='text-align: center; word-wrap: break-word;'>项目名称：信保体系建设数据资源池项目采购机构：联勤保障部队第四采购服务站项目预算：270万元</td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>2</td><td style='text-align: center; word-wrap: break-word;'>投标供应商资格条件</td><td style='text-align: center; word-wrap: break-word;'>详见公告</td><td style='text-align: center; word-wrap: break-word;'>第3.2条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>3</td><td style='text-align: center; word-wrap: break-word;'>招标文件申领（下载）时间</td><td style='text-align: center; word-wrap: break-word;'>详见公告</td><td style='text-align: center; word-wrap: break-word;'>第7.1条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>4</td><td style='text-align: center; word-wrap: break-word;'>组织现场踏勘或召开标前答疑会</td><td style='text-align: center; word-wrap: break-word;'>详见公告</td><td style='text-align: center; word-wrap: break-word;'>第7.2条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>5</td><td style='text-align: center; word-wrap: break-word;'>信息发布媒体</td><td style='text-align: center; word-wrap: break-word;'>www.plap.mil.cn</td><td style='text-align: center; word-wrap: break-word;'>第 8.1 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>6</td><td style='text-align: center; word-wrap: break-word;'>中标供应商数量</td><td style='text-align: center; word-wrap: break-word;'>详见公告</td><td style='text-align: center; word-wrap: break-word;'>第 35.3 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>7</td><td style='text-align: center; word-wrap: break-word;'>投标有效期</td><td style='text-align: center; word-wrap: break-word;'>从提交投标文件的截止之日起 180 日</td><td style='text-align: center; word-wrap: break-word;'>第 16.1 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>8</td><td style='text-align: center; word-wrap: break-word;'>投标报价的其他要求</td><td style='text-align: center; word-wrap: break-word;'>无</td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>9</td><td style='text-align: center; word-wrap: break-word;'>投标保证金</td><td style='text-align: center; word-wrap: break-word;'>采购包 1 保证金金额：\\n30,000.00 元\\n缴交渠道：转账,保函\\n账户名称：中国人民解放军 32680 部队收缴户\\n开户银行：建行沈阳保工支行\\n银行账号：\\n6232810730000389515\\n其他说明：\\n1、缴纳截止时间为本项目投标（报价）截止时间，以保证金账户实际收款为准；\\n2、采用线下缴纳的，投标单位应当从银行账户转账至保证金账户，在汇款时要在备注信息中注明本项目的编号及用途。</td><td style='text-align: center; word-wrap: break-word;'>第 18 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>10</td><td style='text-align: center; word-wrap: break-word;'>投标受理时间</td><td style='text-align: center; word-wrap: break-word;'>详见公告</td><td style='text-align: center; word-wrap: break-word;'>第 10.1 条和第 20.1 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>11</td><td style='text-align: center; word-wrap: break-word;'>开标方式</td><td style='text-align: center; word-wrap: break-word;'>到现场开标</td><td style='text-align: center; word-wrap: break-word;'>第 22.2 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>12</td><td style='text-align: center; word-wrap: break-word;'>开标时间及地点</td><td style='text-align: center; word-wrap: break-word;'>详见公告</td><td style='text-align: center; word-wrap: break-word;'>第 22.1 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>13</td><td style='text-align: center; word-wrap: break-word;'>资格性审查标准</td><td style='text-align: center; word-wrap: break-word;'>本章附表 1</td><td style='text-align: center; word-wrap: break-word;'>第 24.1 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>14</td><td style='text-align: center; word-wrap: break-word;'>符合性审查标准</td><td style='text-align: center; word-wrap: break-word;'>本章附表 2</td><td style='text-align: center; word-wrap: break-word;'>第 24.2 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>15</td><td style='text-align: center; word-wrap: break-word;'>商务评审标准</td><td style='text-align: center; word-wrap: break-word;'>本章附表 3</td><td style='text-align: center; word-wrap: break-word;'>第 24.3 条第（1）项</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>16</td><td style='text-align: center; word-wrap: break-word;'>技术评审标准</td><td style='text-align: center; word-wrap: break-word;'>本章附表 4</td><td style='text-align: center; word-wrap: break-word;'>第 24.3 条第（2）项</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>17</td><td style='text-align: center; word-wrap: break-word;'>价格评审标准</td><td style='text-align: center; word-wrap: break-word;'>本章附表 5</td><td style='text-align: center; word-wrap: break-word;'>第 24.3 条第（3）项</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>18</td><td style='text-align: center; word-wrap: break-word;'>非实质性负偏离的项数</td><td style='text-align: center; word-wrap: break-word;'>无要求。</td><td style='text-align: center; word-wrap: break-word;'>第 29.1 条第（2）项</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>19</td><td style='text-align: center; word-wrap: break-word;'>评审方法</td><td style='text-align: center; word-wrap: break-word;'>采购包 1：综合评分法</td><td style='text-align: center; word-wrap: break-word;'>第 23.2 条和第 31.1 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>20</td><td style='text-align: center; word-wrap: break-word;'>质疑受理单位及联系方式</td><td style='text-align: center; word-wrap: break-word;'>受理单位： 联勤保障部队第四采购服务站\\n联系人： 王助理； 封助理\\n联系方式：\\n024-28862188/18909884980；\\n024-28862199/18909884990；\\n邮箱：zhiyishouli@163.com</td><td style='text-align: center; word-wrap: break-word;'>第 44.4 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>21</td><td style='text-align: center; word-wrap: break-word;'>受理、处理投诉申请</td><td style='text-align: center; word-wrap: break-word;'>处理部门： 采购服务站拒收</td><td style='text-align: center; word-wrap: break-word;'>第 45.4 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>部门及联系方式</td><td style='text-align: center; word-wrap: break-word;'>质疑函或者未在规定期限内作出答复，以及对采购服务站质疑答复及处理结果不满意的，质疑供应商可以在质疑答复期满之日起15个工作日内，向上级采购管理部门提出书面投诉。\\n联系人： 李助理； 杨助理；\\n董助理\\n联系方式： 027-59561755；\\n027-59561763； 027-59561765</td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>22</td><td style='text-align: center; word-wrap: break-word;'>受理、处理投诉复议申请部门及联系方式</td><td style='text-align: center; word-wrap: break-word;'>处理部门： 投诉人对采购管理部门作出的投诉处理决定不服，可以自收到投诉处理决定书之日起15个工作日内，向军委后勤保障部采购服务中心提出投诉复议申请。\\n联系人： 李助理\\n联系方式：\\n010-66945693/010-63864550</td><td style='text-align: center; word-wrap: break-word;'>第 46.4 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>23</td><td style='text-align: center; word-wrap: break-word;'>其他补充内容</td><td style='text-align: center; word-wrap: break-word;'>采购包 1：允许供应商超品目限价报价\\n1.评审专家须独立评审，先评主观分、再评客观分。\\n2.关键性技术指标参数前标记“★”符号。一般性指标参数前不作标记。“★”号条款均为实质性响应指标要求，应当全部响应。若有一项带“★”条款未响应或不满足，均视为非实质性响应招标文件，按无效投标处理。带“★”条款需提供技术支持材料（以具体项目为准，技术支持材料可以从（不限于）以下支持材料选择：产品规格表、产品宣传彩页、技术白皮书、制造商官方网站发布的产品信息、说明书等或检测机构出具的检测报告等技术材料支持的。技术要求中已明确需提供证明材料的，以明确的内容为准。）。\\n3.标“▲”的重要指标参数存在正偏离、一般性指标参数存</td><td style='text-align: center; word-wrap: break-word;'>第 49 条</td></tr><tr><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>在正偏离需加分的，投标供应商必须提供相关证明材料（以具体项目为准，技术支持材料可以从（不限于）以下支持材料选择：产品规格表、产品宣传彩页、技术白皮书、制造商官方网站发布的产品信息、说明书等或检测机构出具的检测报告等技术材料支持的。技术要求中已明确需提供证明材料的，以明确的内容为准。）。另外，针对产品规格表、产品宣传彩页、技术白皮书等缺少规定格式的证明材料，须加盖生产厂家公章，否则不予加分。\\n4.供应商投标（报价）文件制作问题提示指南见附件。</td><td style='text-align: center; word-wrap: break-word;'></td></tr></table>",
+     "images": {}
+    }
+   },
+   {
+    "prunedResult": {
+     "page_count": null,
+     "width": 1191,
+     "height": 1684,
+     "model_settings": {
+      "use_doc_preprocessor": false,
+      "use_layout_detection": true,
+      "use_chart_recognition": false,
+      "use_seal_recognition": false,
+      "use_ocr_for_image_block": false,
+      "format_block_content": false,
+      "merge_layout_blocks": true,
+      "markdown_ignore_labels": [
+       "number",
+       "footnote",
+       "header",
+       "header_image",
+       "footer",
+       "footer_image",
+       "aside_text"
+      ],
+      "return_layout_polygon_points": true
+     },
+     "parsing_res_list": [
+      {
+       "block_label": "table",
+       "block_content": "",
+       "block_bbox": [
+        165,
+        144,
+        1024,
+        1520
+       ],
+       "block_id": 0,
+       "block_order": null,
+       "group_id": 0,
+       "global_block_id": 495,
+       "global_group_id": 494
+      }
+     ]
+    },
+    "markdown": {
+     "text": "\n",
+     "images": {}
+    }
+   },
+   {
+    "prunedResult": {
+     "page_count": null,
+     "width": 1191,
+     "height": 1684,
+     "model_settings": {
+      "use_doc_preprocessor": false,
+      "use_layout_detection": true,
+      "use_chart_recognition": false,
+      "use_seal_recognition": false,
+      "use_ocr_for_image_block": false,
+      "format_block_content": false,
+      "merge_layout_blocks": true,
+      "markdown_ignore_labels": [
+       "number",
+       "footnote",
+       "header",
+       "header_image",
+       "footer",
+       "footer_image",
+       "aside_text"
+      ],
+      "return_layout_polygon_points": true
+     },
+     "parsing_res_list": [
+      {
+       "block_label": "table",
+       "block_content": "",
+       "block_bbox": [
+        167,
+        137,
+        1024,
+        1521
+       ],
+       "block_id": 0,
+       "block_order": null,
+       "group_id": 0,
+       "global_block_id": 496,
+       "global_group_id": 494
+      }
+     ]
+    },
+    "markdown": {
+     "text": "\n",
+     "images": {}
+    }
+   },
+   {
+    "prunedResult": {
+     "page_count": null,
+     "width": 1191,
+     "height": 1684,
+     "model_settings": {
+      "use_doc_preprocessor": false,
+      "use_layout_detection": true,
+      "use_chart_recognition": false,
+      "use_seal_recognition": false,
+      "use_ocr_for_image_block": false,
+      "format_block_content": false,
+      "merge_layout_blocks": true,
+      "markdown_ignore_labels": [
+       "number",
+       "footnote",
+       "header",
+       "header_image",
+       "footer",
+       "footer_image",
+       "aside_text"
+      ],
+      "return_layout_polygon_points": true
+     },
+     "parsing_res_list": [
+      {
+       "block_label": "table",
+       "block_content": "",
+       "block_bbox": [
+        167,
+        140,
+        1022,
+        707
+       ],
+       "block_id": 0,
+       "block_order": null,
+       "group_id": 0,
+       "global_block_id": 497,
+       "global_group_id": 494
+      },
+      {
+       "block_label": "paragraph_title",
+       "block_content": "附表1 资格性审查表",
+       "block_bbox": [
+        178,
+        720,
+        444,
+        754
+       ],
+       "block_id": 1,
+       "block_order": 1,
+       "group_id": 1,
+       "global_block_id": 498,
+       "global_group_id": 498
+      },
+      {
+       "block_label": "text",
+       "block_content": "采购包1：",
+       "block_bbox": [
+        178,
+        833,
+        265,
+        857
+       ],
+       "block_id": 2,
+       "block_order": 2,
+       "group_id": 2,
+       "global_block_id": 499,
+       "global_group_id": 499
+      },
+      {
+       "block_label": "paragraph_title",
+       "block_content": "资格性审查表",
+       "block_bbox": [
+        484,
+        779,
+        707,
+        821
+       ],
+       "block_id": 3,
+       "block_order": 3,
+       "group_id": 3,
+       "global_block_id": 500,
+       "global_group_id": 500
+      },
+      {
+       "block_label": "table",
+       "block_content": "<table><tr><td>序号</td><td>审查项目</td><td>具体要求</td><td>响应格式</td></tr><tr><td colspan=\"4\">一、一般资格审查</td></tr><tr><td>1</td><td>营业执照或事业单位法人证书满足招标文件要求</td><td>企业法人应当提供“统一社会信用代码营业执照”，未换证的应当提供“营业执照、税务登记证和组织机构代码证”；事业单位应当提供“统一社会信用代码法人登记书”，未换证的应当提供“事业法人登记证书和组织机构代码证”；军队单位不作要求。投标供应商在资格证明文件中如有两个以上名称的，应当提供市场监管部门出具的其为同一单位书面证明材料；军队单位或事业单位，可以提供其上级主管部门出具的书面证明材料。</td><td>营业执照</td></tr><tr><td>2</td><td>法定代表人资格证明书</td><td>-</td><td>法定代表人资格证明书</td></tr><tr><td>3</td><td>法定代表人授权书（含授权代表在投标前4个月内（不含投标当月）连续3个月由投标供应商缴纳社</td><td>-</td><td>法定代表人授权书</td></tr><tr><td></td><td>保证明材料）</td><td></td><td></td></tr><tr><td>4</td><td>至申领招标文件截止时间，供应商成立时间不少于3年</td><td>国有企业、事业单位、军队单位除外</td><td>营业执照</td></tr><tr><td>5</td><td>供应商承诺声明</td><td>承诺声明应当包含：供应商诚信承诺、保密承诺、诚信责任保证金承诺、未被列入违法失信名单承诺、关联关系企业不参与采购活动承诺、前3年没有重大违法记录的书面声明、没有发生过重大质量安全事故的书面声明、非外资独资企业或控股企业的书面声明、具备履约专业能力的书面声明。</td><td>供应商承诺声明</td></tr><tr><td>6</td><td>投标供应商近一年内（投标截止时间前）任意6个月纳税证明材料</td><td>根据税务部门出具的完税凭证或纳税的银行转账汇款单、对账单等判定，证明材料应当显示税种和缴纳所属时期（认定税种不包括个人所得税）；军队单位不作要求；如依法免税或不需要纳税的，提供相应证明材料。</td><td>纳税证明材料</td></tr><tr><td>7</td><td>投标供应商近一年内（投标截止时间前）任意6个月缴纳社会保障金证明材料</td><td>根据银行转账汇款单或社保（税务）部门出具的缴纳社会保障金的凭证判定，证明材料应当显示险种和缴纳所属时期；不需要缴纳社会保障金的投标供应商，应当提供相关证明材料或书面声明。代缴社保证明材料不予认可。</td><td>缴纳社会保障金证明材料</td></tr><tr><td>8</td><td>投标供应商提供会计师事务所出具的近3年审计报告</td><td>审计报告应当包含报告正文、资产负债表、利润表、现金流量表及所有者权益变动表（无所有者权益表的提供书面说明）、附注和会计师事务所营业执照，报告正文应当有会计师事务所公章，2个注册会计师的签字和盖章。军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算或内部会计报表代替。军队单位、事业单位和国有企业成立不足3年的，按实际年限提供。</td><td>近3年会计师事务所出具的审计报告</td></tr><tr><td>9</td><td>投标保证金满足招标文件要求</td><td>根据投标截止后采购机构现场公布投标保证金缴纳情况或投标文件中投标保证金缴纳证明材料情况判定</td><td>投标保证金缴纳证明材料</td></tr><tr><td>序号</td><td>审查项目</td><td>具体要求</td><td>响应格式</td></tr><tr><td colspan=\"4\">二、特定资格审查</td></tr><tr><td>1</td><td>其他特定项目资格条件</td><td>供应商需对保证金追溯、使用受处罚</td><td>供应商承诺声明</td></tr><tr><td></td><td></td><td>供应商产品声明进行承诺。</td><td>（保证金追溯和使用受处罚供应商产品）</td></tr><tr><td>2</td><td>投标供应商保密资质</td><td>1.供应商必须具有武器装备科研生产单位保密资格二级（含）以上证书或涉密信息系统集成资质乙级（含）以上证书。\\n2.说明：涉密证书无法线上提交的，须将加盖公章的涉密证书复印件用密封袋单独密封，并在密封袋表面注明“项目名称、项目编号、所投包号、投标供应商名称”，在投标文件递交截止时间前递交。在未按上述要求提供的拒收。</td><td>特殊资质</td></tr></table>",
+       "block_bbox": [
+        168,
+        859,
+        1003,
+        1519
+       ],
+       "block_id": 4,
+       "block_order": null,
+       "group_id": 4,
+       "global_block_id": 501,
+       "global_group_id": 501
+      }
+     ]
+    },
+    "markdown": {
+     "text": "\n\n\n#### 附表1 资格性审查表\n\n采购包1：\n\n### 资格性审查表\n\n\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td style='text-align: center; word-wrap: break-word;'>序号</td><td style='text-align: center; word-wrap: break-word;'>审查项目</td><td style='text-align: center; word-wrap: break-word;'>具体要求</td><td style='text-align: center; word-wrap: break-word;'>响应格式</td></tr><tr><td colspan=\"4\">一、一般资格审查</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>1</td><td style='text-align: center; word-wrap: break-word;'>营业执照或事业单位法人证书满足招标文件要求</td><td style='text-align: center; word-wrap: break-word;'>企业法人应当提供“统一社会信用代码营业执照”，未换证的应当提供“营业执照、税务登记证和组织机构代码证”；事业单位应当提供“统一社会信用代码法人登记书”，未换证的应当提供“事业法人登记证书和组织机构代码证”；军队单位不作要求。投标供应商在资格证明文件中如有两个以上名称的，应当提供市场监管部门出具的其为同一单位书面证明材料；军队单位或事业单位，可以提供其上级主管部门出具的书面证明材料。</td><td style='text-align: center; word-wrap: break-word;'>营业执照</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>2</td><td style='text-align: center; word-wrap: break-word;'>法定代表人资格证明书</td><td style='text-align: center; word-wrap: break-word;'>-</td><td style='text-align: center; word-wrap: break-word;'>法定代表人资格证明书</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>3</td><td style='text-align: center; word-wrap: break-word;'>法定代表人授权书（含授权代表在投标前4个月内（不含投标当月）连续3个月由投标供应商缴纳社</td><td style='text-align: center; word-wrap: break-word;'>-</td><td style='text-align: center; word-wrap: break-word;'>法定代表人授权书</td></tr><tr><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>保证明材料）</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td></tr><tr><td style='text-align: center; word-wrap: break-word;'>4</td><td style='text-align: center; word-wrap: break-word;'>至申领招标文件截止时间，供应商成立时间不少于3年</td><td style='text-align: center; word-wrap: break-word;'>国有企业、事业单位、军队单位除外</td><td style='text-align: center; word-wrap: break-word;'>营业执照</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>5</td><td style='text-align: center; word-wrap: break-word;'>供应商承诺声明</td><td style='text-align: center; word-wrap: break-word;'>承诺声明应当包含：供应商诚信承诺、保密承诺、诚信责任保证金承诺、未被列入违法失信名单承诺、关联关系企业不参与采购活动承诺、前3年没有重大违法记录的书面声明、没有发生过重大质量安全事故的书面声明、非外资独资企业或控股企业的书面声明、具备履约专业能力的书面声明。</td><td style='text-align: center; word-wrap: break-word;'>供应商承诺声明</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>6</td><td style='text-align: center; word-wrap: break-word;'>投标供应商近一年内（投标截止时间前）任意6个月纳税证明材料</td><td style='text-align: center; word-wrap: break-word;'>根据税务部门出具的完税凭证或纳税的银行转账汇款单、对账单等判定，证明材料应当显示税种和缴纳所属时期（认定税种不包括个人所得税）；军队单位不作要求；如依法免税或不需要纳税的，提供相应证明材料。</td><td style='text-align: center; word-wrap: break-word;'>纳税证明材料</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>7</td><td style='text-align: center; word-wrap: break-word;'>投标供应商近一年内（投标截止时间前）任意6个月缴纳社会保障金证明材料</td><td style='text-align: center; word-wrap: break-word;'>根据银行转账汇款单或社保（税务）部门出具的缴纳社会保障金的凭证判定，证明材料应当显示险种和缴纳所属时期；不需要缴纳社会保障金的投标供应商，应当提供相关证明材料或书面声明。代缴社保证明材料不予认可。</td><td style='text-align: center; word-wrap: break-word;'>缴纳社会保障金证明材料</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>8</td><td style='text-align: center; word-wrap: break-word;'>投标供应商提供会计师事务所出具的近3年审计报告</td><td style='text-align: center; word-wrap: break-word;'>审计报告应当包含报告正文、资产负债表、利润表、现金流量表及所有者权益变动表（无所有者权益表的提供书面说明）、附注和会计师事务所营业执照，报告正文应当有会计师事务所公章，2个注册会计师的签字和盖章。军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算或内部会计报表代替。军队单位、事业单位和国有企业成立不足3年的，按实际年限提供。</td><td style='text-align: center; word-wrap: break-word;'>近3年会计师事务所出具的审计报告</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>9</td><td style='text-align: center; word-wrap: break-word;'>投标保证金满足招标文件要求</td><td style='text-align: center; word-wrap: break-word;'>根据投标截止后采购机构现场公布投标保证金缴纳情况或投标文件中投标保证金缴纳证明材料情况判定</td><td style='text-align: center; word-wrap: break-word;'>投标保证金缴纳证明材料</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>序号</td><td style='text-align: center; word-wrap: break-word;'>审查项目</td><td style='text-align: center; word-wrap: break-word;'>具体要求</td><td style='text-align: center; word-wrap: break-word;'>响应格式</td></tr><tr><td colspan=\"4\">二、特定资格审查</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>1</td><td style='text-align: center; word-wrap: break-word;'>其他特定项目资格条件</td><td style='text-align: center; word-wrap: break-word;'>供应商需对保证金追溯、使用受处罚</td><td style='text-align: center; word-wrap: break-word;'>供应商承诺声明</td></tr><tr><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>供应商产品声明进行承诺。</td><td style='text-align: center; word-wrap: break-word;'>（保证金追溯和使用受处罚供应商产品）</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>2</td><td style='text-align: center; word-wrap: break-word;'>投标供应商保密资质</td><td style='text-align: center; word-wrap: break-word;'>1.供应商必须具有武器装备科研生产单位保密资格二级（含）以上证书或涉密信息系统集成资质乙级（含）以上证书。\\n2.说明：涉密证书无法线上提交的，须将加盖公章的涉密证书复印件用密封袋单独密封，并在密封袋表面注明“项目名称、项目编号、所投包号、投标供应商名称”，在投标文件递交截止时间前递交。在未按上述要求提供的拒收。</td><td style='text-align: center; word-wrap: break-word;'>特殊资质</td></tr></table>",
+     "images": {}
+    }
+   }
+  ],
+  "dataInfo": {
+   "numPages": 4,
+   "pages": [
+    {
+     "width": 1191,
+     "height": 1684
+    },
+    {
+     "width": 1191,
+     "height": 1684
+    },
+    {
+     "width": 1191,
+     "height": 1684
+    },
+    {
+     "width": 1191,
+     "height": 1684
+    }
+   ],
+   "type": "pdf"
+  }
+ },
+ "errorCode": 0,
+ "errorMsg": "Success"
+}

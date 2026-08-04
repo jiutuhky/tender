@@ -18,12 +18,16 @@ from hagent.assets.model import AssetEvent, DocumentRecord, MatrixItem, MatrixSt
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS documents (
-    id            TEXT PRIMARY KEY,
-    project_id    TEXT NOT NULL,
-    path          TEXT NOT NULL,
-    sha256        TEXT NOT NULL,
-    doc_type      TEXT,
-    registered_at TEXT NOT NULL
+    id             TEXT PRIMARY KEY,
+    project_id     TEXT NOT NULL,
+    path           TEXT NOT NULL,
+    sha256         TEXT NOT NULL,
+    doc_type       TEXT,
+    registered_at  TEXT NOT NULL,
+    -- 原件与预览版按内容寻址存在 workspace 之外（hagent.ingest.blobs）；
+    -- 二者为空即该文档没有 PDF 原件（历史项目、开发期 .md 语料），溯源走 md 降级
+    origin_sha256  TEXT,
+    preview_sha256 TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_project_sha
     ON documents(project_id, sha256);
@@ -114,6 +118,15 @@ class AssetStore:
             # 回滚日志模式下并发读写互斥面太大
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(_SCHEMA)
+            self._migrate(conn)
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """增量补列：已有对象库不重建，缺的列补空——旧文档就是「没有 PDF 原件」。"""
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(documents)")}
+        for column in ("origin_sha256", "preview_sha256"):
+            if column not in existing:
+                conn.execute(f"ALTER TABLE documents ADD COLUMN {column} TEXT")
 
     def _connect(self) -> sqlite3.Connection:
         # 每次调用新建连接：sqlite3.Connection 不能跨 FastAPI threadpool 线程共享
@@ -163,6 +176,23 @@ class AssetStore:
             "INSERT INTO documents (id, project_id, path, sha256, doc_type, registered_at) "
             "VALUES (?, ?, ?, ?, ?, ?)",
             (doc_id, project_id, path, sha256, doc_type, registered_at),
+        )
+
+    def get_document(self, conn: sqlite3.Connection, doc_id: str) -> DocumentRecord | None:
+        row = conn.execute("SELECT * FROM documents WHERE id = ?", (doc_id,)).fetchone()
+        return self._row_to_document(row) if row is not None else None
+
+    def set_document_blobs(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        doc_id: str,
+        origin_sha256: str | None,
+        preview_sha256: str | None,
+    ) -> None:
+        conn.execute(
+            "UPDATE documents SET origin_sha256 = ?, preview_sha256 = ? WHERE id = ?",
+            (origin_sha256, preview_sha256, doc_id),
         )
 
     def list_documents(
@@ -581,6 +611,8 @@ class AssetStore:
             sha256=row["sha256"],
             doc_type=row["doc_type"],
             registered_at=row["registered_at"],
+            origin_sha256=row["origin_sha256"],
+            preview_sha256=row["preview_sha256"],
             created=False,
         )
 

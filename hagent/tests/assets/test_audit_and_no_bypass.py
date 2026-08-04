@@ -13,6 +13,7 @@ OBJECT_TABLES = ("documents", "matrices", "matrix_items", "matrix_revisions", "a
 
 STORE_WRITE_METHODS = (
     "insert_document",
+    "set_document_blobs",
     "insert_matrix",
     "update_matrix",
     "insert_item",

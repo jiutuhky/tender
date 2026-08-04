@@ -13,6 +13,7 @@ from functools import wraps
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from hagent.assets.errors import AssetError, ConflictError
@@ -34,7 +35,10 @@ from hagent.assets.schemas import (
     query_items_model,
 )
 from hagent.assets.service import get_asset_service
+from hagent.ingest.blobs import BLOB_KIND_PREVIEW, get_blob_store
+from hagent.ingest.paths import sidecar_path_for
 from hagent.server.auth import require_api_key
+from hagent.server.project_workspace import get_project_workspace
 from hagent.server.projects import get_project_store
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
@@ -42,7 +46,7 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 _USER = Actor(kind="user")
 
 # service 错误码 → HTTP 状态；未列码默认 400（客户端参数/状态问题）
-_NOT_FOUND_CODES = {"item_not_found", "matrix_empty"}
+_NOT_FOUND_CODES = {"item_not_found", "matrix_empty", "document_not_found"}
 
 
 def _http_error(exc: AssetError) -> HTTPException:
@@ -148,6 +152,51 @@ def list_documents(
     _require_project(pid)
     documents, total = get_asset_service().list_documents(pid, limit=limit, offset=offset)
     return document_page_model(documents, total, limit=limit, offset=offset)
+
+
+@router.get("/projects/{pid}/documents/{doc_id}/preview")
+@_translate_errors
+def read_document_preview(pid: str, doc_id: str) -> Response:
+    """预览版 PDF 字节流：溯源预览层的载体。
+
+    预览版按 sha256 存在 project workspace 之外（不进 git），页数与逐页页面尺寸
+    与原件逐页一致——sidecar 的归一化 bbox 正是按这套几何算出来的。没有 PDF 原件
+    的文档（历史项目、开发期 `.md` 语料）在此 404，前端据此降级到 md 预览。
+    """
+    _require_project(pid)
+    document = get_asset_service().get_document(pid, doc_id)
+    if document.preview_sha256 is None:
+        raise HTTPException(status_code=404, detail="document has no preview")
+    try:
+        content = get_blob_store().get(BLOB_KIND_PREVIEW, document.preview_sha256)
+    except OSError as exc:
+        raise HTTPException(status_code=404, detail="preview blob not found") from exc
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"ETag": f'"{document.preview_sha256}"'},
+    )
+
+
+@router.get("/projects/{pid}/documents/{doc_id}/sidecar")
+@_translate_errors
+def read_document_sidecar(pid: str, doc_id: str) -> Response:
+    """sidecar JSON：md 行号 → 版面块 →(页码, 归一化矩形) 的映射。
+
+    与 md 同目录进 git，故从 workspace 读。缺失即 404——前端据此显示
+    「原文映射失效」黄条，照常打开 PDF 但不滚动不高亮。
+    """
+    _require_project(pid)
+    document = get_asset_service().get_document(pid, doc_id)
+    try:
+        content = get_project_workspace().read_file(pid, sidecar_path_for(document.path))
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail="sidecar not found") from exc
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"ETag": f'"{document.sha256}"'},
+    )
 
 
 # —— 人工动作（audit actor_kind=user） ——

@@ -9,6 +9,8 @@ from pathlib import PurePosixPath
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
+from hagent.ingest.pipeline import UploadRejected, check_upload
+from hagent.ingest.tasks import get_ingest_registry
 from hagent.server.auth import require_api_key
 from hagent.server.project_workspace import get_project_workspace
 from hagent.server.projects import get_project_store
@@ -50,6 +52,29 @@ def _normalize_read_path(path: str) -> str:
     return PurePosixPath(path).as_posix()
 
 
+def _accept_pdf(pid: str, relative_path: str, data: bytes) -> dict:
+    """PDF 不进 workspace：原件按 sha256 存到 git 之外，仓内只留 OCR 出的 md 与 sidecar。
+
+    页数与体积的硬上限在这里判——超限**立即明确报错**，不让用户等一个注定失败的
+    漫长解析。通过后就地起后台解析任务，本请求立即返回。
+    """
+    try:
+        total_pages = check_upload(data, relative_path)
+    except UploadRejected as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    job = get_ingest_registry().submit(
+        pid, data=data, pdf_path=relative_path, total_pages=total_pages
+    )
+    return {
+        "path": job.pdf_path,
+        "size": len(data),
+        "revision": None,
+        "sandbox_synced": False,
+        "parsing": {"pages": total_pages},
+    }
+
+
 @router.post("/projects/{pid}/files")
 async def upload_project_file(
     pid: str,
@@ -59,6 +84,10 @@ async def upload_project_file(
     _require_project(pid)
     relative_path = _normalize_upload_path(path, file.filename)
     data = await file.read()
+
+    if relative_path.lower().endswith(".pdf"):
+        return _accept_pdf(pid, relative_path, data)
+
     workspace = get_project_workspace()
     try:
         workspace.apply_changes(pid, updated={relative_path: data}, deleted=())

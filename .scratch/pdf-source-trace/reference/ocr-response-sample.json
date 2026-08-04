@@ -1,0 +1,301 @@
+{
+  "logId": "d63e9fa6-d132-4c05-b531-7d6cc8d7f1dd",
+  "result": {
+    "layoutParsingResults": [
+      {
+        "prunedResult": {
+          "page_count": null,
+          "width": 1190,
+          "height": 1684,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": true,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "doc_title",
+              "block_content": "Tender Document Sample",
+              "block_bbox": [
+                142,
+                124,
+                706,
+                175
+              ],
+              "block_id": 0,
+              "block_order": 1,
+              "group_id": 0,
+              "block_polygon_points": [
+                [
+                  142.0,
+                  124.0
+                ],
+                [
+                  706.0,
+                  124.0
+                ],
+                [
+                  706.0,
+                  175.0
+                ],
+                [
+                  142.0,
+                  175.0
+                ]
+              ]
+            },
+            {
+              "block_label": "paragraph_title",
+              "block_content": "1. Scope of Procurement",
+              "block_bbox": [
+                142,
+                222,
+                414,
+                251
+              ],
+              "block_id": 1,
+              "block_order": 2,
+              "group_id": 1,
+              "block_polygon_points": [
+                [
+                  142.0,
+                  222.0
+                ],
+                [
+                  414.0,
+                  222.0
+                ],
+                [
+                  414.0,
+                  251.0
+                ],
+                [
+                  142.0,
+                  251.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "The supplier shall deliver the simulation software within 90 days.",
+              "block_bbox": [
+                141,
+                263,
+                827,
+                292
+              ],
+              "block_id": 2,
+              "block_order": 3,
+              "group_id": 2,
+              "block_polygon_points": [
+                [
+                  141.0,
+                  263.0
+                ],
+                [
+                  827.0,
+                  263.0
+                ],
+                [
+                  827.0,
+                  292.0
+                ],
+                [
+                  141.0,
+                  292.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "2. Evaluation Method",
+              "block_bbox": [
+                140,
+                303,
+                374,
+                331
+              ],
+              "block_id": 3,
+              "block_order": 4,
+              "group_id": 3,
+              "block_polygon_points": [
+                [
+                  140.0,
+                  303.0
+                ],
+                [
+                  374.0,
+                  303.0
+                ],
+                [
+                  374.0,
+                  331.0
+                ],
+                [
+                  140.0,
+                  331.0
+                ]
+              ]
+            },
+            {
+              "block_label": "table",
+              "block_content": "<table><tr><td>Item</td><td>Weight</td><td>Rule</td></tr><tr><td>Price</td><td>30</td><td>Lowest price gets full mark</td></tr><tr><td>Technical</td><td>50</td><td>Expert scoring</td></tr><tr><td>Comm…（截断）",
+              "block_bbox": [
+                141,
+                349,
+                633,
+                471
+              ],
+              "block_id": 4,
+              "block_order": null,
+              "group_id": 4,
+              "block_polygon_points": [
+                [
+                  141.0,
+                  349.0
+                ],
+                [
+                  633.0,
+                  349.0
+                ],
+                [
+                  633.0,
+                  471.0
+                ],
+                [
+                  141.0,
+                  471.0
+                ]
+              ]
+            },
+            {
+              "block_label": "text",
+              "block_content": "3. Substantive Clause (star): bid bond must be paid before deadline.",
+              "block_bbox": [
+                139,
+                522,
+                870,
+                552
+              ],
+              "block_id": 5,
+              "block_order": 5,
+              "group_id": 5,
+              "block_polygon_points": [
+                [
+                  139.0,
+                  522.0
+                ],
+                [
+                  870.0,
+                  522.0
+                ],
+                [
+                  870.0,
+                  552.0
+                ],
+                [
+                  139.0,
+                  552.0
+                ]
+              ]
+            }
+          ],
+          "layout_det_res": {
+            "boxes": [
+              {
+                "cls_id": 6,
+                "label": "doc_title",
+                "score": 0.5842462778091431,
+                "coordinate": [
+                  142,
+                  124,
+                  706,
+                  175
+                ],
+                "order": 1,
+                "polygon_points": [
+                  [
+                    142.0,
+                    124.0
+                  ],
+                  [
+                    706.0,
+                    124.0
+                  ],
+                  [
+                    706.0,
+                    175.0
+                  ],
+                  [
+                    142.0,
+                    175.0
+                  ]
+                ]
+              },
+              {
+                "cls_id": 17,
+                "label": "paragraph_title",
+                "score": 0.6642758846282959,
+                "coordinate": [
+                  142,
+                  222,
+                  414,
+                  251
+                ],
+                "order": 2,
+                "polygon_points": [
+                  [
+                    142.0,
+                    222.0
+                  ],
+                  [
+                    414.0,
+                    222.0
+                  ],
+                  [
+                    414.0,
+                    251.0
+                  ],
+                  [
+                    142.0,
+                    251.0
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "markdown": {
+          "text": "# Tender Document Sample\n\n### 1. Scope of Procurement\n\nThe supplier shall deliver the simulation software within 90 days.\n\n2. Evaluation Method\n\n\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td style='text-align: center; word-wrap: break-word;'>Item</td><td style='text-align: center; word-wrap: break-word;'>Weight</td><td style='text-align: center; word-wrap: break-word;'>Rule…（截断）",
+          "images": {}
+        }
+      }
+    ],
+    "dataInfo": {
+      "numPages": 1,
+      "pages": [
+        {
+          "width": 1190,
+          "height": 1684
+        }
+      ],
+      "type": "pdf"
+    }
+  },
+  "errorCode": 0,
+  "errorMsg": "Success"
+}

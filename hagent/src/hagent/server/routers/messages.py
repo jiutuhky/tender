@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from hagent.hooks.events import HookEvent
+from hagent.ingest.tasks import get_ingest_registry
 from hagent.server.agents import get_or_build_agent
 from hagent.server.auth import require_api_key
 from hagent.server.hooks_registry import (
@@ -115,11 +116,73 @@ def _task_store_todos(agent: Any) -> list[dict[str, Any]] | None:
         return None
 
 
+#: 等待入库任务时的进度轮询间隔（秒）——OCR 实测约 1 s/页，无需更密
+INGEST_POLL_SECONDS = 0.5
+
+
+def _stream_ingest_progress(fmt: SSEFormatter, project_id: str | None) -> Iterator[bytes]:
+    """把该 project 在跑的原文解析等完，其间沿本流上报「原文解析 N/M 页」。
+
+    解析失败不拦消息：失败页在 md 里已留占位，整份文档不作废——把失败如实报出来，
+    agent 照常起跑。
+    """
+    if not project_id:
+        return
+    job = get_ingest_registry().claim(project_id)
+    if job is None:
+        return
+
+    reported: tuple[int, int] | None = None
+    while True:
+        progress = job.progress
+        current = (progress.done, progress.total)
+        if current != reported:
+            reported = current
+            yield fmt.format(
+                event="ingest.progress",
+                data={
+                    "project_id": project_id,
+                    "path": job.pdf_path,
+                    "done": progress.done,
+                    "total": progress.total,
+                    "label": f"原文解析 {progress.done}/{progress.total} 页",
+                },
+            )
+        if job.wait(INGEST_POLL_SECONDS):
+            break
+
+    if job.error is not None:
+        yield fmt.format(
+            event="ingest.failed",
+            data={"project_id": project_id, "message": str(job.error)},
+        )
+        return
+
+    result = job.result
+    yield fmt.format(
+        event="ingest.completed",
+        data={
+            "project_id": project_id,
+            "document_id": result.document_id if result else None,
+            "markdown_path": result.markdown_path if result else None,
+            "sidecar_path": result.sidecar_path if result else None,
+            "failed_pages": list(result.failed_pages) if result else [],
+        },
+    )
+    # md 与 sidecar 刚落 canonical workspace，租约活跃时补一次注入，
+    # 让 agent 在 VM 里看得到（失败留待下一轮 ensure 追平）
+    try:
+        get_session_manager().sync_project_workspace(project_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("project %s 解析后注入 VM 失败(留待追平): %s", project_id, exc)
+
+
 def _stream_agent_events(
     agent: Any,
     content: str,
     thread_id: str,
     *,
+    project_id: str | None = None,
     run_id: str | None = None,
     checkpoint: CheckpointCallback | None = None,
 ) -> Iterator[bytes]:
@@ -127,6 +190,9 @@ def _stream_agent_events(
     tool_call_states: dict[str, dict[int, dict[str, str]]] = {"": {}}
     # 简版 transcript：累积主图（非子代理 namespace）的 assistant 增量
     assistant_parts: list[str] = []
+    # OCR 是上传后的确定性前置任务：md 与 sidecar 就绪后才起 agent。进度沿本条
+    # 既有通道上报，不另开通道。
+    yield from _stream_ingest_progress(fmt, project_id)
     # 后台线程积压的 sandbox 生命周期事件先冲刷(Task B7):前端在 agent
     # 输出前得知 orphaned/health_fail/evicted 等状态变化
     for sandbox_event in drain_sandbox_events(thread_id):
@@ -329,6 +395,7 @@ def post_message(sid: str, body: MessageBody) -> StreamingResponse:
             agent,
             content,
             thread_id=sid,
+            project_id=s.project_id,
             run_id=run.id,
             checkpoint=lambda **kwargs: manager.checkpoint_run(
                 run.id,

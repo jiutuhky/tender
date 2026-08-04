@@ -51,6 +51,9 @@ interface SSEEvent {
 | `tool_call.started` | LangGraph `messages` 流 | 高频 | 工具调用名 + 入参分片（流式） |
 | `tool_call.completed` | LangGraph `messages` 流 | 每个工具一次 | 工具执行结果 |
 | `todo.updated` | 路由层拦截后合成 | 任务工具完成时 | 全量 Todo 列表快照 |
+| `ingest.progress` | 消息路由层（PDF 入库前置任务） | 解析中每批一次 | 「原文解析 N/M 页」 |
+| `ingest.completed` | 消息路由层 | 每份 PDF 一次 | 解析收尾，md 与 sidecar 就绪 |
+| `ingest.failed` | 消息路由层 | 解析整体失败时一次 | 解析失败原因（不拦消息） |
 | `interrupt.requested` | LangGraph `updates` 流 | 偶发 | 智能体请求人工介入（HITL） |
 | `run.started` | 消息路由层 | 每流一次 | 对话轮已登记为 `chat_turn` Run |
 | `workspace.checkpointed` | 轮末 checkpoint 管道 | 有文件提交时一次 | 项目工作区成果已持久化到 host git |
@@ -186,6 +189,29 @@ type ContentBlock =
 > 现状：后端 `/sessions/{sid}/interrupt` 端点（`InterruptBody: {interrupt_id, decision, reason?}`）为 **MVP 占位**，收到后返回 `{ok: true, session_id: <sid>, decision: <回显>}`，**不会真正 resume** 智能体。前端可展示中断意图，但恢复链路尚未打通。
 >
 > 注意：`decision` 在后端为任意 `str`（**不做枚举校验**，`messages.py:166`）；`approve|reject|edit|respond` 只是前端 `postInterrupt`（`hagent_api.ts`）的约定取值，并非后端契约。
+
+### 4.5.1 `ingest.*` — 招标文件原文解析（PDF 入库前置任务）
+
+上传 PDF 后，服务端把 OCR 作为**上传后的确定性前置异步任务**跑起来（不是 agent 工具调用）。解析进度沿本条消息流上报，**不新开通道**；三个事件都出现在 `run.started` 之前——**md 与 sidecar 就绪后才起 agent**。
+
+```ts
+// ingest.progress —— 解析中每完成一批发一帧（一批默认 10 页，见 HAGENT_OCR_BATCH_PAGES）；重复值不重发
+{ project_id: string, path: string, done: number, total: number, label: string }  // label 形如「原文解析 12/60 页」
+
+// ingest.completed —— md 与 sidecar 已落 workspace
+{ project_id: string, document_id: string, markdown_path: string,
+  sidecar_path: string, failed_pages: number[] }   // failed_pages 为 0-based 页序
+
+// ingest.failed —— 解析整体失败
+{ project_id: string, message: string }
+```
+
+顺序固定为 `ingest.progress`* → (`ingest.completed` | `ingest.failed`) → `run.started` → …。
+
+- `done` 按批推进，不是逐页跳动；`total` 是整份文档页数。
+- 一份 PDF 的解析结果只上报一次：先到的那条消息流认领它，之后的消息不再重复上报也不再等待。没有待上报的解析时，这三个事件一个都不出现（`.md` 语料路径即如此）。
+- `failed_pages` 非空表示**部分页**解析失败：这些页在 md 里留有可识别占位、sidecar 不产出其条目，其余页照常可用，整份文档不作废。
+- `ingest.failed` 不阻断消息：agent 照常起跑，前端据此提示原文可能缺失。
 
 ### 4.6 `run.started` — Run 已开始
 

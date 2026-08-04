@@ -64,6 +64,9 @@ class DocumentRecord:
     sha256: str
     doc_type: str | None
     registered_at: str
+    # 原件 / 预览版的 blob 寻址键；同为 None 即该文档没有 PDF 原件（走 md 降级预览）
+    origin_sha256: str | None = None
+    preview_sha256: str | None = None
     created: bool = False  # 本次调用是否新建（幂等命中为 False）；不落库
 
 

@@ -144,6 +144,51 @@ class AssetService:
             actor=actor,
         )
 
+    def get_document(self, project_id: str, doc_id: str) -> DocumentRecord:
+        """按 id 取注册记录；不属于该 project 的一律当不存在（不泄漏跨项目存在性）。"""
+        with self._store.transaction() as conn:
+            record = self._store.get_document(conn, doc_id)
+        if record is None or record.project_id != project_id:
+            raise AssetError(
+                "document_not_found",
+                f"项目 {project_id} 下不存在文档 {doc_id}",
+                hint="用 list_documents 查已注册文档 id",
+            )
+        return record
+
+    def attach_document_blobs(
+        self,
+        project_id: str,
+        doc_id: str,
+        *,
+        origin_sha256: str | None,
+        preview_sha256: str | None,
+        actor: Actor,
+    ) -> DocumentRecord:
+        """给文档挂上原件与预览版的 blob 寻址键（入库管线在 OCR 收尾时调用）。"""
+        record = self.get_document(project_id, doc_id)
+        with self._store.transaction() as conn:
+            self._store.set_document_blobs(
+                conn,
+                doc_id=doc_id,
+                origin_sha256=origin_sha256,
+                preview_sha256=preview_sha256,
+            )
+            self._store.append_event(
+                conn,
+                project_id=project_id,
+                actor_kind=actor.kind,
+                actor_ref=actor.ref,
+                action="attach_document_blobs",
+                target=f"documents/{doc_id}",
+                before={
+                    "origin_sha256": record.origin_sha256,
+                    "preview_sha256": record.preview_sha256,
+                },
+                after={"origin_sha256": origin_sha256, "preview_sha256": preview_sha256},
+            )
+        return self.get_document(project_id, doc_id)
+
     def list_documents(
         self, project_id: str, *, limit: int = 20, offset: int = 0
     ) -> tuple[list[DocumentRecord], int]:

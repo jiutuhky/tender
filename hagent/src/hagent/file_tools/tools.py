@@ -15,6 +15,7 @@ from hagent.file_tools.io import (
 )
 from hagent.file_tools.diff import structured_patch
 from hagent.file_tools.paths import ensure_allowed, expand_file_path
+from hagent.file_tools.readonly import ensure_writable
 from hagent.file_tools.state import FileReadState
 
 LEFT_SINGLE_CURLY_QUOTE = "‘"
@@ -247,6 +248,7 @@ def create_write_tool(
         try:
             path = expand_file_path(file_path, workspace_root)
             ensure_allowed(permissions, "write", path)
+            ensure_writable(path, workspace_root)
         except (PermissionError, ValueError) as exc:
             return f"Error: {exc}"
 
@@ -303,6 +305,7 @@ def create_edit_tool(
         try:
             path = expand_file_path(file_path, workspace_root)
             ensure_allowed(permissions, "write", path)
+            ensure_writable(path, workspace_root)
         except (PermissionError, ValueError) as exc:
             return f"Error: {exc}"
 

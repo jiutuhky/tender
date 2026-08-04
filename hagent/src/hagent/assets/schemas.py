@@ -68,6 +68,10 @@ class DocumentModel(BaseModel):
     sha256: str
     doc_type: str | None
     registered_at: str
+    has_preview: bool = Field(
+        default=False,
+        description="是否有可下发的 PDF 预览版；false 时溯源预览降级到 md 渲染",
+    )
     created: bool = Field(description="本次调用是否新建（同 project+sha256 幂等命中为 false）")
 
 
@@ -137,6 +141,7 @@ def document_model(record: DocumentRecord) -> DocumentModel:
         sha256=record.sha256,
         doc_type=record.doc_type,
         registered_at=record.registered_at,
+        has_preview=record.preview_sha256 is not None,
         created=record.created,
     )
 
