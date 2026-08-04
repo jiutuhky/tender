@@ -3133,18 +3133,14 @@ body {
   background: rgba(18, 24, 34, 0.16);
   /* backdrop-filter 走组件内联（构建期会剥离样式表里的该属性），见 CanvasDrawer.tsx */
 }
-/* 抽屉面板 = 透明容器(票05):表面材质与左投影下沉到子列(.cv-drawer-main /
-   .cv-trace-pane)。加宽因此没有任何背景跳变——「加宽」的全部视觉就是原文面板
-   材质从主列后方滑出到位,transform-only 编排的结构前提。 */
+/* 抽屉面板 = 透明容器:表面材质与左投影下沉到主列(.cv-drawer-main) */
 .cv-drawer-panel {
   position: relative;
   width: min(548px, 100%);
   height: 100%;
   display: flex;
 }
-.cv-drawer-panel.is-trace { width: min(1096px, 100%); }
-/* 主列:头 + 条目列表(+ mock 脚),恒定材质承载者。双栏时定宽 548 不重排——
-   加宽过程中列表零回流零换行,是编排全程不锁输入的底气 */
+/* 主列:头 + 条目列表(+ mock 脚),恒定材质承载者 */
 .cv-drawer-main {
   position: relative;
   z-index: 1;
@@ -3155,7 +3151,6 @@ body {
   background: var(--surface);
   box-shadow: -18px 0 50px rgba(12, 18, 32, 0.18);
 }
-.cv-drawer-panel.is-trace .cv-drawer-main { flex: 0 0 548px; }
 .cv-drawer-head {
   display: flex;
   align-items: center;
@@ -3312,64 +3307,83 @@ body {
   outline-offset: 2px;
 }
 
-/* 原文面板(票05 编排后为全高左列):自带表面材质 + 左投影,z 序低于主列。
-   到场 = 从主列后方滑出(x: 面板宽 → 0),投影随左缘行进,即「抽屉加宽」本身;
-   主列自身的左投影同时落在面板表面上,成为双栏间的深度接缝(列表浮于原文之上)。 */
-.cv-trace-pane {
-  position: relative;
-  z-index: 0;
-  flex: 1 1 0;
-  min-width: 0;
+/* 原文预览层:盖满画布的阅读层。挂在 .cv-drawer(absolute inset:0 / z-30)子级,
+   所以只需在其内部压过面板即可,不必越过任何页面级 fixed 层,也不需要 portal。
+   画布容器带 cursor:grab / touch-action:none,浮层要显式抵消掉。 */
+.cv-trace-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  box-shadow: -18px 0 50px rgba(12, 18, 32, 0.18);
-  border-right: 1px solid var(--separator);
+  align-items: center;
+  justify-content: center;
+  padding: var(--cv-drawer-pad);
+  cursor: default;
+  touch-action: auto;
 }
-/* 窄屏降级(票05):抽屉容器 <1000px 时放不下双栏,原文面板转为抽屉内二级视图。
-   出口收敛到「返回条目」一处(面板头 X 隐藏),避免同屏双重关闭语义;
-   面板材质交由抽屉主列承载,去掉自带投影与右分隔 */
-.cv-trace-secondary {
-  flex: 1;
+.cv-trace-modal-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 24, 34, 0.28);
+  /* backdrop-filter 走组件内联（构建期会剥离样式表里的该属性），见 TraceModal.tsx */
+}
+.cv-trace-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, 100%);
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-3);
 }
-.cv-trace-secondary .cv-trace-pane { box-shadow: none; border-right: 0; }
-.cv-trace-secondary .cv-trace-close { display: none; }
-.cv-trace-back {
+.cv-trace-modal-head {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 9px;
   flex: 0 0 auto;
-  padding: 10px 14px;
-  border: 0;
-  border-bottom: 1px solid var(--separator);
-  background: transparent;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--blue);
-  cursor: pointer;
-  transition: background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
-}
-.cv-trace-back:hover { background: var(--blue-soft); }
-.cv-trace-back:active { transform: scale(0.98); }
-.cv-trace-back:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
-  outline-offset: -2px;
-}
-
-.cv-trace-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-  padding: 11px 14px;
+  padding: 13px 14px 13px 18px;
   border-bottom: 1px solid var(--separator);
   color: var(--label-2);
 }
 .cv-trace-title {
   flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 对照条:预览层盖住条目列表后的补偿 —— 「正在核验什么」+ 人工动作 + 来源步进
+   同屏可用(PRD 故事 5/6)。玻璃一档与下方纸面舞台分层。 */
+.cv-trace-claim {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--separator);
+  background: var(--surface-2);
+}
+.cv-trace-claim-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cv-trace-claim-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+.cv-trace-claim-title {
   min-width: 0;
   font-size: 12.5px;
   font-weight: 600;
@@ -3377,6 +3391,70 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.cv-trace-claim-text {
+  position: relative;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--label-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.cv-trace-claim-text.is-open {
+  display: block;
+  -webkit-line-clamp: none;
+  max-height: 30vh;
+  overflow: auto;
+}
+.cv-trace-claim-toggle {
+  margin-left: 6px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+}
+.cv-trace-claim-toggle:hover { text-decoration: underline; }
+.cv-trace-claim-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cv-trace-claim-foot .cv-item-actions { margin-top: 0; }
+/* 来源步进器:同一条目的多条来源在层内走完,不用退层再找下一枚签 */
+.cv-trace-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+.cv-trace-step button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: var(--surface);
+  color: var(--label-2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+}
+.cv-trace-step button:hover { color: var(--fg); background: var(--surface-3); }
+.cv-trace-step button:active { transform: scale(0.94); }
+.cv-trace-step button:focus-visible {
+  outline: 2px solid rgba(0, 100, 225, .38);
+  outline-offset: 2px;
 }
 .cv-trace-close {
   display: grid;
@@ -3393,11 +3471,28 @@ body {
 }
 .cv-trace-close:hover { color: var(--fg); background: var(--surface-3); }
 .cv-trace-close:active { transform: scale(0.94); }
-.cv-trace-body {
+/* 舞台 = 滚动容器,纸面在其中居中(对齐原型 .pages-viewport.centered)。
+   定位滚动的容器身份在此,TracePanel 里 closest(".cv-trace-stage") 依赖它。 */
+.cv-trace-stage {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 16px 22px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 36px 56px;
+  background: var(--surface-3);
+}
+/* 文档纸面:白纸落在冷灰舞台上 —— 取原型 .page 的纸面质感,但不伪造 A4 分页
+   (源是线性 Markdown 抽取,没有页边界,硬分页会造出一张几十屏高的假页)。 */
+.cv-trace-sheet {
+  width: min(760px, 100%);
+  box-sizing: border-box;
+  padding: 56px 72px 72px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-1);
 }
 
 /* 载入占位:静态骨架行(Frost 禁无限循环动效) */
@@ -3461,27 +3556,98 @@ body {
   color: var(--label);
   line-height: 1.4;
 }
-.cv-trace-doc h1 { font-size: 21px; letter-spacing: -0.01em; margin: 26px 0 10px; }
-.cv-trace-doc h2 { font-size: 17.5px; letter-spacing: -0.005em; margin: 22px 0 8px; }
+/* 版心 ~616px(纸面 760 − 左右各 72),字号阶梯随之抬到原型 .page 的密度 */
+.cv-trace-doc h1 { font-size: 30px; letter-spacing: -0.01em; line-height: 1.3; margin: 20px 0 8px; }
+.cv-trace-doc h2 { font-size: 20px; letter-spacing: -0.005em; margin: 28px 0 10px; }
 /* 原型 h3 起转无衬线小标题 */
-.cv-trace-doc h3 { font-family: var(--font-text); font-size: 13.5px; color: var(--fg-2); margin: 18px 0 8px; }
+.cv-trace-doc h3 { font-family: var(--font-text); font-size: 13.5px; color: var(--fg-2); margin: 20px 0 8px; }
 .cv-trace-doc h4 { font-family: var(--font-text); font-size: 12.5px; color: var(--fg-2); margin: 16px 0 6px; }
 .cv-trace-doc h1:first-child,
-.cv-trace-doc h2:first-child { margin-top: 2px; }
+.cv-trace-doc h2:first-child { margin-top: 0; }
 .cv-trace-doc p { margin: 0 0 11px; overflow-wrap: anywhere; }
 .cv-trace-doc ul,
 .cv-trace-doc ol { padding-left: 22px; margin: 8px 0 14px; }
 .cv-trace-doc li { line-height: 1.7; margin-bottom: 4px; }
+
+/* 行内修饰:旧的手写渲染器产不出这些标签,真管线会产,必须补齐 */
+.cv-trace-doc strong { font-weight: 600; color: var(--label); }
+.cv-trace-doc em { font-style: italic; }
+.cv-trace-doc del { color: var(--label-3); }
+.cv-trace-doc sub,
+.cv-trace-doc sup { font-size: 0.75em; line-height: 0; }
+.cv-trace-doc a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.cv-trace-doc code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  padding: 1px 5px;
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  background: rgba(116, 116, 128, .10);
+}
+.cv-trace-doc pre {
+  margin: 14px 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.cv-trace-doc pre code { border: 0; padding: 0; background: transparent; }
+.cv-trace-doc blockquote {
+  margin: 12px 0;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--border-2);
+  color: var(--fg-2);
+}
+.cv-trace-doc hr { border: 0; border-top: 1px solid var(--border-2); margin: 22px 0; }
+.cv-trace-doc img { max-width: 100%; height: auto; border-radius: 6px; }
+
+/* 公式:KaTeX 跟随正文字号;行间公式长了在自身容器里横滚,不撑破纸面。
+   解析失败(OCR 讹误)降级成朴素等宽文本 —— 不留 KaTeX 默认的刺目红。 */
+.cv-trace-doc .katex { font-size: 1em; }
+/* KaTeX 自带 9 个 KaTeX_* 字族 / 20 个 woff2(共 1.2MB)。Frost 的「零 Web 字体」
+   硬约束只给溯源预览的正文衬线开过一次口子,不为 20% 这类算式再开第二次:
+   字族一律改指文档字体栈,浏览器就不会请求任何 KaTeX 字形文件
+   (@font-face 只有真被用到才下载)。只覆盖 font-family —— KaTeX 的间距、
+   上下标位移、.mathnormal 的 italic 等全部照旧生效。
+   本语料的公式都是 20% / ① / 7×24 / = 这类简单式,文档字体呈现完全够看;
+   若日后要真数学排版,删掉这一段即可换回 KaTeX 原生字形。 */
+.cv-trace-doc .katex,
+.cv-trace-doc .katex * {
+  font-family: var(--trace-serif-latin), var(--trace-serif-cjk), Georgia, serif !important;
+}
+.cv-trace-doc .katex-display { margin: 14px 0; overflow-x: auto; overflow-y: hidden; }
+.cv-trace-doc .katex-error {
+  color: var(--label-2);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
 /* 全边框表格走无衬线(原型同式);宽表在自身容器内横向滚动 */
 .cv-trace-html { overflow-x: auto; margin: 14px 0; }
 .cv-trace-doc table {
   width: 100%;
   border-collapse: collapse;
+  margin: 16px 0;
   font-family: var(--font-text);
   font-size: 12.5px;
   line-height: 1.6;
 }
 .cv-trace-doc thead th { background: var(--surface-2); font-weight: 600; color: var(--fg-2); font-size: 11.5px; }
+/* MinerU 的表格只有 <tr><td>,没有 thead/th(全语料实测 th 数为 0),
+   表头样式永远不生效、每张表都是无表头均质格子。这里把无 thead 表格的首行提升为表头皮。
+   已知代价:跨页续表首行是空单元格,会被误当表头着色 —— 可接受,好过整表无表头。 */
+.cv-trace-doc table:not(:has(thead)) > tbody > tr:first-child > td {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--fg-2);
+  font-size: 11.5px;
+}
 .cv-trace-doc th,
 .cv-trace-doc td {
   border: 1px solid var(--separator);
@@ -3526,8 +3692,9 @@ body {
 }
 .cv-trace-doc ul.cv-trace-hit,
 .cv-trace-doc ol.cv-trace-hit { padding-left: 36px; }
-/* 管道表格特例:border-collapse 下 table 自身的 padding 不生效,原位整表染色即可 */
-.cv-trace-doc table.cv-trace-hit {
+/* 表格特例:表格由管线套在可横滚容器里(见 lib/trace/pipeline.wrapTables),
+   容器带 overflow 时负外边距外扩会被裁掉,原位整表染色即可 */
+.cv-trace-doc .cv-trace-html.cv-trace-hit {
   margin-left: 0;
   padding-left: 0;
 }

@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>标书知识库 · 结构树</title>
+<style>
+/* ===========================================================================
+   Frost · Tokens（自 .claude/skills/frost-design/tokens 摘录，保持一致）
+   =========================================================================== */
+:root {
+  --canvas:#eef0f3; --surface:#fff; --surface-2:#f5f6f8;
+  --label:#1d1d1f; --label-2:#55555e; --label-3:#6b6b76;
+  --separator:rgba(60,60,67,.12);
+  --blue:#0064e1; --blue-press:#0052bc; --blue-soft:rgba(0,100,225,.10);
+  --green:#34c759; --green-text:#1d8f45;
+  --orange:#ff9500; --orange-text:#b25e00;
+  --red:#ff3b30; --red-text:#d70015;
+  --traffic-close:#ff5f57; --traffic-min:#febc2e; --traffic-max:#28c840;
+
+  --font-ui:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Noto Sans SC",system-ui,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,Menlo,monospace;
+  --tracking-display:-.022em; --tracking-title:-.014em; --tracking-ui:-.008em;
+
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-5:20px; --space-6:28px;
+  --control-h:32px; --control-h-sm:28px; --field-h:36px; --toolbar-h:52px;
+
+  --r-control:7px; --r-field:9px; --r-window:12px; --r-card:14px; --r-panel:18px;
+
+  --elev-1:0 1px 2px rgba(18,24,38,.10), 0 0 0 .5px rgba(18,24,38,.07);
+  --elev-2:0 10px 30px rgba(18,24,38,.12), 0 2px 8px rgba(18,24,38,.06), 0 0 0 .5px rgba(18,24,38,.05);
+  --elev-3:0 28px 80px rgba(12,18,32,.26), 0 8px 24px rgba(12,18,32,.12), 0 0 0 .5px rgba(12,18,32,.10);
+  --highlight-top:inset 0 1px 0 rgba(255,255,255,.55);
+
+  --t-micro:120ms; --t-float:200ms; --t-panel:320ms;
+  --ease-std:cubic-bezier(.32,.72,0,1);
+
+  --wallpaper:
+    radial-gradient(1100px 700px at 12% -10%, #c8e6ff 0%, rgba(200,230,255,0) 58%),
+    radial-gradient(900px 620px at 92% 6%, #8fc0f5 0%, rgba(143,192,245,0) 55%),
+    radial-gradient(1100px 850px at 78% 100%, #0a4ecf 0%, rgba(10,78,207,0) 62%),
+    radial-gradient(820px 640px at 14% 86%, #2e8fd8 0%, rgba(46,143,216,0) 58%),
+    linear-gradient(162deg,#d4e8fb 0%,#6aa4e6 46%,#1c4796 100%);
+
+  --mat-toolbar-bg:rgba(255,255,255,.68); --mat-toolbar-blur:40px;
+  --mat-popover-bg:rgba(255,255,255,.75); --mat-popover-blur:40px;
+  --mat-saturate:180%;
+  --mat-border:1px solid rgba(255,255,255,.45);
+}
+[data-appearance="dark"] {
+  --canvas:#161618; --surface:#1e1e22; --surface-2:#2a2a30;
+  --label:#f5f5f7; --label-2:#a8a8b3; --label-3:#6e6e78;
+  --separator:rgba(255,255,255,.10);
+  --blue:#409cff; --blue-press:#1f7fe0; --blue-soft:rgba(64,156,255,.16);
+  --mat-toolbar-bg:rgba(34,34,40,.72); --mat-popover-bg:rgba(40,40,46,.80);
+  --mat-border:1px solid rgba(255,255,255,.10);
+  --highlight-top:inset 0 1px 0 rgba(255,255,255,.08);
+  color-scheme:dark;
+}
+@media (prefers-reduced-motion:reduce){:root{--t-micro:0ms;--t-float:0ms;--t-panel:0ms}}
+
+/* ===========================================================================
+   Base
+   =========================================================================== */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:var(--font-ui); color:var(--label);
+  font-size:15px; line-height:1.7; letter-spacing:var(--tracking-ui);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  font-variant-numeric:tabular-nums;
+  background:var(--wallpaper); background-attachment:fixed;
+  padding:26px; display:flex; justify-content:center;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+.mono{font-family:var(--font-mono);font-size:.82em;letter-spacing:0}
+
+/* ===========================================================================
+   Window
+   =========================================================================== */
+.win{
+  width:100%; max-width:980px; height:calc(100vh - 52px);
+  display:flex; flex-direction:column;
+  border-radius:var(--r-window); overflow:hidden;
+  box-shadow:var(--elev-3); background:var(--surface);
+}
+.titlebar{
+  height:var(--toolbar-h); flex:0 0 auto;
+  display:flex; align-items:center; gap:var(--space-3); padding:0 14px;
+  background:var(--mat-toolbar-bg);
+  backdrop-filter:blur(var(--mat-toolbar-blur)) saturate(var(--mat-saturate));
+  -webkit-backdrop-filter:blur(var(--mat-toolbar-blur)) saturate(var(--mat-saturate));
+  box-shadow:var(--highlight-top), 0 .5px 0 var(--separator);
+  position:relative; z-index:3;
+}
+.traffic{display:flex;gap:8px;align-items:center}
+.traffic i{width:12px;height:12px;border-radius:50%;display:block}
+.traffic i:nth-child(1){background:var(--traffic-close)}
+.traffic i:nth-child(2){background:var(--traffic-min)}
+.traffic i:nth-child(3){background:var(--traffic-max)}
+.tb-title{display:flex;align-items:center;gap:8px;margin-left:6px}
+.tb-title .mark{width:19px;height:19px;border-radius:22.4%;flex:0 0 auto;box-shadow:var(--elev-1)}
+.tb-title h1{margin:0;font:600 13px/1.4 var(--font-ui);letter-spacing:var(--tracking-ui)}
+.tb-title .sub{color:var(--label-3);font-size:11px}
+.tb-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+
+/* ===========================================================================
+   Controls
+   =========================================================================== */
+.btn{
+  height:var(--control-h-sm); padding:0 11px; border-radius:var(--r-control);
+  display:inline-flex; align-items:center; gap:6px;
+  font:500 12px/1 var(--font-ui); letter-spacing:var(--tracking-ui);
+  color:var(--label); background:var(--surface); box-shadow:var(--elev-1);
+  transition:background var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
+}
+.btn:hover{background:var(--surface-2)}
+.btn:active{transform:scale(.97)}
+.btn svg{width:14px;height:14px;flex:0 0 auto}
+.btn.primary{
+  color:#fff; background:linear-gradient(180deg,var(--blue),var(--blue-press));
+  box-shadow:var(--highlight-top), var(--elev-1);
+}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:transparent;box-shadow:none;color:var(--label-2)}
+.btn.ghost:hover{background:var(--blue-soft);color:var(--blue)}
+.iconbtn{
+  width:26px;height:26px;border-radius:var(--r-control);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--label-3);
+  transition:background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
+}
+.iconbtn svg{width:15px;height:15px}
+.iconbtn:hover{background:rgba(120,120,128,.12);color:var(--label)}
+.iconbtn:active{transform:scale(.92)}
+.iconbtn.danger:hover{background:rgba(255,59,48,.12);color:var(--red-text)}
+[data-appearance="dark"] .iconbtn.danger:hover{color:#ff6961}
+
+/* ===========================================================================
+   Sub toolbar
+   =========================================================================== */
+.subbar{
+  flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:9px 14px;
+  background:var(--mat-toolbar-bg);
+  backdrop-filter:blur(var(--mat-toolbar-blur)) saturate(var(--mat-saturate));
+  -webkit-backdrop-filter:blur(var(--mat-toolbar-blur)) saturate(var(--mat-saturate));
+  box-shadow:0 .5px 0 var(--separator);
+  position:relative; z-index:2;
+}
+.search{
+  position:relative; width:238px; flex:0 0 auto;
+}
+.search svg{
+  position:absolute; left:9px; top:50%; transform:translateY(-50%);
+  width:14px;height:14px;color:var(--label-3);pointer-events:none;
+}
+.search input{
+  width:100%; height:var(--control-h-sm); padding:0 26px 0 28px;
+  border-radius:var(--r-field); border:none; outline:none;
+  background:var(--surface); box-shadow:var(--elev-1);
+  font:400 12px/1 var(--font-ui); color:var(--label); letter-spacing:var(--tracking-ui);
+}
+.search input::placeholder{color:var(--label-3)}
+.search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.search input:focus{box-shadow:var(--elev-1), 0 0 0 3px var(--blue-soft)}
+.search .clear{
+  position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  width:20px;height:20px;border-radius:50%;display:none;
+  align-items:center;justify-content:center;color:var(--label-3);
+}
+.search.has-value .clear{display:inline-flex}
+.search .clear:hover{background:rgba(120,120,128,.14);color:var(--label)}
+.search .clear svg{position:static;transform:none;width:11px;height:11px}
+.stats{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--label-3);font-size:11.5px}
+.stats b{color:var(--label-2);font-weight:600;font-family:var(--font-mono);font-size:11.5px}
+.divider{width:1px;height:16px;background:var(--separator);flex:0 0 auto}
+
+/* ===========================================================================
+   Doc surface（内容层：实心、最亮，永不模糊）
+   =========================================================================== */
+.doc{
+  flex:1 1 auto; overflow:auto; background:var(--surface);
+  padding:18px 18px 60px;
+}
+.doc-head{padding:6px 10px 14px}
+.doc-head h2{margin:0;font:700 26px/1.3 var(--font-ui);letter-spacing:var(--tracking-display)}
+.doc-head p{margin:5px 0 0;color:var(--label-3);font-size:12.5px}
+
+/* ===========================================================================
+   Tree
+   =========================================================================== */
+.tree{--ind:20px}
+.node>.children{
+  margin-left:15px; padding-left:16px;
+  border-left:1px solid var(--separator);
+}
+.node.collapsed>.children{display:none}
+
+.row{
+  display:flex; align-items:flex-start; gap:6px;
+  padding:4px 6px 4px 2px; border-radius:var(--r-control);
+  position:relative;
+  transition:background var(--t-micro) var(--ease-std);
+}
+.row:hover{background:var(--surface-2)}
+.row.dragging{opacity:.4}
+.row.drop-before::before, .row.drop-after::after{
+  content:""; position:absolute; left:26px; right:6px; height:2px;
+  background:var(--blue); border-radius:2px;
+}
+.row.drop-before::before{top:-1px}
+.row.drop-after::after{bottom:-1px}
+
+.handle{
+  width:14px; flex:0 0 auto; align-self:stretch; min-height:22px;
+  display:flex; align-items:center; justify-content:center;
+  color:var(--label-3); opacity:0; cursor:grab;
+  transition:opacity var(--t-micro) var(--ease-std);
+}
+.row:hover .handle{opacity:.5}
+.handle:hover{opacity:.9!important}
+.handle svg{width:11px;height:15px}
+
+.caret{
+  width:18px;height:22px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--label-3);
+}
+.caret svg{width:11px;height:11px;transition:transform var(--t-float) var(--ease-std)}
+.node:not(.collapsed)>.row>.caret svg{transform:rotate(90deg)}
+.caret.empty{pointer-events:none;opacity:0}
+
+.num{
+  flex:0 0 auto; min-width:30px; height:20px; margin-top:1px;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:11px; letter-spacing:0;
+  color:var(--label-3);
+}
+.lv1>.row .num{
+  min-width:22px; padding:0 6px; border-radius:5px;
+  background:var(--blue-soft); color:var(--blue); font-weight:600;
+}
+.lv3>.row .num{min-width:14px}
+.lv3>.row .num i{width:4px;height:4px;border-radius:50%;background:var(--label-3);opacity:.6;display:block}
+
+.main{flex:1 1 auto;min-width:0;padding:0 2px}
+.t{
+  outline:none; border-radius:5px; padding:0 3px; margin:0 -3px;
+  min-height:22px; word-break:break-word;
+}
+.t:focus{background:var(--blue-soft);box-shadow:0 0 0 2px var(--blue-soft)}
+.t:empty::before{content:"未命名";color:var(--label-3);opacity:.5}
+.lv1>.row .t{font:600 17px/1.4 var(--font-ui);letter-spacing:var(--tracking-title)}
+.lv2>.row .t{font:500 15px/1.5 var(--font-ui)}
+.lv3>.row .t{font:400 13.5px/1.6 var(--font-ui);color:var(--label-2)}
+
+.n{
+  outline:none; border-radius:5px; padding:0 3px; margin:1px -3px 0;
+  font:400 12px/1.6 var(--font-ui); color:var(--label-3); word-break:break-word;
+}
+.n:focus{background:var(--blue-soft);box-shadow:0 0 0 2px var(--blue-soft);color:var(--label-2)}
+.n:empty{display:none}
+.n:empty::before{content:attr(data-ph);opacity:.6}
+.row:hover .n:empty, .n:empty:focus{display:block}
+.lv1>.row .n{
+  border-left:2px solid var(--blue-soft); padding-left:8px; margin-left:-1px;
+  color:var(--label-3); font-size:12px;
+}
+
+.acts{
+  flex:0 0 auto; display:flex; align-items:center; gap:1px;
+  opacity:0; transition:opacity var(--t-micro) var(--ease-std);
+}
+.row:hover .acts, .row:focus-within .acts{opacity:1}
+
+.empty-slot{
+  margin-left:15px; padding-left:16px; border-left:1px solid var(--separator);
+}
+/* 始终占位（避免 hover 抖动），文字仅在悬停/拖拽时显现 */
+.empty-slot button{
+  display:block; width:100%; text-align:left;
+  padding:4px 8px; border-radius:var(--r-control);
+  font:400 12px/1.6 var(--font-ui); color:var(--label-3);
+  opacity:0;
+  transition:opacity var(--t-micro) var(--ease-std), background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std);
+}
+.node:hover>.empty-slot button{opacity:1}
+.empty-slot button:hover{background:var(--blue-soft);color:var(--blue)}
+.empty-slot.drop-in button{opacity:1;background:var(--blue-soft);color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.tree.filtering .n:empty{display:none!important}
+
+.add-root{
+  margin-top:10px; padding:6px 8px 6px 24px; border-radius:var(--r-control);
+  display:flex; align-items:center; gap:6px;
+  font:500 12.5px/1 var(--font-ui); color:var(--label-3);
+  transition:background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std);
+}
+.add-root:hover{background:var(--blue-soft);color:var(--blue)}
+.add-root svg{width:14px;height:14px}
+
+mark{background:rgba(255,149,0,.28);color:inherit;border-radius:3px;padding:0 1px}
+.no-result{padding:40px 12px;text-align:center;color:var(--label-3);font-size:13px}
+
+/* ===========================================================================
+   Status bar
+   =========================================================================== */
+.statusbar{
+  flex:0 0 auto; height:30px; display:flex; align-items:center; gap:10px;
+  padding:0 14px; background:var(--surface-2);
+  box-shadow:0 -.5px 0 var(--separator);
+  font-size:11px; color:var(--label-3);
+}
+.statusbar .dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:0 0 auto}
+.statusbar .keys{margin-left:auto;display:flex;gap:10px}
+.statusbar kbd{
+  font-family:var(--font-mono); font-size:10px; padding:1px 4px; border-radius:4px;
+  background:var(--surface); box-shadow:var(--elev-1); color:var(--label-2);
+}
+
+/* ===========================================================================
+   Toast
+   =========================================================================== */
+#toast{
+  position:fixed; left:50%; bottom:44px; transform:translate(-50%,8px);
+  padding:9px 15px; border-radius:var(--r-card);
+  background:var(--mat-popover-bg);
+  backdrop-filter:blur(var(--mat-popover-blur)) saturate(190%);
+  -webkit-backdrop-filter:blur(var(--mat-popover-blur)) saturate(190%);
+  border:var(--mat-border); box-shadow:var(--highlight-top), var(--elev-2);
+  font:500 12.5px/1 var(--font-ui); color:var(--label);
+  opacity:0; pointer-events:none;
+  transition:opacity var(--t-float) var(--ease-std), transform var(--t-float) var(--ease-std);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (prefers-reduced-transparency:reduce){
+  .titlebar,.subbar{background:rgba(250,251,253,.98);backdrop-filter:none;-webkit-backdrop-filter:none}
+  [data-appearance="dark"] .titlebar,[data-appearance="dark"] .subbar{background:rgba(30,30,34,.98)}
+}
+@media (max-width:720px){
+  body{padding:0}
+  .win{height:100vh;max-width:none;border-radius:0}
+  .search{width:150px}
+  .stats{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Phosphor 风格描边图标（与 frontend/components/ui/icons 同源，内联以保证离线可用） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-chevron" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></g>
+    <g id="i-plus" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3.2v9.6M3.2 8h9.6"/></g>
+    <g id="i-sub" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 3v6.2a1.6 1.6 0 0 0 1.6 1.6h5.4"/><path d="M9.4 8.4l2.4 2.4-2.4 2.4"/></g>
+    <g id="i-trash" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.8 4.4h10.4M6.4 4.4V3.2a.8.8 0 0 1 .8-.8h1.6a.8.8 0 0 1 .8.8v1.2"/><path d="M4.2 4.4l.6 8.2a.9.9 0 0 0 .9.8h4.6a.9.9 0 0 0 .9-.8l.6-8.2"/></g>
+    <g id="i-grip" fill="currentColor"><circle cx="4" cy="3" r="1.35"/><circle cx="4" cy="8" r="1.35"/><circle cx="4" cy="13" r="1.35"/><circle cx="9" cy="3" r="1.35"/><circle cx="9" cy="8" r="1.35"/><circle cx="9" cy="13" r="1.35"/></g>
+    <g id="i-search" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7.3" cy="7.3" r="4.6"/><path d="M14 14l-3-3"/></g>
+    <g id="i-x" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></g>
+    <g id="i-copy" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.4" y="5.4" width="8.2" height="8.2" rx="1.6"/><path d="M10.8 5.4V3.6a1.2 1.2 0 0 0-1.2-1.2H3.6a1.2 1.2 0 0 0-1.2 1.2v6a1.2 1.2 0 0 0 1.2 1.2h1.8"/></g>
+    <g id="i-download" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 10.6v2a1.4 1.4 0 0 0 1.4 1.4h8a1.4 1.4 0 0 0 1.4-1.4v-2"/><path d="M5 7.4l3 3 3-3M8 2v8.4"/></g>
+    <g id="i-upload" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 10.6v2a1.4 1.4 0 0 0 1.4 1.4h8a1.4 1.4 0 0 0 1.4-1.4v-2"/><path d="M5 5l3-3 3 3M8 2v8.4"/></g>
+    <g id="i-undo" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 12a5.6 5.6 0 1 0-1.6-4L9.8 10"/><path d="M13.4 4.4v3.2h-3.2"/></g>
+    <g id="i-half" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.8"/><path d="M8 2.2a5.8 5.8 0 0 1 0 11.6z" fill="currentColor" stroke="none"/></g>
+    <g id="i-expand" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8M6 8h8M6 12h8"/><path d="M2.2 2.8l1.6 1.4-1.6 1.4M2.2 10.8l1.6 1.4-1.6 1.4"/></g>
+    <linearGradient id="mark-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5fb0ff"/><stop offset=".55" stop-color="#1670ec"/><stop offset="1" stop-color="#0a3fa8"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="win">
+  <header class="titlebar">
+    <div class="traffic"><i></i><i></i><i></i></div>
+    <div class="tb-title">
+      <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
+        <rect width="120" height="120" rx="27" fill="url(#mark-grad)"/>
+        <rect x="26" y="36" width="68" height="48" rx="8" fill="#fff" opacity=".5"/>
+        <rect x="22" y="25" width="76" height="52" rx="9" fill="#fff"/>
+        <rect x="34" y="38" width="40" height="5" rx="2.5" fill="#1670ec"/>
+        <rect x="34" y="50" width="52" height="4" rx="2" fill="#9cc4f5"/>
+        <rect x="34" y="60" width="46" height="4" rx="2" fill="#9cc4f5"/>
+      </svg>
+      <h1>标书知识库 · 结构树</h1>
+      <span class="sub">structure.md</span>
+    </div>
+    <div class="tb-actions">
+      <button class="iconbtn" id="btn-undo" title="撤销（⌘Z / Ctrl+Z）"><svg viewBox="0 0 16 16"><use href="#i-undo"/></svg></button>
+      <button class="iconbtn" id="btn-theme" title="切换深浅外观"><svg viewBox="0 0 16 16"><use href="#i-half"/></svg></button>
+      <span class="divider"></span>
+      <button class="btn ghost" id="btn-import"><svg viewBox="0 0 16 16"><use href="#i-upload"/></svg>导入</button>
+      <button class="btn ghost" id="btn-json"><svg viewBox="0 0 16 16"><use href="#i-download"/></svg>JSON</button>
+      <button class="btn ghost" id="btn-md"><svg viewBox="0 0 16 16"><use href="#i-download"/></svg>.md</button>
+      <button class="btn primary" id="btn-copy"><svg viewBox="0 0 16 16"><use href="#i-copy"/></svg>复制 Markdown</button>
+    </div>
+  </header>
+
+  <div class="subbar">
+    <div class="search" id="search-wrap">
+      <svg viewBox="0 0 16 16"><use href="#i-search"/></svg>
+      <input id="search" type="search" placeholder="搜索分类或条目" autocomplete="off" spellcheck="false">
+      <button class="clear" id="search-clear" title="清空"><svg viewBox="0 0 16 16"><use href="#i-x"/></svg></button>
+    </div>
+    <button class="btn ghost" id="btn-expand"><svg viewBox="0 0 16 16"><use href="#i-expand"/></svg><span id="expand-label">全部折叠</span></button>
+    <button class="btn ghost" id="btn-reset">恢复默认</button>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <main class="doc">
+    <div class="doc-head">
+      <h2>标书知识库</h2>
+      <p>整体结构树 · 最多三级：一级分类 / 二级分类 / 条目。直接点击文字即可修改。</p>
+    </div>
+    <div class="tree" id="tree"></div>
+    <button class="add-root" id="btn-add-root"><svg viewBox="0 0 16 16"><use href="#i-plus"/></svg>新增一级分类</button>
+  </main>
+
+  <footer class="statusbar">
+    <span class="dot" id="save-dot"></span><span id="save-text">已就绪</span>
+    <span class="keys">
+      <span><kbd>Enter</kbd> 新增同级</span>
+      <span><kbd>Tab</kbd> 降级</span>
+      <span><kbd>⇧Tab</kbd> 升级</span>
+      <span><kbd>Esc</kbd> 撤销输入</span>
+    </span>
+  </footer>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="file-input" accept="application/json,.json" hidden>
+
+<script>
+"use strict";
+/* ===========================================================================
+   数据模型
+   node = { t: 标题, n: 说明（可选）, c: 子节点数组（可选）, x: 是否折叠 }
+   层级上限 3 级：一级分类 → 二级分类 → 条目
+   =========================================================================== */
+
+const STORE_KEY = "prose.kb.structure.v1";
+const THEME_KEY = "prose.kb.appearance";
+const MAX_DEPTH = 3;
+
+const DEFAULT_TREE = [
+  { t:"企业资产库", n:"结构化字段为主 + 原件附件，零容错，只引用不生成", c:[
+    { t:"主体资质", c:[
+      { t:"基础证照（营业执照、开户许可、税务登记）" },
+      { t:"行业资质认证（ISO 体系、CMMI、安全生产许可、行业准入…）" },
+      { t:"信用与荣誉（信用等级、获奖证书、无违法证明）" }
+    ]},
+    { t:"财务信息", c:[
+      { t:"年度审计报告 / 财务报表" },
+      { t:"纳税证明 / 社保缴纳证明" }
+    ]},
+    { t:"人员库", c:[
+      { t:"人员档案（学历、职称、在职/社保状态）" },
+      { t:"执业与技能证书（建造师、PMP 等，含有效期）" },
+      { t:"人员项目经历（人员 ↔ 项目关联关系）" }
+    ]},
+    { t:"业绩案例库", c:[
+      { t:"证明原件（中标通知书、合同关键页、验收报告）" },
+      { t:"结构化业绩卡片（金额/时间/业主/项目类型标签）" }
+    ]},
+    { t:"其他资产", c:[
+      { t:"设备/仪器清单" },
+      { t:"软著、专利、检测报告" }
+    ]}
+  ]},
+  { t:"历史标书与方案库", n:"向量化重点区，章节粒度切分 + 元数据标签", c:[
+    { t:"完整历史标书归档", n:"按行业 / 项目类型 / 中标结果归档" },
+    { t:"章节级素材库", c:[
+      { t:"技术方案类（总体架构、实施方案、质量/进度/安全保障…）" },
+      { t:"商务应答类（报价说明、付款响应、偏离表写法）" },
+      { t:"通用章节类（售后服务、培训方案、保密应急承诺）" }
+    ]},
+    { t:"图表素材库", n:"架构图、流程图、组织架构图、现场照片" },
+    { t:"复盘知识", n:"评审反馈、失分点分析、优秀应答范例" }
+  ]},
+  { t:"模板与写作框架库", n:"模板文件 + 结构化配置", c:[
+    { t:"标书骨架模板", n:"按行业划分：工程建设 / IT 信息化 / 政采服务…" },
+    { t:"格式排版模板", n:"封面、目录、页眉页脚、字体装订规范" },
+    { t:"写作策略库", n:"评分点应答套路、加分项组织框架、常用话术" }
+  ]},
+  { t:"合规与规则库", n:"规则引擎条目为主 + 少量检索型条款库", c:[
+    { t:"废标检测规则集", c:[
+      { t:"资格类（资质缺失、业绩不满足）" },
+      { t:"格式类（漏页、目录错、密封装订）" },
+      { t:"内容类（漏应答、负偏离、报价错误）" },
+      { t:"签署盖章类（签字、盖章、授权书）" }
+    ]},
+    { t:"法规政策库", n:"招投标法、政府采购法、地方实施细则" },
+    { t:"行业标准规范", n:"国标/行标条款，供技术方案引用与校验" }
+  ]},
+  { t:"项目工作区", n:"临时知识，随项目创建/归档，与长期库隔离", c:[
+    { t:"招标文件及解析结果", c:[
+      { t:"原文（含补遗、澄清答疑文件）" },
+      { t:"资格要求清单 + 评分办法（结构化）" },
+      { t:"技术需求点清单（需求 ↔ 应答映射表）" },
+      { t:"废标风险点标注" }
+    ]},
+    { t:"本项目定制素材", n:"临时上传的方案、报价资料" },
+    { t:"生成产物与人工修订记录", n:"投标结束后 → 回流候选" }
+  ]},
+  { t:"外部情报库（可选，二期）", n:"采集型，时效性强", c:[
+    { t:"业主画像", n:"历史采购偏好、评审风格" },
+    { t:"竞争对手情报", n:"对手业绩、常用打法" }
+  ]}
+];
+
+/* --------------------------------------------------------------------------
+   状态
+   -------------------------------------------------------------------------- */
+let tree = load();
+let filter = "";
+const undoStack = [];
+
+const $tree     = document.getElementById("tree");
+const $stats    = document.getElementById("stats");
+const $saveText = document.getElementById("save-text");
+const $saveDot  = document.getElementById("save-dot");
+const $search   = document.getElementById("search");
+const $searchWrap = document.getElementById("search-wrap");
+const $toast    = document.getElementById("toast");
+
+/* --------------------------------------------------------------------------
+   持久化
+   -------------------------------------------------------------------------- */
+function clone(v){ return JSON.parse(JSON.stringify(v)); }
+
+function load(){
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return clone(DEFAULT_TREE);
+    const parsed = JSON.parse(raw);
+    const arr = Array.isArray(parsed) ? parsed : parsed && parsed.tree;
+    return Array.isArray(arr) && arr.length ? normalize(arr, 1) : clone(DEFAULT_TREE);
+  } catch (_) {
+    return clone(DEFAULT_TREE);
+  }
+}
+
+/** 清洗导入/存档数据：只保留已知字段，并裁掉超过三级的分支。 */
+function normalize(arr, depth){
+  if (!Array.isArray(arr)) return [];
+  return arr.filter(n => n && typeof n === "object").map(n => {
+    const node = { t: String(n.t == null ? "" : n.t) };
+    if (n.n) node.n = String(n.n);
+    if (n.x) node.x = true;
+    if (depth < MAX_DEPTH && Array.isArray(n.c) && n.c.length) {
+      const kids = normalize(n.c, depth + 1);
+      if (kids.length) node.c = kids;
+    }
+    return node;
+  });
+}
+
+/** 移动/删除后可能留下空的 c 数组，落盘前清掉。 */
+function prune(arr){
+  arr.forEach(n => {
+    if (n.c) { if (n.c.length) prune(n.c); else delete n.c; }
+  });
+}
+
+function save(){
+  prune(tree);
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ v: 1, savedAt: new Date().toISOString(), tree }));
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    $saveText.textContent = "已自动保存到本机 · " + hh + ":" + mm + ":" + ss;
+    $saveDot.style.background = "var(--green)";
+  } catch (_) {
+    $saveText.textContent = "本机存储不可用，请及时导出";
+    $saveDot.style.background = "var(--orange)";
+  }
+}
+
+function pushHistory(){
+  undoStack.push(JSON.stringify(tree));
+  if (undoStack.length > 60) undoStack.shift();
+}
+
+function undo(){
+  const prev = undoStack.pop();
+  if (!prev) { toast("没有可撤销的操作"); return; }
+  tree = JSON.parse(prev);
+  save(); render();
+  toast("已撤销");
+}
+
+/* --------------------------------------------------------------------------
+   路径工具：path = [i] / [i,j] / [i,j,k]
+   -------------------------------------------------------------------------- */
+function parseP(s){ return s.split(".").map(Number); }
+function keyP(p){ return p.join("."); }
+
+/** 返回 path 所在的兄弟数组（父级的 c，或根数组）。 */
+function siblingsOf(path){
+  let arr = tree;
+  for (let i = 0; i < path.length - 1; i++) {
+    const node = arr[path[i]];
+    if (!node || !node.c) return null;
+    arr = node.c;
+  }
+  return arr;
+}
+function nodeAt(path){
+  const arr = siblingsOf(path);
+  return arr ? arr[path[path.length - 1]] : null;
+}
+/** 节点自身高度（含自身）：叶子为 1。 */
+function heightOf(node){
+  if (!node.c || !node.c.length) return 1;
+  return 1 + Math.max.apply(null, node.c.map(heightOf));
+}
+
+/* --------------------------------------------------------------------------
+   渲染
+   -------------------------------------------------------------------------- */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function highlight(text){
+  const safe = esc(text);
+  if (!filter) return safe;
+  const idx = text.toLowerCase().indexOf(filter);
+  if (idx < 0) return safe;
+  return esc(text.slice(0, idx)) + "<mark>" + esc(text.slice(idx, idx + filter.length)) + "</mark>" + esc(text.slice(idx + filter.length));
+}
+
+function selfMatch(node){
+  if (!filter) return true;
+  return (node.t || "").toLowerCase().includes(filter) || (node.n || "").toLowerCase().includes(filter);
+}
+function subtreeMatch(node){
+  if (!filter) return true;
+  if (selfMatch(node)) return true;
+  return !!(node.c && node.c.some(subtreeMatch));
+}
+
+const ICON = {
+  chevron:  '<svg viewBox="0 0 16 16"><use href="#i-chevron"/></svg>',
+  plus:     '<svg viewBox="0 0 16 16"><use href="#i-plus"/></svg>',
+  sub:      '<svg viewBox="0 0 16 16"><use href="#i-sub"/></svg>',
+  trash:    '<svg viewBox="0 0 16 16"><use href="#i-trash"/></svg>',
+  grip:     '<svg viewBox="0 0 13 16"><use href="#i-grip"/></svg>'
+};
+
+function renderNode(node, path){
+  const depth = path.length;
+  // path 是 0 基索引，展示编号统一 +1（1 / 1.1）
+  const num = depth === MAX_DEPTH ? '<i></i>' : path.map(i => i + 1).join(".");
+  const kids = node.c || [];
+  // 命中的分类展开其全部子项，未命中的只展开命中的分支
+  const showAll = !filter || selfMatch(node);
+  const visibleKids = kids.map((k, i) => [k, path.concat(i)]).filter(pair => showAll || subtreeMatch(pair[0]));
+  const hasKids = visibleKids.length > 0;
+  // 搜索时强制展开，方便看到命中项
+  const collapsed = !filter && node.x && hasKids;
+  const editable = filter ? "false" : "true";
+
+  let html = '<div class="node lv' + depth + (collapsed ? " collapsed" : "") + '" data-path="' + keyP(path) + '">';
+
+  html += '<div class="row" data-path="' + keyP(path) + '">';
+  html += '<span class="handle" title="拖拽调整顺序（同级之间）">' + ICON.grip + '</span>';
+  html += hasKids
+    ? '<button class="caret" data-act="toggle" title="展开 / 折叠">' + ICON.chevron + '</button>'
+    : '<span class="caret empty">' + ICON.chevron + '</span>';
+  html += '<span class="num">' + num + '</span>';
+
+  html += '<div class="main">';
+  html += '<div class="t" contenteditable="' + editable + '" data-field="t" spellcheck="false">' + highlight(node.t || "") + '</div>';
+  html += '<div class="n" contenteditable="' + editable + '" data-field="n" data-ph="添加说明" spellcheck="false">' + highlight(node.n || "") + '</div>';
+  html += '</div>';
+
+  html += '<div class="acts">';
+  if (depth < MAX_DEPTH) html += '<button class="iconbtn" data-act="add-child" title="新增子项">' + ICON.sub + '</button>';
+  html += '<button class="iconbtn" data-act="add-sibling" title="在下方新增同级">' + ICON.plus + '</button>';
+  html += '<button class="iconbtn danger" data-act="delete" title="删除">' + ICON.trash + '</button>';
+  html += '</div>';
+  html += '</div>';
+
+  if (hasKids) {
+    html += '<div class="children">';
+    visibleKids.forEach(pair => { html += renderNode(pair[0], pair[1]); });
+    html += '</div>';
+  } else if (!filter && depth < MAX_DEPTH) {
+    html += '<div class="empty-slot" data-parent="' + keyP(path) + '"><button data-act="add-child-empty">＋ 添加子项</button></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function render(){
+  $tree.classList.toggle("filtering", !!filter);
+  const visible = tree.map((n, i) => [n, [i]]).filter(pair => subtreeMatch(pair[0]));
+  $tree.innerHTML = visible.length
+    ? visible.map(pair => renderNode(pair[0], pair[1])).join("")
+    : '<div class="no-result">没有匹配「' + esc($search.value) + '」的分类或条目</div>';
+  renderStats();
+  syncExpandLabel();
+}
+
+function renderStats(){
+  let l1 = tree.length, l2 = 0, l3 = 0;
+  tree.forEach(a => {
+    (a.c || []).forEach(b => { l2++; l3 += (b.c || []).length; });
+  });
+  $stats.innerHTML = '一级 <b>' + l1 + '</b>　二级 <b>' + l2 + '</b>　条目 <b>' + l3 + '</b>';
+}
+
+function syncExpandLabel(){
+  const anyOpen = tree.some(n => n.c && n.c.length && !n.x);
+  document.getElementById("expand-label").textContent = anyOpen ? "全部折叠" : "全部展开";
+}
+
+/* --------------------------------------------------------------------------
+   编辑：焦点定位
+   -------------------------------------------------------------------------- */
+function focusNode(path, field){
+  const sel = '.node[data-path="' + keyP(path) + '"] > .row .' + (field || "t");
+  const el = $tree.querySelector(sel);
+  if (!el) return;
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const s = window.getSelection();
+  s.removeAllRanges();
+  s.addRange(range);
+  el.scrollIntoView({ block: "nearest" });
+}
+
+/* --------------------------------------------------------------------------
+   结构操作
+   -------------------------------------------------------------------------- */
+function addSibling(path){
+  pushHistory();
+  const arr = siblingsOf(path);
+  const idx = path[path.length - 1] + 1;
+  arr.splice(idx, 0, { t: "" });
+  save();
+  const newPath = path.slice(0, -1).concat(idx);
+  render();
+  focusNode(newPath, "t");
+}
+
+function addChild(path){
+  if (path.length >= MAX_DEPTH) return;
+  pushHistory();
+  const node = nodeAt(path);
+  if (!node.c) node.c = [];
+  node.x = false;
+  node.c.push({ t: "" });
+  save();
+  const newPath = path.concat(node.c.length - 1);
+  render();
+  focusNode(newPath, "t");
+}
+
+function addRoot(){
+  pushHistory();
+  tree.push({ t: "" });
+  save();
+  render();
+  focusNode([tree.length - 1], "t");
+}
+
+function removeNode(path){
+  const node = nodeAt(path);
+  const count = (node.c || []).reduce((s, b) => s + 1 + (b.c || []).length, 0);
+  if (count > 0 && !confirm("「" + (node.t || "未命名") + "」下还有 " + count + " 个子项，确认一并删除？")) return;
+  pushHistory();
+  const arr = siblingsOf(path);
+  arr.splice(path[path.length - 1], 1);
+  save(); render();
+  toast("已删除");
+}
+
+/** 降级：成为上一个兄弟的最后一个子节点。 */
+function indent(path){
+  const i = path[path.length - 1];
+  if (i === 0) return null;
+  const arr = siblingsOf(path);
+  const node = arr[i];
+  const prev = arr[i - 1];
+  // 降级后本节点位于 depth+1，其子树最深到 depth + heightOf(node)
+  if (path.length + heightOf(node) > MAX_DEPTH) { toast("最多三级，无法继续降级"); return null; }
+  pushHistory();
+  arr.splice(i, 1);
+  if (!prev.c) prev.c = [];
+  prev.x = false;
+  prev.c.push(node);
+  save();
+  return path.slice(0, -1).concat(i - 1, prev.c.length - 1);
+}
+
+/** 升级：成为父节点的下一个兄弟。 */
+function outdent(path){
+  if (path.length < 2) return null;
+  pushHistory();
+  const arr = siblingsOf(path);
+  const node = arr[path[path.length - 1]];
+  arr.splice(path[path.length - 1], 1);
+  const parentPath = path.slice(0, -1);
+  const parentArr = siblingsOf(parentPath);
+  const parentIdx = parentPath[parentPath.length - 1];
+  const parent = parentArr[parentIdx];
+  if (parent.c && !parent.c.length) delete parent.c;
+  parentArr.splice(parentIdx + 1, 0, node);
+  save();
+  return parentPath.slice(0, -1).concat(parentIdx + 1);
+}
+
+/** 移动：把 src 放到 tgt 的前/后（同级），或放进某父节点末尾。 */
+function moveNode(srcPath, tgtPath, after){
+  if (keyP(tgtPath).startsWith(keyP(srcPath) + ".") || keyP(tgtPath) === keyP(srcPath)) return;
+  pushHistory();
+  const srcArr = siblingsOf(srcPath);
+  const srcIdx = srcPath[srcPath.length - 1];
+  const node = srcArr[srcIdx];
+  const tgtArr = siblingsOf(tgtPath);
+  let tgtIdx = tgtPath[tgtPath.length - 1] + (after ? 1 : 0);
+  srcArr.splice(srcIdx, 1);
+  if (srcArr === tgtArr && srcIdx < tgtIdx) tgtIdx--;
+  tgtArr.splice(tgtIdx, 0, node);
+  save(); render();
+}
+
+function moveInto(srcPath, parentPath){
+  const src = keyP(srcPath), tgt = keyP(parentPath);
+  if (tgt === src || tgt.startsWith(src + ".")) return;   // 不能移进自己的子树
+  if (parentPath.length + heightOf(nodeAt(srcPath)) > MAX_DEPTH) { toast("最多三级，无法放入"); return; }
+  pushHistory();
+  const srcArr = siblingsOf(srcPath);
+  const node = srcArr[srcPath[srcPath.length - 1]];
+  srcArr.splice(srcPath[srcPath.length - 1], 1);
+  const parent = nodeAt(parentPath);
+  if (!parent.c) parent.c = [];
+  parent.x = false;
+  parent.c.push(node);
+  save(); render();
+}
+
+/* --------------------------------------------------------------------------
+   事件：点击
+   -------------------------------------------------------------------------- */
+$tree.addEventListener("click", e => {
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const act = btn.dataset.act;
+
+  if (act === "add-child-empty") {
+    addChild(parseP(btn.closest(".empty-slot").dataset.parent));
+    return;
+  }
+  const path = parseP(btn.closest(".row").dataset.path);
+  if (act === "toggle") {
+    const node = nodeAt(path);
+    node.x = !node.x;
+    save();
+    btn.closest(".node").classList.toggle("collapsed", !!node.x);
+    syncExpandLabel();
+  } else if (act === "add-child")   addChild(path);
+  else if (act === "add-sibling")   addSibling(path);
+  else if (act === "delete")        removeNode(path);
+});
+
+/* --------------------------------------------------------------------------
+   事件：内容提交（focusout 冒泡，blur 不冒泡）
+   -------------------------------------------------------------------------- */
+$tree.addEventListener("focusout", e => {
+  const el = e.target;
+  if (!el.dataset || !el.dataset.field) return;
+  commit(el);
+});
+
+function commit(el){
+  const path = parseP(el.closest(".row").dataset.path);
+  const node = nodeAt(path);
+  if (!node) return;
+  const field = el.dataset.field;
+  const next = el.textContent.replace(/\s+/g, " ").trim();
+  const prev = node[field] || "";
+  if (next === prev) { el.textContent = prev; return; }
+  pushHistory();
+  if (next) node[field] = next; else delete node[field];
+  el.textContent = next;
+  save();
+  renderStats();
+}
+
+/* 粘贴强制纯文本，避免带入外部样式 */
+$tree.addEventListener("paste", e => {
+  if (!e.target.dataset || !e.target.dataset.field) return;
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData("text/plain").replace(/\s+/g, " ");
+  document.execCommand("insertText", false, text);
+});
+
+/* --------------------------------------------------------------------------
+   事件：键盘（大纲式操作）
+   -------------------------------------------------------------------------- */
+$tree.addEventListener("keydown", e => {
+  const el = e.target;
+  if (!el.dataset || !el.dataset.field) return;
+  const path = parseP(el.closest(".row").dataset.path);
+
+  if (e.key === "Escape") {
+    e.preventDefault();
+    const node = nodeAt(path);
+    el.textContent = node[el.dataset.field] || "";
+    el.blur();
+    return;
+  }
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    commit(el);
+    if (el.dataset.field === "n") { focusNode(path, "t"); return; }
+    addSibling(path);
+    return;
+  }
+  if (e.key === "Tab") {
+    e.preventDefault();
+    commit(el);
+    const newPath = e.shiftKey ? outdent(path) : indent(path);
+    if (newPath) { render(); focusNode(newPath, el.dataset.field); }
+    return;
+  }
+});
+
+/* --------------------------------------------------------------------------
+   事件：拖拽排序（同级重排 / 跨父级移动）
+   -------------------------------------------------------------------------- */
+let dragPath = null;
+
+$tree.addEventListener("mousedown", e => {
+  const handle = e.target.closest(".handle");
+  if (handle) handle.closest(".row").setAttribute("draggable", "true");
+});
+$tree.addEventListener("mouseup", () => {
+  $tree.querySelectorAll('.row[draggable]').forEach(r => r.removeAttribute("draggable"));
+});
+
+$tree.addEventListener("dragstart", e => {
+  const row = e.target.closest(".row");
+  if (!row || !row.hasAttribute("draggable") || filter) { e.preventDefault(); return; }
+  dragPath = parseP(row.dataset.path);
+  row.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", row.dataset.path);
+});
+
+$tree.addEventListener("dragend", () => {
+  dragPath = null;
+  clearDropMarks();
+  $tree.querySelectorAll(".dragging").forEach(el => el.classList.remove("dragging"));
+  $tree.querySelectorAll('.row[draggable]').forEach(r => r.removeAttribute("draggable"));
+});
+
+function clearDropMarks(){
+  $tree.querySelectorAll(".drop-before,.drop-after,.drop-in")
+    .forEach(el => el.classList.remove("drop-before", "drop-after", "drop-in"));
+}
+
+$tree.addEventListener("dragover", e => {
+  if (!dragPath) return;
+  const slot = e.target.closest(".empty-slot");
+  const row = e.target.closest(".row");
+  clearDropMarks();
+
+  if (slot) {
+    const parentPath = parseP(slot.dataset.parent);
+    if (parentPath.length + heightOf(nodeAt(dragPath)) <= MAX_DEPTH) {
+      e.preventDefault();
+      slot.classList.add("drop-in");
+    }
+    return;
+  }
+  if (!row) return;
+  const tgtPath = parseP(row.dataset.path);
+  if (tgtPath.length !== dragPath.length) return;            // 仅同层级重排
+  if (keyP(tgtPath) === keyP(dragPath)) return;
+  e.preventDefault();
+  const rect = row.getBoundingClientRect();
+  row.classList.add(e.clientY > rect.top + rect.height / 2 ? "drop-after" : "drop-before");
+});
+
+$tree.addEventListener("drop", e => {
+  if (!dragPath) return;
+  e.preventDefault();
+  const slot = e.target.closest(".empty-slot");
+  if (slot) { moveInto(dragPath, parseP(slot.dataset.parent)); dragPath = null; return; }
+  const row = e.target.closest(".row");
+  if (!row) return;
+  const after = row.classList.contains("drop-after");
+  const tgtPath = parseP(row.dataset.path);
+  clearDropMarks();
+  if (tgtPath.length === dragPath.length) moveNode(dragPath, tgtPath, after);
+  dragPath = null;
+});
+
+/* --------------------------------------------------------------------------
+   搜索
+   -------------------------------------------------------------------------- */
+$search.addEventListener("input", () => {
+  filter = $search.value.trim().toLowerCase();
+  $searchWrap.classList.toggle("has-value", !!$search.value);
+  render();
+});
+document.getElementById("search-clear").addEventListener("click", () => {
+  $search.value = ""; filter = "";
+  $searchWrap.classList.remove("has-value");
+  render(); $search.focus();
+});
+
+/* --------------------------------------------------------------------------
+   导出 / 导入
+   -------------------------------------------------------------------------- */
+function toMarkdown(){
+  const lines = ["# 标书知识库", "", "整体结构树。", ""];
+  tree.forEach((a, i) => {
+    lines.push("## " + (i + 1) + ". " + (a.t || "未命名"), "");
+    if (a.n) lines.push("> " + a.n, "");
+    (a.c || []).forEach((b, j) => {
+      lines.push("### " + (i + 1) + "." + (j + 1) + " " + (b.t || "未命名"), "");
+      if (b.n) lines.push(/[。．.!！?？…]$/.test(b.n) ? b.n : b.n + "。", "");
+      const kids = b.c || [];
+      if (kids.length) {
+        kids.forEach(c => lines.push("- " + (c.t || "未命名") + (c.n ? " —— " + c.n : "")));
+        lines.push("");
+      }
+    });
+  });
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+}
+
+function download(filename, text, mime){
+  const blob = new Blob([text], { type: (mime || "text/plain") + ";charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function copyText(text){
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (_) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0;left:-9999px";
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (__) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+document.getElementById("btn-copy").addEventListener("click", async () => {
+  const ok = await copyText(toMarkdown());
+  toast(ok ? "Markdown 已复制，可直接覆盖 structure.md" : "复制失败，请改用「下载 .md」");
+});
+document.getElementById("btn-md").addEventListener("click", () => {
+  download("structure.md", toMarkdown(), "text/markdown");
+  toast("已导出 structure.md");
+});
+document.getElementById("btn-json").addEventListener("click", () => {
+  download("structure.json", JSON.stringify({ v: 1, tree }, null, 2), "application/json");
+  toast("已导出 structure.json");
+});
+
+const $file = document.getElementById("file-input");
+document.getElementById("btn-import").addEventListener("click", () => $file.click());
+$file.addEventListener("change", () => {
+  const file = $file.files && $file.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      const arr = Array.isArray(parsed) ? parsed : parsed && parsed.tree;
+      const next = normalize(arr, 1);
+      if (!next.length) throw new Error("empty");
+      pushHistory();
+      tree = next;
+      save(); render();
+      toast("已导入 " + file.name);
+    } catch (_) {
+      toast("导入失败：不是有效的结构 JSON");
+    }
+    $file.value = "";
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+/* --------------------------------------------------------------------------
+   工具栏其余动作
+   -------------------------------------------------------------------------- */
+document.getElementById("btn-add-root").addEventListener("click", addRoot);
+document.getElementById("btn-undo").addEventListener("click", undo);
+
+document.getElementById("btn-expand").addEventListener("click", () => {
+  const anyOpen = tree.some(n => n.c && n.c.length && !n.x);
+  const walk = (arr) => arr.forEach(n => {
+    if (n.c && n.c.length) { n.x = anyOpen; walk(n.c); }
+  });
+  walk(tree);
+  save(); render();
+});
+
+document.getElementById("btn-reset").addEventListener("click", () => {
+  if (!confirm("恢复为默认结构？当前的全部修改将被覆盖（可用撤销找回一步）。")) return;
+  pushHistory();
+  tree = clone(DEFAULT_TREE);
+  save(); render();
+  toast("已恢复默认结构");
+});
+
+document.getElementById("btn-theme").addEventListener("click", () => {
+  const next = document.documentElement.dataset.appearance === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+});
+
+function applyTheme(mode){
+  if (mode === "dark") document.documentElement.dataset.appearance = "dark";
+  else delete document.documentElement.dataset.appearance;
+}
+
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    if (document.activeElement && document.activeElement.dataset && document.activeElement.dataset.field) return;
+    e.preventDefault(); undo();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+    e.preventDefault(); $search.focus(); $search.select();
+  }
+});
+
+/* --------------------------------------------------------------------------
+   Toast
+   -------------------------------------------------------------------------- */
+let toastTimer = null;
+function toast(msg){
+  $toast.textContent = msg;
+  $toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $toast.classList.remove("show"), 1900);
+}
+
+/* --------------------------------------------------------------------------
+   启动
+   -------------------------------------------------------------------------- */
+(function init(){
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch (_) {}
+  if (saved) applyTheme(saved);
+  else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) applyTheme("dark");
+  render();
+})();
+</script>
+</body>
+</html>

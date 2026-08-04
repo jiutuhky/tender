@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>溯源预览 · 文档纸面排版核对</title>
+<style>
+:root {
+    --bg:        #eef0f3;
+    --surface:   #ffffff;
+    --surface-2: #f5f6f8;
+    --fg:        #1d1d1f;
+    --fg-2:      #48484f;
+    --muted:     #55555e;
+    --faint:     #8e8e98;
+    --border:    rgba(60, 60, 67, .12);
+    --border-2:  rgba(60, 60, 67, .20);
+    --accent:    #0064e1;
+    --accent-soft: rgba(0, 100, 225, .10);
+    --success:   #1d8f45;
+    --running:   #0064e1;
+    --pending:   #b4b4be;
+
+    /* Frost：系统字体栈，macOS 下即 SF Pro + 苹方，零 Web 字体加载 */
+    --font-sans: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
+    --font-text: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
+    /* Frost 不再使用衬线：历史 var(--font-serif) 引用统一落到系统栈 */
+    --font-serif: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, "Geist Mono", "JetBrains Mono", Menlo, monospace;
+
+    /* Chat reading scale — 对标 Claude.ai / ChatGPT 的对话排版尺度 */
+    --fs-chat-meta:      11px;   /* 元信息 / 时间戳 — mono */
+    --fs-chat-user:      15px;   /* 用户气泡正文 — sans */
+    --fs-chat-body:      14px; /* 助手回答正文（标题/表格/inline code 等按 em 相对缩放） */
+    --fs-chat-reasoning: 12px;   /* 思考/工具摘要 + 推理段正文 — 过程区辅料字号，比 reply 小一档 */
+    --fs-chat-tool:      13px;   /* 工具调用 / 检索结果 — sans */
+
+    --lh-chat-user:      1.6;
+    --lh-chat-body:      1.6;
+    --lh-chat-reasoning: 1.62;
+
+    --radius-sm: 7px;
+    --radius:    10px;
+    --radius-lg: 14px;
+
+    /* 专业工作台的动效节奏：即时反馈、克制浮层、快速面板 */
+    --t-micro: 120ms;
+    --t-float: 180ms;
+    --t-panel: 260ms;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+    /* Frost 投影阶：深度代替描边 */
+    --elev-1: 0 1px 2px rgba(18, 24, 38, .10), 0 0 0 .5px rgba(18, 24, 38, .07);
+    --elev-2: 0 10px 30px rgba(18, 24, 38, .12), 0 2px 8px rgba(18, 24, 38, .06), 0 0 0 .5px rgba(18, 24, 38, .05);
+    --elev-3: 0 28px 80px rgba(12, 18, 32, .26), 0 8px 24px rgba(12, 18, 32, .12), 0 0 0 .5px rgba(12, 18, 32, .10);
+  }
+
+  * { box-sizing: border-box; }
+  html, 
+.katex{font:normal 1.21em KaTeX_Main,Times New Roman,serif;line-height:1.2;position:relative;text-indent:0;text-rendering:auto}.katex *{-ms-high-contrast-adjust:none!important;border-color:currentColor}.katex .katex-version:after{content:"0.16.47"}.katex .katex-mathml{border:0;-webkit-clip-path:inset(50%);clip-path:inset(50%);height:1px;overflow:hidden;padding:0;position:absolute;width:1px}.katex .katex-html>.newline{display:block}.katex .base{position:relative;white-space:nowrap;width:-webkit-min-content;width:-moz-min-content;width:min-content}.katex .base,.katex .strut{display:inline-block}.katex .textbf{font-weight:700}.katex .textit{font-style:italic}.katex .textrm{font-family:KaTeX_Main}.katex .textsf{font-family:KaTeX_SansSerif}.katex .texttt{font-family:KaTeX_Typewriter}.katex .mathnormal{font-family:KaTeX_Math;font-style:italic}.katex .mathit{font-family:KaTeX_Main;font-style:italic}.katex .mathrm{font-style:normal}.katex .mathbf{font-family:KaTeX_Main;font-weight:700}.katex .boldsymbol{font-family:KaTeX_Math;font-style:italic;font-weight:700}.katex .amsrm,.katex .mathbb,.katex .textbb{font-family:KaTeX_AMS}.katex .mathcal{font-family:KaTeX_Caligraphic}.katex .mathfrak,.katex .textfrak{font-family:KaTeX_Fraktur}.katex .mathboldfrak,.katex .textboldfrak{font-family:KaTeX_Fraktur;font-weight:700}.katex .mathtt{font-family:KaTeX_Typewriter}.katex .mathscr,.katex .textscr{font-family:KaTeX_Script}.katex .mathsf,.katex .textsf{font-family:KaTeX_SansSerif}.katex .mathboldsf,.katex .textboldsf{font-family:KaTeX_SansSerif;font-weight:700}.katex .mathitsf,.katex .mathsfit,.katex .textitsf{font-family:KaTeX_SansSerif;font-style:italic}.katex .mainrm{font-family:KaTeX_Main;font-style:normal}.katex .vlist-t{border-collapse:collapse;display:inline-table;table-layout:fixed}.katex .vlist-r{display:table-row}.katex .vlist{display:table-cell;position:relative;vertical-align:bottom}.katex .vlist>span{display:block;height:0;position:relative}.katex .vlist>span>span{display:inline-block}.katex .vlist>span>.pstrut{overflow:hidden;width:0}.katex .vlist-t2{margin-right:-2px}.katex .vlist-s{display:table-cell;font-size:1px;min-width:2px;vertical-align:bottom;width:2px}.katex .vbox{align-items:baseline;display:inline-flex;flex-direction:column}.katex .hbox{width:100%}.katex .hbox,.katex .thinbox{display:inline-flex;flex-direction:row}.katex .thinbox{max-width:0;width:0}.katex .msupsub{text-align:left}.katex .mfrac>span>span{text-align:center}.katex .mfrac .frac-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline,.katex .hline,.katex .mfrac .frac-line,.katex .overline .overline-line,.katex .rule,.katex .underline .underline-line{min-height:1px}.katex .mspace{display:inline-block}.katex .smash{display:inline;line-height:0}.katex .clap,.katex .llap,.katex .rlap{position:relative;width:0}.katex .clap>.inner,.katex .llap>.inner,.katex .rlap>.inner{position:absolute}.katex .clap>.fix,.katex .llap>.fix,.katex .rlap>.fix{display:inline-block}.katex .llap>.inner{right:0}.katex .clap>.inner,.katex .rlap>.inner{left:0}.katex .clap>.inner>span{margin-left:-50%;margin-right:50%}.katex .rule{border:0 solid;display:inline-block;position:relative}.katex .hline,.katex .overline .overline-line,.katex .underline .underline-line{border-bottom-style:solid;display:inline-block;width:100%}.katex .hdashline{border-bottom-style:dashed;display:inline-block;width:100%}.katex .sqrt>.root{margin-left:.2777777778em;margin-right:-.5555555556em}.katex .fontsize-ensurer.reset-size1.size1,.katex .sizing.reset-size1.size1{font-size:1em}.katex .fontsize-ensurer.reset-size1.size2,.katex .sizing.reset-size1.size2{font-size:1.2em}.katex .fontsize-ensurer.reset-size1.size3,.katex .sizing.reset-size1.size3{font-size:1.4em}.katex .fontsize-ensurer.reset-size1.size4,.katex .sizing.reset-size1.size4{font-size:1.6em}.katex .fontsize-ensurer.reset-size1.size5,.katex .sizing.reset-size1.size5{font-size:1.8em}.katex .fontsize-ensurer.reset-size1.size6,.katex .sizing.reset-size1.size6{font-size:2em}.katex .fontsize-ensurer.reset-size1.size7,.katex .sizing.reset-size1.size7{font-size:2.4em}.katex .fontsize-ensurer.reset-size1.size8,.katex .sizing.reset-size1.size8{font-size:2.88em}.katex .fontsize-ensurer.reset-size1.size9,.katex .sizing.reset-size1.size9{font-size:3.456em}.katex .fontsize-ensurer.reset-size1.size10,.katex .sizing.reset-size1.size10{font-size:4.148em}.katex .fontsize-ensurer.reset-size1.size11,.katex .sizing.reset-size1.size11{font-size:4.976em}.katex .fontsize-ensurer.reset-size2.size1,.katex .sizing.reset-size2.size1{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size2.size2,.katex .sizing.reset-size2.size2{font-size:1em}.katex .fontsize-ensurer.reset-size2.size3,.katex .sizing.reset-size2.size3{font-size:1.1666666667em}.katex .fontsize-ensurer.reset-size2.size4,.katex .sizing.reset-size2.size4{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size2.size5,.katex .sizing.reset-size2.size5{font-size:1.5em}.katex .fontsize-ensurer.reset-size2.size6,.katex .sizing.reset-size2.size6{font-size:1.6666666667em}.katex .fontsize-ensurer.reset-size2.size7,.katex .sizing.reset-size2.size7{font-size:2em}.katex .fontsize-ensurer.reset-size2.size8,.katex .sizing.reset-size2.size8{font-size:2.4em}.katex .fontsize-ensurer.reset-size2.size9,.katex .sizing.reset-size2.size9{font-size:2.88em}.katex .fontsize-ensurer.reset-size2.size10,.katex .sizing.reset-size2.size10{font-size:3.4566666667em}.katex .fontsize-ensurer.reset-size2.size11,.katex .sizing.reset-size2.size11{font-size:4.1466666667em}.katex .fontsize-ensurer.reset-size3.size1,.katex .sizing.reset-size3.size1{font-size:.7142857143em}.katex .fontsize-ensurer.reset-size3.size2,.katex .sizing.reset-size3.size2{font-size:.8571428571em}.katex .fontsize-ensurer.reset-size3.size3,.katex .sizing.reset-size3.size3{font-size:1em}.katex .fontsize-ensurer.reset-size3.size4,.katex .sizing.reset-size3.size4{font-size:1.1428571429em}.katex .fontsize-ensurer.reset-size3.size5,.katex .sizing.reset-size3.size5{font-size:1.2857142857em}.katex .fontsize-ensurer.reset-size3.size6,.katex .sizing.reset-size3.size6{font-size:1.4285714286em}.katex .fontsize-ensurer.reset-size3.size7,.katex .sizing.reset-size3.size7{font-size:1.7142857143em}.katex .fontsize-ensurer.reset-size3.size8,.katex .sizing.reset-size3.size8{font-size:2.0571428571em}.katex .fontsize-ensurer.reset-size3.size9,.katex .sizing.reset-size3.size9{font-size:2.4685714286em}.katex .fontsize-ensurer.reset-size3.size10,.katex .sizing.reset-size3.size10{font-size:2.9628571429em}.katex .fontsize-ensurer.reset-size3.size11,.katex .sizing.reset-size3.size11{font-size:3.5542857143em}.katex .fontsize-ensurer.reset-size4.size1,.katex .sizing.reset-size4.size1{font-size:.625em}.katex .fontsize-ensurer.reset-size4.size2,.katex .sizing.reset-size4.size2{font-size:.75em}.katex .fontsize-ensurer.reset-size4.size3,.katex .sizing.reset-size4.size3{font-size:.875em}.katex .fontsize-ensurer.reset-size4.size4,.katex .sizing.reset-size4.size4{font-size:1em}.katex .fontsize-ensurer.reset-size4.size5,.katex .sizing.reset-size4.size5{font-size:1.125em}.katex .fontsize-ensurer.reset-size4.size6,.katex .sizing.reset-size4.size6{font-size:1.25em}.katex .fontsize-ensurer.reset-size4.size7,.katex .sizing.reset-size4.size7{font-size:1.5em}.katex .fontsize-ensurer.reset-size4.size8,.katex .sizing.reset-size4.size8{font-size:1.8em}.katex .fontsize-ensurer.reset-size4.size9,.katex .sizing.reset-size4.size9{font-size:2.16em}.katex .fontsize-ensurer.reset-size4.size10,.katex .sizing.reset-size4.size10{font-size:2.5925em}.katex .fontsize-ensurer.reset-size4.size11,.katex .sizing.reset-size4.size11{font-size:3.11em}.katex .fontsize-ensurer.reset-size5.size1,.katex .sizing.reset-size5.size1{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size5.size2,.katex .sizing.reset-size5.size2{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size5.size3,.katex .sizing.reset-size5.size3{font-size:.7777777778em}.katex .fontsize-ensurer.reset-size5.size4,.katex .sizing.reset-size5.size4{font-size:.8888888889em}.katex .fontsize-ensurer.reset-size5.size5,.katex .sizing.reset-size5.size5{font-size:1em}.katex .fontsize-ensurer.reset-size5.size6,.katex .sizing.reset-size5.size6{font-size:1.1111111111em}.katex .fontsize-ensurer.reset-size5.size7,.katex .sizing.reset-size5.size7{font-size:1.3333333333em}.katex .fontsize-ensurer.reset-size5.size8,.katex .sizing.reset-size5.size8{font-size:1.6em}.katex .fontsize-ensurer.reset-size5.size9,.katex .sizing.reset-size5.size9{font-size:1.92em}.katex .fontsize-ensurer.reset-size5.size10,.katex .sizing.reset-size5.size10{font-size:2.3044444444em}.katex .fontsize-ensurer.reset-size5.size11,.katex .sizing.reset-size5.size11{font-size:2.7644444444em}.katex .fontsize-ensurer.reset-size6.size1,.katex .sizing.reset-size6.size1{font-size:.5em}.katex .fontsize-ensurer.reset-size6.size2,.katex .sizing.reset-size6.size2{font-size:.6em}.katex .fontsize-ensurer.reset-size6.size3,.katex .sizing.reset-size6.size3{font-size:.7em}.katex .fontsize-ensurer.reset-size6.size4,.katex .sizing.reset-size6.size4{font-size:.8em}.katex .fontsize-ensurer.reset-size6.size5,.katex .sizing.reset-size6.size5{font-size:.9em}.katex .fontsize-ensurer.reset-size6.size6,.katex .sizing.reset-size6.size6{font-size:1em}.katex .fontsize-ensurer.reset-size6.size7,.katex .sizing.reset-size6.size7{font-size:1.2em}.katex .fontsize-ensurer.reset-size6.size8,.katex .sizing.reset-size6.size8{font-size:1.44em}.katex .fontsize-ensurer.reset-size6.size9,.katex .sizing.reset-size6.size9{font-size:1.728em}.katex .fontsize-ensurer.reset-size6.size10,.katex .sizing.reset-size6.size10{font-size:2.074em}.katex .fontsize-ensurer.reset-size6.size11,.katex .sizing.reset-size6.size11{font-size:2.488em}.katex .fontsize-ensurer.reset-size7.size1,.katex .sizing.reset-size7.size1{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size7.size2,.katex .sizing.reset-size7.size2{font-size:.5em}.katex .fontsize-ensurer.reset-size7.size3,.katex .sizing.reset-size7.size3{font-size:.5833333333em}.katex .fontsize-ensurer.reset-size7.size4,.katex .sizing.reset-size7.size4{font-size:.6666666667em}.katex .fontsize-ensurer.reset-size7.size5,.katex .sizing.reset-size7.size5{font-size:.75em}.katex .fontsize-ensurer.reset-size7.size6,.katex .sizing.reset-size7.size6{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size7.size7,.katex .sizing.reset-size7.size7{font-size:1em}.katex .fontsize-ensurer.reset-size7.size8,.katex .sizing.reset-size7.size8{font-size:1.2em}.katex .fontsize-ensurer.reset-size7.size9,.katex .sizing.reset-size7.size9{font-size:1.44em}.katex .fontsize-ensurer.reset-size7.size10,.katex .sizing.reset-size7.size10{font-size:1.7283333333em}.katex .fontsize-ensurer.reset-size7.size11,.katex .sizing.reset-size7.size11{font-size:2.0733333333em}.katex .fontsize-ensurer.reset-size8.size1,.katex .sizing.reset-size8.size1{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size8.size2,.katex .sizing.reset-size8.size2{font-size:.4166666667em}.katex .fontsize-ensurer.reset-size8.size3,.katex .sizing.reset-size8.size3{font-size:.4861111111em}.katex .fontsize-ensurer.reset-size8.size4,.katex .sizing.reset-size8.size4{font-size:.5555555556em}.katex .fontsize-ensurer.reset-size8.size5,.katex .sizing.reset-size8.size5{font-size:.625em}.katex .fontsize-ensurer.reset-size8.size6,.katex .sizing.reset-size8.size6{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size8.size7,.katex .sizing.reset-size8.size7{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size8.size8,.katex .sizing.reset-size8.size8{font-size:1em}.katex .fontsize-ensurer.reset-size8.size9,.katex .sizing.reset-size8.size9{font-size:1.2em}.katex .fontsize-ensurer.reset-size8.size10,.katex .sizing.reset-size8.size10{font-size:1.4402777778em}.katex .fontsize-ensurer.reset-size8.size11,.katex .sizing.reset-size8.size11{font-size:1.7277777778em}.katex .fontsize-ensurer.reset-size9.size1,.katex .sizing.reset-size9.size1{font-size:.2893518519em}.katex .fontsize-ensurer.reset-size9.size2,.katex .sizing.reset-size9.size2{font-size:.3472222222em}.katex .fontsize-ensurer.reset-size9.size3,.katex .sizing.reset-size9.size3{font-size:.4050925926em}.katex .fontsize-ensurer.reset-size9.size4,.katex .sizing.reset-size9.size4{font-size:.462962963em}.katex .fontsize-ensurer.reset-size9.size5,.katex .sizing.reset-size9.size5{font-size:.5208333333em}.katex .fontsize-ensurer.reset-size9.size6,.katex .sizing.reset-size9.size6{font-size:.5787037037em}.katex .fontsize-ensurer.reset-size9.size7,.katex .sizing.reset-size9.size7{font-size:.6944444444em}.katex .fontsize-ensurer.reset-size9.size8,.katex .sizing.reset-size9.size8{font-size:.8333333333em}.katex .fontsize-ensurer.reset-size9.size9,.katex .sizing.reset-size9.size9{font-size:1em}.katex .fontsize-ensurer.reset-size9.size10,.katex .sizing.reset-size9.size10{font-size:1.2002314815em}.katex .fontsize-ensurer.reset-size9.size11,.katex .sizing.reset-size9.size11{font-size:1.4398148148em}.katex .fontsize-ensurer.reset-size10.size1,.katex .sizing.reset-size10.size1{font-size:.2410800386em}.katex .fontsize-ensurer.reset-size10.size2,.katex .sizing.reset-size10.size2{font-size:.2892960463em}.katex .fontsize-ensurer.reset-size10.size3,.katex .sizing.reset-size10.size3{font-size:.337512054em}.katex .fontsize-ensurer.reset-size10.size4,.katex .sizing.reset-size10.size4{font-size:.3857280617em}.katex .fontsize-ensurer.reset-size10.size5,.katex .sizing.reset-size10.size5{font-size:.4339440694em}.katex .fontsize-ensurer.reset-size10.size6,.katex .sizing.reset-size10.size6{font-size:.4821600771em}.katex .fontsize-ensurer.reset-size10.size7,.katex .sizing.reset-size10.size7{font-size:.5785920926em}.katex .fontsize-ensurer.reset-size10.size8,.katex .sizing.reset-size10.size8{font-size:.6943105111em}.katex .fontsize-ensurer.reset-size10.size9,.katex .sizing.reset-size10.size9{font-size:.8331726133em}.katex .fontsize-ensurer.reset-size10.size10,.katex .sizing.reset-size10.size10{font-size:1em}.katex .fontsize-ensurer.reset-size10.size11,.katex .sizing.reset-size10.size11{font-size:1.1996142719em}.katex .fontsize-ensurer.reset-size11.size1,.katex .sizing.reset-size11.size1{font-size:.2009646302em}.katex .fontsize-ensurer.reset-size11.size2,.katex .sizing.reset-size11.size2{font-size:.2411575563em}.katex .fontsize-ensurer.reset-size11.size3,.katex .sizing.reset-size11.size3{font-size:.2813504823em}.katex .fontsize-ensurer.reset-size11.size4,.katex .sizing.reset-size11.size4{font-size:.3215434084em}.katex .fontsize-ensurer.reset-size11.size5,.katex .sizing.reset-size11.size5{font-size:.3617363344em}.katex .fontsize-ensurer.reset-size11.size6,.katex .sizing.reset-size11.size6{font-size:.4019292605em}.katex .fontsize-ensurer.reset-size11.size7,.katex .sizing.reset-size11.size7{font-size:.4823151125em}.katex .fontsize-ensurer.reset-size11.size8,.katex .sizing.reset-size11.size8{font-size:.578778135em}.katex .fontsize-ensurer.reset-size11.size9,.katex .sizing.reset-size11.size9{font-size:.6945337621em}.katex .fontsize-ensurer.reset-size11.size10,.katex .sizing.reset-size11.size10{font-size:.8336012862em}.katex .fontsize-ensurer.reset-size11.size11,.katex .sizing.reset-size11.size11{font-size:1em}.katex .delimsizing.size1{font-family:KaTeX_Size1}.katex .delimsizing.size2{font-family:KaTeX_Size2}.katex .delimsizing.size3{font-family:KaTeX_Size3}.katex .delimsizing.size4{font-family:KaTeX_Size4}.katex .delimsizing.mult .delim-size1>span{font-family:KaTeX_Size1}.katex .delimsizing.mult .delim-size4>span{font-family:KaTeX_Size4}.katex .nulldelimiter{display:inline-block;width:.12em}.katex .delimcenter,.katex .op-symbol{position:relative}.katex .op-symbol.small-op{font-family:KaTeX_Size1}.katex .op-symbol.large-op{font-family:KaTeX_Size2}.katex .accent>.vlist-t,.katex .op-limits>.vlist-t{text-align:center}.katex .accent .accent-body{position:relative}.katex .accent .accent-body:not(.accent-full){width:0}.katex .overlay{display:block}.katex .mtable .vertical-separator{display:inline-block;min-width:1px}.katex .mtable .arraycolsep{display:inline-block}.katex .mtable .col-align-c>.vlist-t{text-align:center}.katex .mtable .col-align-l>.vlist-t{text-align:left}.katex .mtable .col-align-r>.vlist-t{text-align:right}.katex .svg-align{text-align:left}.katex svg{fill:currentColor;stroke:currentColor;display:block;height:inherit;position:absolute;width:100%}.katex svg path{stroke:none}.katex svg{fill-rule:nonzero;fill-opacity:1;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1}.katex img{border-style:none;max-height:none;max-width:none;min-height:0;min-width:0}.katex .stretchy{display:block;overflow:hidden;position:relative;width:100%}.katex .stretchy:after,.katex .stretchy:before{content:""}.katex .hide-tail{overflow:hidden;position:relative;width:100%}.katex .halfarrow-left{left:0;overflow:hidden;position:absolute;width:50.2%}.katex .halfarrow-right{overflow:hidden;position:absolute;right:0;width:50.2%}.katex .brace-left{left:0;overflow:hidden;position:absolute;width:25.1%}.katex .brace-center{left:25%;overflow:hidden;position:absolute;width:50%}.katex .brace-right{overflow:hidden;position:absolute;right:0;width:25.1%}.katex .x-arrow-pad{padding:0 .5em}.katex .cd-arrow-pad{padding:0 .55556em 0 .27778em}.katex .mover,.katex .munder,.katex .x-arrow{text-align:center}.katex .boxpad{padding:0 .3em}.katex .fbox,.katex .fcolorbox{border:.04em solid;box-sizing:border-box}.katex .cancel-pad{padding:0 .2em}.katex .cancel-lap{margin-left:-.2em;margin-right:-.2em}.katex .sout{border-bottom-style:solid;border-bottom-width:.08em}.katex .angl{border-right:.049em solid;border-top:.049em solid;box-sizing:border-box;margin-right:.03889em}.katex .anglpad{padding:0 .03889em}.katex .eqn-num:before{content:"(" counter(katexEqnNo) ")";counter-increment:katexEqnNo}.katex .mml-eqn-num:before{content:"(" counter(mmlEqnNo) ")";counter-increment:mmlEqnNo}.katex .mtr-glue{width:50%}.katex .cd-vert-arrow{display:inline-block;position:relative}.katex .cd-label-left{display:inline-block;position:absolute;right:calc(50% + .3em);text-align:left}.katex .cd-label-right{display:inline-block;left:calc(50% + .3em);position:absolute;text-align:right}.katex-display{display:block;margin:1em 0;text-align:center}.katex-display>.katex{display:block;text-align:center;white-space:nowrap}.katex-display>.katex>.katex-html{display:block;position:relative}.katex-display>.katex>.katex-html>.tag{position:absolute;right:0}.katex-display.leqno>.katex>.katex-html>.tag{left:0;right:auto}.katex-display.fleqn>.katex{padding-left:2em;text-align:left}body{counter-reset:katexEqnNo mmlEqnNo}
+
+* { box-sizing: border-box; }
+body { margin:0; font-family:var(--font-text); background:var(--bg); color:var(--fg);
+       font-size:14px; line-height:1.5; letter-spacing:-.005em; -webkit-font-smoothing:antialiased; }
+.canvas-pane {  }
+/* ---- 溯源预览(票02/03):来源签 + 抽屉对照双栏 + 原文面板 + 定位高亮 ---- */
+/* 来源签:蓝 = 交互语义(与 .cv-chip 同族)。置灰签(溯源不可用)走 .is-disabled
+   而非 :disabled——保持可悬停/可聚焦,悬停原因说明(title)才到得了用户 */
+.cv-src-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.cv-src-label { font-size: 11px; color: var(--label-3); }
+/* 表格单元内的签组(评分表「来源」列):列头已含语义,无标签行上边距 */
+.cv-src-row.is-cell { margin-top: 0; }
+.cv-src-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--blue);
+  background: var(--blue-soft);
+  padding: 2.5px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+}
+.cv-src-chip:hover { background: rgba(0, 100, 225, 0.16); }
+/* 反馈在指针按下即时给出(apple-design):按压态走 :active 缩放 */
+.cv-src-chip:active { transform: scale(0.95); }
+.cv-src-chip.is-disabled,
+.cv-src-chip.is-disabled:hover {
+  color: var(--label-3);
+  background: var(--surface-2);
+  cursor: not-allowed;
+}
+.cv-src-chip.is-disabled:active { transform: none; }
+/* 活跃签点亮:全局单活跃 ref,实心蓝与常态浅染拉开 */
+.cv-src-chip.is-active,
+.cv-src-chip.is-active:hover {
+  color: #fff;
+  background: var(--blue);
+}
+.cv-src-chip:focus-visible,
+.cv-trace-close:focus-visible,
+.cv-trace-error button:focus-visible {
+  outline: 2px solid rgba(0, 100, 225, .38);
+  outline-offset: 2px;
+}
+
+/* 原文预览层:盖满画布的阅读层。挂在 .cv-drawer(absolute inset:0 / z-30)子级,
+   所以只需在其内部压过面板即可,不必越过任何页面级 fixed 层,也不需要 portal。
+   画布容器带 cursor:grab / touch-action:none,浮层要显式抵消掉。 */
+.cv-trace-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--cv-drawer-pad);
+  cursor: default;
+  touch-action: auto;
+}
+.cv-trace-modal-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 24, 34, 0.28);
+  /* backdrop-filter 走组件内联（构建期会剥离样式表里的该属性），见 TraceModal.tsx */
+}
+.cv-trace-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, 100%);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-3);
+}
+.cv-trace-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  padding: 13px 14px 13px 18px;
+  border-bottom: 1px solid var(--separator);
+  color: var(--label-2);
+}
+.cv-trace-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 对照条:预览层盖住条目列表后的补偿 —— 「正在核验什么」+ 人工动作 + 来源步进
+   同屏可用(PRD 故事 5/6)。玻璃一档与下方纸面舞台分层。 */
+.cv-trace-claim {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 11px 18px 12px;
+  border-bottom: 1px solid var(--separator);
+  background: var(--surface-2);
+}
+.cv-trace-claim-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cv-trace-claim-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+.cv-trace-claim-title {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-trace-claim-text {
+  position: relative;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--label-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.cv-trace-claim-text.is-open {
+  display: block;
+  -webkit-line-clamp: none;
+  max-height: 30vh;
+  overflow: auto;
+}
+.cv-trace-claim-toggle {
+  margin-left: 6px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+}
+.cv-trace-claim-toggle:hover { text-decoration: underline; }
+.cv-trace-claim-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cv-trace-claim-foot .cv-item-actions { margin-top: 0; }
+/* 来源步进器:同一条目的多条来源在层内走完,不用退层再找下一枚签 */
+.cv-trace-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+.cv-trace-step button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: var(--surface);
+  color: var(--label-2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+}
+.cv-trace-step button:hover { color: var(--fg); background: var(--surface-3); }
+.cv-trace-step button:active { transform: scale(0.94); }
+.cv-trace-step button:focus-visible {
+  outline: 2px solid rgba(0, 100, 225, .38);
+  outline-offset: 2px;
+}
+.cv-trace-close {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--label-2);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+}
+.cv-trace-close:hover { color: var(--fg); background: var(--surface-3); }
+.cv-trace-close:active { transform: scale(0.94); }
+/* 舞台 = 滚动容器,纸面在其中居中(对齐原型 .pages-viewport.centered)。
+   定位滚动的容器身份在此,TracePanel 里 closest(".cv-trace-stage") 依赖它。 */
+.cv-trace-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 36px 56px;
+  background: var(--surface-3);
+}
+/* 文档纸面:白纸落在冷灰舞台上 —— 取原型 .page 的纸面质感,但不伪造 A4 分页
+   (源是线性 Markdown 抽取,没有页边界,硬分页会造出一张几十屏高的假页)。 */
+.cv-trace-sheet {
+  width: min(760px, 100%);
+  box-sizing: border-box;
+  padding: 56px 72px 72px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--elev-1);
+}
+
+/* 载入占位:静态骨架行(Frost 禁无限循环动效) */
+.cv-trace-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding-top: 6px;
+}
+.cv-trace-skel i {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.cv-trace-skel i:first-child { height: 18px; }
+
+.cv-trace-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--orange-text);
+  background: rgba(255, 149, 0, .12);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.cv-trace-error button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid rgba(60, 60, 67, 0.16);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label);
+  background: var(--surface);
+  cursor: pointer;
+  transition: transform var(--t-micro) var(--ease-out), background-color var(--t-micro) ease;
+}
+.cv-trace-error button:hover { background: var(--surface-2); }
+.cv-trace-error button:active { transform: scale(0.97); }
+
+/* 成品排版:层级密度取 .design/prototype/archive/preview.html(文档预览与导出),
+   颜色映射 Frost token。衬线栈保留原型序,Web 字体变量(--trace-serif-*)由
+   TracePanel 经 next/font 只挂在本节点——「零 Web 字体」硬约束的唯一破例范围。 */
+.cv-trace-doc {
+  font-family: var(--trace-serif-latin), var(--trace-serif-cjk), "Source Han Serif SC", "Songti SC", Georgia, serif;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--label);
+}
+.cv-trace-doc h1,
+.cv-trace-doc h2,
+.cv-trace-doc h3,
+.cv-trace-doc h4 {
+  font-weight: 600;
+  color: var(--label);
+  line-height: 1.4;
+}
+/* 版心 ~616px(纸面 760 − 左右各 72),字号阶梯随之抬到原型 .page 的密度 */
+.cv-trace-doc h1 { font-size: 30px; letter-spacing: -0.01em; line-height: 1.3; margin: 20px 0 8px; }
+.cv-trace-doc h2 { font-size: 20px; letter-spacing: -0.005em; margin: 28px 0 10px; }
+/* 原型 h3 起转无衬线小标题 */
+.cv-trace-doc h3 { font-family: var(--font-text); font-size: 13.5px; color: var(--fg-2); margin: 20px 0 8px; }
+.cv-trace-doc h4 { font-family: var(--font-text); font-size: 12.5px; color: var(--fg-2); margin: 16px 0 6px; }
+.cv-trace-doc h1:first-child,
+.cv-trace-doc h2:first-child { margin-top: 0; }
+.cv-trace-doc p { margin: 0 0 11px; overflow-wrap: anywhere; }
+.cv-trace-doc ul,
+.cv-trace-doc ol { padding-left: 22px; margin: 8px 0 14px; }
+.cv-trace-doc li { line-height: 1.7; margin-bottom: 4px; }
+
+/* 行内修饰:旧的手写渲染器产不出这些标签,真管线会产,必须补齐 */
+.cv-trace-doc strong { font-weight: 600; color: var(--label); }
+.cv-trace-doc em { font-style: italic; }
+.cv-trace-doc del { color: var(--label-3); }
+.cv-trace-doc sub,
+.cv-trace-doc sup { font-size: 0.75em; line-height: 0; }
+.cv-trace-doc a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.cv-trace-doc code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  padding: 1px 5px;
+  border: 1px solid var(--border-2);
+  border-radius: 4px;
+  background: rgba(116, 116, 128, .10);
+}
+.cv-trace-doc pre {
+  margin: 14px 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.cv-trace-doc pre code { border: 0; padding: 0; background: transparent; }
+.cv-trace-doc blockquote {
+  margin: 12px 0;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--border-2);
+  color: var(--fg-2);
+}
+.cv-trace-doc hr { border: 0; border-top: 1px solid var(--border-2); margin: 22px 0; }
+.cv-trace-doc img { max-width: 100%; height: auto; border-radius: 6px; }
+
+/* 公式:KaTeX 跟随正文字号;行间公式长了在自身容器里横滚,不撑破纸面。
+   解析失败(OCR 讹误)降级成朴素等宽文本 —— 不留 KaTeX 默认的刺目红。 */
+.cv-trace-doc .katex { font-size: 1em; }
+/* KaTeX 自带 9 个 KaTeX_* 字族 / 20 个 woff2(共 1.2MB)。Frost 的「零 Web 字体」
+   硬约束只给溯源预览的正文衬线开过一次口子,不为 20% 这类算式再开第二次:
+   字族一律改指文档字体栈,浏览器就不会请求任何 KaTeX 字形文件
+   (@font-face 只有真被用到才下载)。只覆盖 font-family —— KaTeX 的间距、
+   上下标位移、.mathnormal 的 italic 等全部照旧生效。
+   本语料的公式都是 20% / ① / 7×24 / = 这类简单式,文档字体呈现完全够看;
+   若日后要真数学排版,删掉这一段即可换回 KaTeX 原生字形。 */
+.cv-trace-doc .katex,
+.cv-trace-doc .katex * {
+  font-family: var(--trace-serif-latin), var(--trace-serif-cjk), Georgia, serif !important;
+}
+.cv-trace-doc .katex-display { margin: 14px 0; overflow-x: auto; overflow-y: hidden; }
+.cv-trace-doc .katex-error {
+  color: var(--label-2);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+/* 全边框表格走无衬线(原型同式);宽表在自身容器内横向滚动 */
+.cv-trace-html { overflow-x: auto; margin: 14px 0; }
+.cv-trace-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-family: var(--font-text);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.cv-trace-doc thead th { background: var(--surface-2); font-weight: 600; color: var(--fg-2); font-size: 11.5px; }
+/* MinerU 的表格只有 <tr><td>,没有 thead/th(全语料实测 th 数为 0),
+   表头样式永远不生效、每张表都是无表头均质格子。这里把无 thead 表格的首行提升为表头皮。
+   已知代价:跨页续表首行是空单元格,会被误当表头着色 —— 可接受,好过整表无表头。 */
+.cv-trace-doc table:not(:has(thead)) > tbody > tr:first-child > td {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--fg-2);
+  font-size: 11.5px;
+}
+.cv-trace-doc th,
+.cv-trace-doc td {
+  border: 1px solid var(--separator);
+  padding: 7px 9px;
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: anywhere;
+  min-width: 42px;
+}
+
+/* ---- 定位高亮 + 容错(票03) ---- */
+/* 未能定位黄条:line_span 缺失/越界照常开文档,坏数据可见(同 .cv-trace-error 警示皮) */
+.cv-trace-banner {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--orange-text);
+  background: rgba(255, 149, 0, .12);
+  border-radius: 8px;
+  padding: 7px 10px;
+  margin-bottom: 12px;
+}
+/* 块级高亮:系统蓝浅染 + 左缘蓝条(蓝=交互语义,不占橙/红警示色)。
+   负外边距 + 等量内边距把染区外扩进左沟,正文原位不动(切换活跃签零布局位移)。
+   染色收进 ::before 覆盖层(票05):出现时的一次性短暂强调(micro 档染色淡入)由
+   gsap 驱动 --cv-hit-in 变量控制覆盖层 opacity——动效仍只动 opacity,正文不闪。 */
+.cv-trace-doc .cv-trace-hit {
+  position: relative;
+  isolation: isolate;
+  border-radius: 0 8px 8px 0;
+  margin-left: -14px;
+  padding-left: 14px;
+}
+.cv-trace-doc .cv-trace-hit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--blue-soft);
+  box-shadow: inset 3px 0 0 var(--blue);
+  opacity: var(--cv-hit-in, 1);
+}
+.cv-trace-doc ul.cv-trace-hit,
+.cv-trace-doc ol.cv-trace-hit { padding-left: 36px; }
+/* 表格特例:表格由管线套在可横滚容器里(见 lib/trace/pipeline.wrapTables),
+   容器带 overflow 时负外边距外扩会被裁掉,原位整表染色即可 */
+.cv-trace-doc .cv-trace-html.cv-trace-hit {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+
+/* 预览外壳:模拟画布 + 预览层落位 */
+.stage-wrap { height:100vh; padding:14px; background:
+   radial-gradient(1200px 600px at 20% 0%, #dbe9fb, transparent 60%), #eef0f3; }
+.cv-trace-modal { position:relative; inset:auto; height:100%; }
+.cv-trace-modal-scrim { background:rgba(18,24,34,.28); backdrop-filter:blur(3px); }
+.cv-trace-doc { font-family:"Songti SC","Source Han Serif SC",Georgia,serif; }
+.cv-trace-doc .katex, .cv-trace-doc .katex * { font-family:"Songti SC",Georgia,serif !important; }
+.note { position:fixed; left:22px; bottom:16px; font-size:11.5px; color:var(--muted);
+        background:rgba(255,255,255,.86); padding:6px 10px; border-radius:7px; }
+</style></head>
+<body class="canvas-pane">
+<div class="stage-wrap">
+  <div class="cv-trace-modal">
+    <div class="cv-trace-modal-scrim"></div>
+    <div class="cv-trace-modal-panel" role="dialog">
+      <div class="cv-trace-modal-head">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 3v5h5M6 2h9l5 5v15H6z"/></svg>
+        <span class="cv-trace-title">投标人须知前附表 · 招标文件（220180032）</span>
+        <button class="cv-trace-close">✕</button>
+      </div>
+      <div class="cv-trace-claim">
+        <div class="cv-trace-claim-head">
+          <span class="cv-trace-claim-label">核验条目 · 商务-012</span>
+          <span class="cv-face-badge is-mand">★ 实质性</span>
+          <span class="cv-trace-claim-title">投标保证金缴纳方式与截止时间</span>
+        </div>
+        <p class="cv-trace-claim-text">投标保证金应当于投标（报价）截止时间前缴至指定账户，以保证金账户实际收款为准；采用线下缴纳的，投标单位应当从银行账户转账至保证金账户，汇款时须在备注信息中注明本项目的编号及用途。<button class="cv-trace-claim-toggle">展开</button></p>
+        <div class="cv-trace-claim-foot">
+          <div class="cv-item-actions">
+            <div class="cv-det-seg" role="group">
+              <button class="is-compliant">合规</button><button class="is-positive">正偏离</button><button class="is-negative">负偏离</button>
+            </div>
+            <button class="cv-item-confirm">确认</button>
+          </div>
+          <div class="cv-trace-step"><span>第 1/3 条来源</span><button>‹</button><button>›</button></div>
+        </div>
+      </div>
+      <div class="cv-trace-stage">
+        <div class="cv-trace-sheet">
+          <article class="cv-trace-doc"><p data-line-start="1" data-line-end="1">该项目除开标当日受理投标文件外，允许供应商在开标日之前来我站借助自助终端导入投标文件，此方式仅为投标文件导入的辅助方式，供应商可提前验证文件导入是否成功，供应商可自</p>
+<p data-line-start="3" data-line-end="3">主选择提前导入或者开标当日导入。供应商授权代表在开标当日仍需携带投标资料（以采购文件要求为准）到场进行投标受理登记，参加开标大会，解密投标（报价）文件。</p>
+<h1 data-line-start="5" data-line-end="5">第四章 投标供应商须知前附表</h1>
+<h1 data-line-start="7" data-line-end="7">一、投标供应商须知前附表</h1>
+<p data-line-start="9" data-line-end="9">本表是对本项目需重点关注内容的集中说明。专用文件与通用文件存在不一致的地方，以专用文件要求为准。</p>
+<div class="cv-trace-html cv-trace-hit" data-line-start="11" data-line-end="34"><table><tbody><tr><td>序号</td><td>招投标相关事项</td><td>项目具体要求（见专用文件）</td><td>通用要求（见通用文件）</td></tr><tr><td>1</td><td>项目概况</td><td>本项目采购机构名称：联勤保障部队第五采购服务站
+项目名称：某部数据资源体系建设及大数据分析应用项目（数据资源体系建设）一包
+项目编号：2024-JQ05-F1859(1)
+预算金额：350万
+联系人：牛助理
+15522681158（电话无法接通请发送短信）</td><td></td></tr><tr><td>2</td><td>投标供应商资格条件</td><td>详见公告</td><td>第3.2条</td></tr><tr><td>3</td><td>招标文件申领（下载）时间</td><td>详见公告</td><td>第7.1条</td></tr><tr><td>4</td><td>组织现场踏勘或召开标前答</td><td>详见公告</td><td>第7.2条</td></tr><tr><td></td><td>疑会</td><td></td><td></td></tr><tr><td>5</td><td>信息发布媒体</td><td>www.plap.mil.cn</td><td>第8.1条</td></tr><tr><td>6</td><td>中标供应商数量</td><td>详见公告</td><td>第35.3条</td></tr><tr><td>7</td><td>投标有效期</td><td>从提交投标文件的截止之日起180日</td><td>第16.1条</td></tr><tr><td>8</td><td>投标报价的其他要求</td><td>无</td><td></td></tr><tr><td>9</td><td>投标保证金</td><td>采购包1保证金金额:40,000.00元
+缴交渠道:转账,保函
+账户名称:中国人民解放军32734部队收缴户
+开户银行:工行天津富民路支行
+银行账号:9558830302001580509
+其他说明:
+1、缴纳截止时间为本项目投标(报价)截止时间,以保证金账户实际收款为准;
+2、采用线下缴纳的,投标单位应当从银行账户转账至保证金账户,在汇款时要在备注信息中注明本项目的编号及用途。</td><td>第18条</td></tr><tr><td>10</td><td>投标受理时间</td><td>详见公告</td><td>第10.1条和第20.1条</td></tr><tr><td>11</td><td>开标方式</td><td>到现场开标</td><td>第22.2条</td></tr><tr><td>12</td><td>开标时间及地点</td><td>详见公告</td><td>第22.1条</td></tr><tr><td>13</td><td>资格性审查标准</td><td>本章附表1</td><td>第24.1条</td></tr><tr><td>14</td><td>符合性审查标准</td><td>本章附表2</td><td>第24.2条</td></tr><tr><td>15</td><td>商务评审标准</td><td>本章附表3</td><td>第24.3条第(1)项</td></tr><tr><td>16</td><td>技术评审标准</td><td>本章附表4</td><td>第24.3条第(2)项</td></tr><tr><td>17</td><td>价格评审标准</td><td>本章附表5</td><td>第24.3条第(3)项</td></tr><tr><td>18</td><td>非实质性负偏离的项数</td><td>详见技术评审标准表</td><td>第29.1条第(2)项</td></tr><tr><td>19</td><td>评审方法</td><td>采购包1:综合评分法</td><td>第23.2条和第31.1条</td></tr><tr><td>20</td><td>质疑受理单位及联系方式</td><td>受理单位:联勤保障部队第五采购服务站联系人:高助理联系方式:022-84653095、13904807836(质疑事项电话未及时接听的,请发送短信,避免遗漏)</td><td>第44.4条</td></tr><tr><td>21</td><td>受理、处理投诉申请部门及联系方式</td><td>处理部门：联勤保障部队后勤部采购管理处
+联系人：李助理、杨助理、董助理
+联系方式：027-59561755/027-59561763/027-59561765</td><td>第45.4条</td></tr><tr><td>22</td><td>受理、处理投诉复议申请部门及联系方式</td><td>处理部门：军委后勤保障部采购服务中心
+联系人：李助理
+联系方式：010-66945693</td><td>第46.4条</td></tr><tr><td>23</td><td>其他补充内容</td><td>采购包1：允许供应商超品目限价报价
+一、电子文件要求
+1.电子文件使用要求：
+供应商须在开标现场提供《加密电子投标（报价）文件》《不加密电子投标（报价）文件》以及《PDF版投标（报价）文件》各2份。《加密电子投标（报价）文件》为一般正常开标（评审）情况下使用文件；《不加密电子投标（报价）文件》为开标现场供应商忘记密码或解密失败时使用文件；《PDF版投标（报价）文件》为系统故障时转为线下评审时使用文件。
+2.电子文件密封要求：
+《加密电子投标（报价）文件》《不加密电子投标（报价）文件》以及《PDF版投标（报价）文件》每份单独密封在1个信封内，信封表面注明“投标供应商名称”“项目名称”“项目编号”“包号”等信息以及“电子文件类型”（加密文件/不加密文件/PDF版文件）字样，投标时单独密封递交。投标供应商如未按上述要求单独递交，投标将被拒绝。
+3.电子文件递交要求：
+投标（报价）截止时间前，供应商应将密封完好的《加密电子投标（报价）文件》《不加密电子投标（报价）文件》以及《PDF版投标（报价）文件》6份光盘提交采购机构，采购机构按照受理电子文件顺序将光盘中的加密文件拷贝进电脑并上传至系统。开标时由供应商自行输入密码解密。因光盘文件异常现场无法读取的，采购机构可使用另一份光盘重新上传。请各投标（报价）供应商提前到达开标现场，预留充足的文件上传时间，至投标（报价）截止时，电子投标（报价）文件</td><td>第49条</td></tr><tr><td></td><td></td><td>未成功完整上传的,按无效投标处理,相关责任由供应商自行承担。二、更正通用文件与专用文件不一致内容,有关要求以专用文件中本要求为准1.电子投标文件递交的相关要求参照其他补充内容“一、电子文件要求3.电子文件递交”要求执行;2.44.4条质疑优先采用在线质疑,如线上质疑无法实现,质疑方式按照线下进行:(具体44.2条)(1)受理单位:联勤保障部队第五采购服务站(2)联系人:高助理联系方式:022-84653095、13904807836(质疑事项电话未及时接听的,请发送短信,避免遗漏)(3)地址:天津市河东区富民路114号合同履约室(4)受理邮箱:zhiyi53097@163.com(投标截止时间10日前(截止最后一日17:30),按照质疑要求将盖章扫描的PDF版质疑材料和可编辑word版质疑函一并发送至我单位质疑受理邮箱,逾期不予受理。)重点说明:①质疑供应商须提供相关证据材料,不能提供的需明确说明问题线索及无法提供证据材料的客观原因,否则认为质疑事项不成立。②同一供应商针对同一项目的同一内容重复质疑,前期已答复的,不再重复答复。③采购文件质疑以电子邮件方式或邮寄(现场)方式提交均可,提出质疑的时间以质疑期内最后一次提交时间为准;采购结果质疑需同步以电子邮件方式和邮寄(现场)方式提交,提出质疑的时间以现场提交时的签署时间或者邮件寄出的邮戳日期和电子凭证为准。④质疑函由授权代表签字的,应提供法定代表人签署的授权书。⑤供应商提出质疑时应仅在抬头及落款处体现质疑人身份,质疑事项具体内容中不可体现质疑人身份,加盖公章时盖抬头、落款及骑缝章即可,避免公章遮挡正文内容。(5)邮编:300182</td><td></td></tr><tr><td></td><td></td><td>质疑处理机构电话无法接通的,可拨打采购机构纪检监察监督固定电话:022-84653025,联系人:李干事3.第三章“投标文件内容及格式”的内容以招标文件附件规定的内容执行。三、其他说明:2.投标时请授权代表须随身携带身份证、法定代表人授权证明、文件要求的社保证明,以备核验。3.该项目除开标当日受理投标文件外,允许供应商在开标日之前来我站借助自助终端导入投标文件,具体要求如下:(1)导入投标文件的地点:天津市河东区富民路114号采购服务大厅值班窗口处,导入时间:工作日上午8:30-11:30,下午15:00-17:30;(2)导入光盘为加密文件光盘(指后缀为“.标书”的加密文件);(3)导入投标文件的软件为文件自助上传终端,届时将由供应商工作人员自助导入,导入方法可咨询现场值班人员;(4)上传成功后系统将自动匹配报名参与的采购包;(5)若多次上传同一采购包的投标文件,则以最后上传的投标文件为准;(6)导入完成后,请确认上传结果及信息无误后再离开,如有问题请联系现场值班人员;(7)此方式仅为投标文件导入的辅助方式,供应商可提前验证文件导入是否成功,供应商可自主选择提前导入或者开标当日导入,供应商授权代表在开标当日仍需携带投标资料(以采购文件要求为准)到场进行投标受理登记,参加开标大会,解密投标(报价)文件。4.投标供应商在报名时登陆111.160.36.212:8095网站,在线填写应急供应商《供应商资源信息登记表》如投标供应商登陆网站录入信息时遇到系统故障将问题描述发送至jin_1005@126.com邮箱。5.电子招投标项目涉及涉密内容部分无法上传在线编标工具的,其中是否涉密由供</td><td></td></tr></tbody></table></div>
+<h2 data-line-start="37" data-line-end="37">评分与价格（公式段落，取自另一份语料）</h2>
+<p data-line-start="39" data-line-end="39">评审委员会应当按照招标文件要求，依据投标文件对投标供应商填写的内容进行审核确认。其中，商务评委按照商务评审标准作商务评审，技术评委按照技术评审标准进行技术评审。系统依据评审委员会成员线上评审情况生成评审工作底稿，详细记录评分情况，以及形成过程、计算依据和投标供应商排序情况，由成员签字确认。评审委员会成员不得集体商议、沟通、协调，商务、技术评审方面存有歧义的除外。</p>
+<p data-line-start="41" data-line-end="41">31.1采用综合评分法/质量优先法评审时：</p>
+<p data-line-start="43" data-line-end="43">商务、技术评分项响应评审。评审委员会按招标文件规定的评审标准，对商务、技术评分项计算得分。</p>
+<p data-line-start="45" data-line-end="45">评审委员会成员对同一投标供应商的商务或技术的评分，偏离评审委员会全体成员的评分均值<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>20</mn><mi mathvariant="normal">%</mi></mrow><annotation encoding="application/x-tex">20 \%</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8056em;vertical-align:-0.0556em;"></span><span class="mord">20%</span></span></span></span> 以上的，以其他评委的评分均值作为该成员的评分；评审委员会所有成员的评分均偏离<span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>20</mn><mi mathvariant="normal">%</mi></mrow><annotation encoding="application/x-tex">20 \%</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8056em;vertical-align:-0.0556em;"></span><span class="mord">20%</span></span></span></span> 以上的，以全体成员的评分均值计算。</p>
+<p data-line-start="47" data-line-end="47">采用质量优先法的具体评审流程：先不考虑价格因素，对通过资格性和符合性审查的投标供应商，依据商务、技术评审标准进行评审后，现场宣布商务、技术得分和技术排名，并公布按照【投标供应商须知前附表】明确的合格分或规定名次淘汰的技术评审未达到合格分或得分排名靠后的投标供应商，第二次开标后，按照价格评审标准进行评审。</p>
+<p data-line-start="49" data-line-end="49">31.2采用经评审的最低价法评审时：</p>
+<p data-line-start="51" data-line-end="51">评审委员会按招标文件规定的评审标准，对商务、技术指标是否实质性响应进行判定；必要时，对技术指标优劣进行排序。</p>
+<p data-line-start="53" data-line-end="53">31.3评审委员会成员对客观分值的评分应当一致；财务状况、技术偏离、业绩等，应当以投标供应商提供的财务报表、检测报告、资质文件、合同原件或复印件，以及有关证明材料为依据。对其他需要借助专业知识评判的主观分值，应当严格按照评分细则独立评审。</p>
+<h1 data-line-start="55" data-line-end="55">32.价格评审</h1>
+<p data-line-start="57" data-line-end="57">商务、技术评审结束后，系统将“ ”价格文件 提交评审委员会。评审委员会组织价格评审，核对报价内容是否准确、合理。</p>
+<p data-line-start="59" data-line-end="59">32.1综合评分法和质量优先法的价格分的计算方法，采用低价优先法或基准价法。</p>
+<p data-line-start="61" data-line-end="61">（1）低价优先法。以满足招标文件实质性要求的投标供应商最低报价为评审基准价，其价格分为满分（标准分值）。其他投标供应商的价格分按照下列公式计算：</p>
+<p data-line-start="63" data-line-end="63">价格得分 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>=</mo></mrow><annotation encoding="application/x-tex">=</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.3669em;"></span><span class="mrel">=</span></span></span></span> （评审基准价/报价）×标准分值</p>
+<p data-line-start="65" data-line-end="65">（2）基准价法。以满足招标文件实质性要求所有投标供应商有效报价的算术平均值为评审基准价，投标供应商报价等于评审基准价的为满分，其他报价按照与评审基准价的偏离度计算得分。不得去掉有效报价的最高报价和最低报价。评审基准价的偏离度和分差设置，在专用文件中明确。</p>
+<p data-line-start="67" data-line-end="67">如有第30.4条出现的算术修正，以算术修正后的价格计算评审基准价和投标报价。</p>
+<p data-line-start="69" data-line-end="69">32.2经评审的最低价法的价格评审，按照投标报价由低到高顺序排列。</p>
+<p data-line-start="71" data-line-end="71">32.3评审委员会认为投标供应商报价低于其他所有通过资格性、符合性审查的投标供应商平均报价 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>40</mn><mi mathvariant="normal">%</mi></mrow><annotation encoding="application/x-tex">40 \%</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8056em;vertical-align:-0.0556em;"></span><span class="mord">40%</span></span></span></span> ，有可能影响服务质量或不能诚信履约的，评审委员会应当要求投标供应商在规定时间内提供报价合理性的书面说明和履约担保承诺，必要时提交相关证明材料。投标供应商未按照要求提供或评审委员会认为其不能证明其报价合理性，按照无效投标处理。</p>
+<p data-line-start="73" data-line-end="73">32.4 投标供应商投标报价超过预算的，按照下列方式处理：</p></article>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="note">静态核对页：真语料经 lib/trace/pipeline 渲染 + globals.css 实样式。蓝染块 = 模拟点中来源签后的整表高亮。</div>
+</body></html>

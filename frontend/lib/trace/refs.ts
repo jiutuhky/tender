@@ -5,7 +5,7 @@
 //   line_span 缺失/越界/落空行 → 「未能定位」黄条,照常开文档,不滚动不高亮。
 
 import type { SourceRef } from "@/lib/hagent/matrix";
-import type { DocBlock } from "./blocks";
+import type { LineRange } from "./pipeline";
 
 /** 文档注册表载入状态(traceContext 持有):签的置灰原因据此分流 */
 export type RegistryStatus = "loading" | "ready" | "failed";
@@ -38,7 +38,7 @@ export type SpanAnchor =
  *  契约为 [start, end];LLM 数据防御性取 min/max(单点 [n] 视作 [n, n],反序照常成立)。
  *  缺失、非整数、越界、或行区全落在空行上(无可高亮块)一律判未能定位。 */
 export function locateSpan(
-  blocks: readonly DocBlock[],
+  blocks: readonly LineRange[],
   span: number[] | undefined,
   totalLines: number,
 ): SpanAnchor {

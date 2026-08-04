@@ -1,7 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# dependencies（包管理器为 pnpm，npm/yarn lockfile 属误生成）
 /node_modules
+/package-lock.json
+/yarn.lock
 /.pnp
 .pnp.*
 .yarn/*

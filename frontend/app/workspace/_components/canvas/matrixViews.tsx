@@ -25,8 +25,12 @@ import {
 import { assessSourceRef } from "@/lib/trace/refs";
 import { SecTitle, Table, type Col } from "./CardDetail";
 import { isSlotInterrupted } from "./cardMeta";
-import { useTrace } from "./traceContext";
+import { useTrace, type TraceClaim } from "./traceContext";
 import { bidDeadline, calendarDaysBetween, deadlineCountdown, parseDeadline } from "./deadline";
+
+/** 来源签处要填的对照条数据。itemKey / refs / refIndex 由 SourceChips 就地补齐
+ *  (它本来就持有这三样),调用点只描述「被核验的是什么」。 */
+type ClaimInfo = Omit<TraceClaim, "itemKey" | "refs" | "refIndex">;
 
 // 四张真实应答矩阵卡的卡面预览与抽屉详情。
 // 数据订阅自 workspace store(store 为唯一事实来源,不经 CardInst 传递);
@@ -173,11 +177,14 @@ function SourceChips({
   refs,
   itemKey,
   compact,
+  claim,
 }: {
   refs: SourceRef[];
   /** 签身份命名空间:条目用业务 id,评分项/否决项加 score:/veto: 前缀防同抽屉撞键 */
   itemKey: string;
   compact?: boolean;
+  /** 被核验条目的描述数据,随签带进预览层的对照条;itemKey/refs/refIndex 在此就地补齐 */
+  claim?: ClaimInfo;
 }) {
   const trace = useTrace();
   if (refs.length === 0) return null;
@@ -203,7 +210,16 @@ function SourceChips({
             aria-disabled={usability.usable ? undefined : true}
             aria-pressed={active || undefined}
             title={usability.usable ? hoverText : usability.reason}
-            onClick={usability.usable ? () => trace.openTrace(ref, chipKey) : undefined}
+            onClick={
+              usability.usable
+                ? () =>
+                    trace.openTrace(
+                      ref,
+                      chipKey,
+                      claim ? { ...claim, itemKey, refs, refIndex: i } : undefined,
+                    )
+                : undefined
+            }
           >
             {label}
           </button>
@@ -215,7 +231,15 @@ function SourceChips({
 
 /** 「来源」标签行:条目底部与否决项红区共用。无 Provider 场景(mock 详情)回退
  *  纯文本行;refs 为空或文本拼不出时整行不渲染,不留孤立「来源」标签。 */
-function SourceRow({ refs, itemKey }: { refs: SourceRef[]; itemKey: string }) {
+function SourceRow({
+  refs,
+  itemKey,
+  claim,
+}: {
+  refs: SourceRef[];
+  itemKey: string;
+  claim?: ClaimInfo;
+}) {
   const trace = useTrace();
   if (refs.length === 0) return null;
   if (!trace) {
@@ -226,15 +250,37 @@ function SourceRow({ refs, itemKey }: { refs: SourceRef[]; itemKey: string }) {
   return (
     <div className="cv-src-row">
       <span className="cv-src-label">来源</span>
-      <SourceChips refs={refs} itemKey={itemKey} />
+      <SourceChips refs={refs} itemKey={itemKey} claim={claim} />
     </div>
   );
 }
 
 /** 条目底部来源行:签身份取条目业务 id,缺 id 回退 useId 稳定实例键 */
-function SourceLine({ item }: { item: RequirementItem }) {
+function SourceLine({
+  item,
+  type,
+  index,
+}: {
+  item: RequirementItem;
+  type: MatrixType;
+  index: number;
+}) {
   const fallbackId = useId();
-  return <SourceRow refs={item.source_refs ?? []} itemKey={item.id ?? fallbackId} />;
+  return (
+    <SourceRow
+      refs={item.source_refs ?? []}
+      itemKey={item.id ?? fallbackId}
+      claim={{
+        matrixType: type,
+        itemId: item.id ?? null,
+        label: item.id ?? `#${index + 1}`,
+        title: item.title || "未命名条目",
+        requirementText: item.requirement_text ?? "",
+        mandatory: !!item.mandatory,
+        highRisk: isHighRisk(item),
+      }}
+    />
+  );
 }
 
 /** ★ 实质性徽标:与卡面 .cv-face-badge 同皮(票3评审遗留③,橙=实质性、红=高风险统一口径) */
@@ -627,7 +673,38 @@ const RESPONSE_STATUS_OPTS: Array<{ k: ResponseStatus; label: string; cls: strin
   { k: "negative_deviation", label: "负偏离", cls: "is-negative" },
 ];
 
-function ItemActions({
+/** 人工动作的在途/失败态 + 落库调用,按条目局部呈现不打扰其余条目。
+ *  条目行与预览层对照条共用同一份 —— 冲突提示等口径只写一遍。 */
+export function useItemAction(type: MatrixType) {
+  const confirmItem = useWorkspaceStore((s) => s.confirmItem);
+  const setItemResponseStatus = useWorkspaceStore((s) => s.setItemResponseStatus);
+  const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [actionErr, setActionErr] = useState<{ id: string; msg: string } | null>(null);
+  const runItemAction = (id: string, action: Promise<void>) => {
+    setBusyItemId(id);
+    setActionErr(null);
+    action
+      .catch((e: unknown) => {
+        const msg =
+          e instanceof MatrixWriteConflictError
+            ? "该条目已被其他会话更新，已刷新为最新版本，请核对后重试"
+            : e instanceof Error
+              ? e.message
+              : String(e);
+        setActionErr({ id, msg });
+      })
+      .finally(() => setBusyItemId((cur) => (cur === id ? null : cur)));
+  };
+  return {
+    busyItemId,
+    actionErr,
+    confirm: (itemId: string) => runItemAction(itemId, confirmItem(type, itemId)),
+    setStatus: (itemId: string, status: ResponseStatus) =>
+      runItemAction(itemId, setItemResponseStatus(type, itemId, status)),
+  };
+}
+
+export function ItemActions({
   row,
   busy,
   error,
@@ -707,26 +784,7 @@ function RequirementDetail({
   const [filter, setFilter] = useState<ReqFilter>("all");
   const anchorBase = useId();
   const headRef = useRef<HTMLDivElement>(null);
-  const confirmItem = useWorkspaceStore((s) => s.confirmItem);
-  const setItemResponseStatus = useWorkspaceStore((s) => s.setItemResponseStatus);
-  // 人工动作在途/失败态按条目局部呈现,不打扰其余条目
-  const [busyItemId, setBusyItemId] = useState<string | null>(null);
-  const [actionErr, setActionErr] = useState<{ id: string; msg: string } | null>(null);
-  const runItemAction = (id: string, action: Promise<void>) => {
-    setBusyItemId(id);
-    setActionErr(null);
-    action
-      .catch((e: unknown) => {
-        const msg =
-          e instanceof MatrixWriteConflictError
-            ? "该条目已被其他会话更新，已刷新为最新版本，请核对后重试"
-            : e instanceof Error
-              ? e.message
-              : String(e);
-        setActionErr({ id, msg });
-      })
-      .finally(() => setBusyItemId((cur) => (cur === id ? null : cur)));
-  };
+  const { busyItemId, actionErr, confirm, setStatus } = useItemAction(type);
   if (slot.status !== "ready" || !slot.data) {
     return (
       <div>
@@ -834,16 +892,14 @@ function RequirementDetail({
                         {it.requirement_text}
                       </p>
                     )}
-                    <SourceLine item={it} />
+                    <SourceLine item={it} type={type} index={i} />
                     {row && (
                       <ItemActions
                         row={row}
                         busy={busyItemId === row.item_id}
                         error={actionErr?.id === row.item_id ? actionErr.msg : null}
-                        onConfirm={() => runItemAction(row.item_id, confirmItem(type, row.item_id))}
-                        onSetStatus={(status) =>
-                          runItemAction(row.item_id, setItemResponseStatus(type, row.item_id, status))
-                        }
+                        onConfirm={() => confirm(row.item_id)}
+                        onSetStatus={(status) => setStatus(row.item_id, status)}
                       />
                     )}
                   </div>
@@ -955,6 +1011,14 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
           refs={it.source_refs ?? []}
           itemKey={`score:${it.id ?? `${groupKey}#${i}`}`}
           compact
+          claim={{
+            matrixType: "scoring",
+            itemId: null,
+            label: `评分项 ${it.id ?? i + 1}`,
+            title: it.title || `评分项 ${i + 1}`,
+            requirementText: it.scoring_rule || "",
+            highRisk: !!it.mandatory_gate,
+          }}
         />
       </span>,
     ]);
@@ -983,7 +1047,18 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
               <span className="cv-det-veto-bullet" aria-hidden />
               <div style={{ minWidth: 0 }}>
                 <span>{v.text}</span>
-                <SourceRow refs={v.refs} itemKey={`veto:${v.id ?? i}`} />
+                <SourceRow
+                  refs={v.refs}
+                  itemKey={`veto:${v.id ?? i}`}
+                  claim={{
+                    matrixType: "scoring",
+                    itemId: null,
+                    label: `否决项 ${v.id ?? i + 1}`,
+                    title: "否决项 / 通过性条款",
+                    requirementText: v.text,
+                    highRisk: true,
+                  }}
+                />
               </div>
             </div>
           ))}
