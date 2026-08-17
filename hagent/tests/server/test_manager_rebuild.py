@@ -145,3 +145,129 @@ def test_health_targets_and_drain_use_project_identity(mgr_env):
 
     assert pool.drained is True
     assert leases.get("project-alpha").sandbox_state == SandboxState.PAUSED.value
+
+
+# ---------------------------------------------------------------------------
+# run-hold / 取消登记 / 通道内唤醒的 manager 侧
+# ---------------------------------------------------------------------------
+
+
+def _mgr_with_runs(tmp_path, pool):
+    from hagent.server.runs import RunStore
+
+    db = tmp_path / "hagent.db"
+    sessions = SessionStore(db)
+    leases = LeaseStore(db)
+    runs = RunStore(db)
+    manager = SessionManager(
+        store=sessions,
+        lease_store=leases,
+        sandbox_pool=pool,
+        workspace_root=tmp_path / "workspaces",
+        run_store=runs,
+        run_hold_max_seconds=3600,
+    )
+    session = manager.create_session(project_id="project-alpha", sandbox_kind=SandboxKind.SMOLVM)
+    return manager, runs, session
+
+
+def test_has_active_runs_respects_hold_cap(tmp_path):
+    from hagent.server.runs import RunStatus
+
+    manager, runs, session = _mgr_with_runs(tmp_path, FakePool())
+    assert manager.has_active_runs("project-alpha") is False
+    run = runs.create_chat_turn(
+        project_id="project-alpha", session_id=session.id, base_revision=None, summary="t"
+    )
+    assert manager.has_active_runs("project-alpha") is True
+    runs.finish(run.id, status=RunStatus.COMMITTED)
+    assert manager.has_active_runs("project-alpha") is False
+    # 超过 hold 上限的活跃 Run 不再阻止降档(防卡死 Run 霸占 VM)
+    stale = runs.create_chat_turn(
+        project_id="project-alpha", session_id=session.id, base_revision=None, summary="t"
+    )
+    manager._run_hold_max_seconds = 0
+    assert manager.has_active_runs("project-alpha") is False
+    assert runs.get(stale.id).status is RunStatus.PENDING, "状态本身不改,由流/启动对账终结"
+
+
+def test_manager_wires_active_run_fn_into_pool(tmp_path):
+    from hagent.sandbox.pool import SandboxPool
+
+    pool = SandboxPool(sandbox_factory=lambda: FakeSandbox(), min_size=0, max_size=1)
+    manager, runs, session = _mgr_with_runs(tmp_path, pool)
+    assert pool._active_run_fn == manager.has_active_runs
+    runs.create_chat_turn(
+        project_id="project-alpha", session_id=session.id, base_revision=None, summary="t"
+    )
+    assert pool._has_active_run("project-alpha") is True
+    pool.shutdown()
+
+
+def test_drop_sandbox_interrupts_all_active_runs_and_registers_cancel(tmp_path):
+    from hagent.server.runs import RunStatus
+
+    pool = FakePool()
+    manager, runs, session = _mgr_with_runs(tmp_path, pool)
+    manager._leases["project-alpha"] = SandboxLease(sandbox=pool.sandbox, project_id="project-alpha")
+    r1 = runs.create_chat_turn(
+        project_id="project-alpha", session_id=session.id, base_revision=None, summary="a"
+    )
+    r2 = runs.create_chat_turn(
+        project_id="project-alpha", session_id=session.id, base_revision=None, summary="b"
+    )
+    # 模拟健康抢救(before_drop)在动作过程中把 r1 终结:它的消息流同样要收尾
+    def rescue():
+        runs.finish(r1.id, status=RunStatus.INTERRUPTED, error="rescue")
+
+    assert manager.drop_sandbox("project-alpha", before_drop=rescue) is True
+    assert runs.get(r1.id).error == "rescue", "已终结的 Run 不被二次改写"
+    assert runs.get(r2.id).status is RunStatus.INTERRUPTED
+    assert manager.run_cancel_reason(r1.id)
+    assert manager.run_cancel_reason(r2.id)
+    manager.clear_run_cancel(r2.id)
+    assert manager.run_cancel_reason(r2.id) is None
+
+
+def test_checkpoint_project_error_contains_reason(tmp_path):
+    from hagent.server.runs import RunStatus
+
+    pool = FakePool()
+    manager, runs, session = _mgr_with_runs(tmp_path, pool)
+    calls: list[tuple[str, bool, str | None]] = []
+
+    class FakeCheckpointer:
+        def checkpoint(self, run_id, *, sandbox=None, interrupted=False, error=None):
+            calls.append((run_id, interrupted, error))
+            runs.finish(run_id, status=RunStatus.INTERRUPTED, error=error)
+
+    manager._workspace_checkpointer = FakeCheckpointer()
+    run = runs.create_chat_turn(
+        project_id="project-alpha", session_id=session.id, base_revision=None, summary="a"
+    )
+    manager.checkpoint_project("project-alpha", pool.sandbox, reason="drain")
+    assert calls == [(run.id, True, "sandbox 生命周期动作(drain)触发兜底 checkpoint")]
+
+
+def test_live_project_lease_resumes_via_ensure_running_and_records_state(mgr_env):
+    """新 provider:唤醒经 sandbox.ensure_running → 生命周期回调 → 租约 RUNNING + SSE。"""
+    from hagent.server import sse as sse_mod
+
+    manager, _, leases, pool, session = mgr_env
+    manager._leases["project-alpha"] = SandboxLease(sandbox=pool.sandbox, project_id="project-alpha")
+    leases.update_state("project-alpha", state=SandboxState.PAUSED.value)
+    pool.sandbox.manifest.paused = True
+
+    def ensure_running():
+        pool.sandbox.manifest.paused = False
+        # 真实 provider 由 pool._bind_project 绑定的回调把 "resumed" 送回 manager
+        manager.handle_sandbox_lifecycle("resumed", "project-alpha", pool.sandbox)
+
+    pool.sandbox.ensure_running = ensure_running
+    pool.sandbox.resume = MagicMock()
+
+    assert manager.ensure_sandbox(session.id) is pool.sandbox
+    pool.sandbox.resume.assert_not_called()
+    assert leases.get("project-alpha").sandbox_state == SandboxState.RUNNING.value
+    events = sse_mod.drain_sandbox_events(session.id)
+    assert [e.kind for e in events] == ["resumed"]

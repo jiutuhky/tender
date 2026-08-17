@@ -31,6 +31,7 @@ from hagent.sandbox import HagentSandboxProtocol, SandboxKind
 from hagent.sanitize import sanitize_anthropic_thinking_blocks_middleware
 from hagent.sandbox.docker.sandbox import HagentDockerSandbox
 from hagent.tool_call_repair import repair_invalid_tool_calls_middleware
+from hagent.tool_error_guard import ToolErrorGuardMiddleware
 from hagent.sandbox.providers.file import SandboxFileTransport
 from hagent.sandbox.providers.shell import SandboxShellProvider
 from hagent.skills import (
@@ -354,6 +355,9 @@ def create_hagent(
     if hook_runner is not None:
         # 头部注入 = 最外层包裹（PreToolUse 先于一切工具逻辑）
         middleware.insert(0, HagentHooksMiddleware(hook_runner))
+    # 工具异常兜底紧贴 hooks 内侧:异常 → error ToolMessage(模型可见、可自愈),
+    # hooks 据 status="error" 触发 PostToolUseFailure;不再炸整条 SSE 流
+    middleware.insert(1 if hook_runner is not None else 0, ToolErrorGuardMiddleware())
 
     kwargs: dict[str, Any] = dict(
         model=cfg.model,

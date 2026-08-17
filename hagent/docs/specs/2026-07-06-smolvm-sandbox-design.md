@@ -42,7 +42,7 @@ hagent 现有 sandbox 是 Docker + gVisor(runsc):共享宿主内核、gVisor sys
 | F13 |【实测】init 先起 guest-agent 再配 SSH:`wait_for_ready`(vsock)**不担保 sshd 就绪**;且 init 的运行期 `ssh-keygen` 依赖 boot 后熵,crng 未就绪时 getrandom 阻塞不定长(实测卡数分钟,sshd 一直不起) | host key 改为镜像烘焙期 `ssh-keygen -A` 生成(init 守卫自动跳过);SSH argv 带 ConnectionAttempts 兜毫秒级残余窗口 |
 | F14 |【源码+实测】vsock 通道 VM 创建时 `_should_setup_tap_connectivity_for_create` 为假 → **host→guest 路由(`<ip>/32 dev tap`)与出网 NAT 整体跳过**(tap 上仅 /32 地址,无连通路由,宿主发包走默认网关);SDK 仅在自家 SSH 路径经 `ensure_network_connectivity` 懒装配。另:`vm.wait_for_ssh()` 的 paramiko 轮询对 OpenSSH 10 guest(trixie)不可靠(实测 banner 读取失败),裸 TCP/OpenSSH 二进制正常 | provider 在 shell_exec_argv 首调时经公开 API `SmolVMManager.ensure_network_connectivity()` 装配(顺带获得出网 NAT),**不走** wait_for_ssh;连接重试交给 OpenSSH(ConnectionAttempts);guest 出网能力在首次 Bash 调用前不可用 |
 | F15 |【实测,Phase B】vsock 通道非持久:每次 `run()` 走 UDS `CONNECT <port>` 新建连接;`from_id` 重连句柄的通道**不担保立刻就绪**,且高 churn(多 VM 起停)下 CONNECT 握手偶发空 ack(`SmolVMError: vsock CONNECT handshake failed: ''`)——两者均发生在命令送达 guest **之前**。L3 全套连跑 ~40% 复现,单跑不现 | adopt 探针前加 `wait_for_ready(ready_timeout)`(已就绪零开销);`execute()` 对连接建立阶段错误白名单有界重试(≤2 次、0.2s 退避,命令未送达故安全);非连接期错误可能已有副作用,**禁止重试** |
-| F16 |【源码+实测,Phase C 后】`SmolVM.run()`/`upload_file`/`download_file` 对非 RUNNING VM 均抛 `SmolVMError`(`run()` 是 `_refresh_info()` 后的内联前置断言 `if status != RUNNING: raise`;文件传输经 `_ensure_control_for_operation` 内的 RUNNING 门,facade.py):`pause()` 冻结的 VM 上任何命令**立即抛**,不自动 resume | pause 态在三个子系统间须共识一个真相源(`manifest.paused`):① 健康巡检**豁免** paused(否则 idle_pause 冻结的 VM 会被 15s 探针连败 3 次误判杀重建,~45s 内清场,永远走不到 idle_evict 快照持久化档);② 消息路径拿到活沙箱**先 resume 再用**(否则 execute 打冻结 VM → exit 137,且 paused 永不复位);③ `pause()`/`resume()` 成对维护该标志。resume 复位后健康巡检恢复正常探活,死 VM 仍被抓 → 兜底自愈 |
+| F16 |【源码+实测,Phase C 后】`SmolVM.run()`/`upload_file`/`download_file` 对非 RUNNING VM 均抛 `SmolVMError`(`run()` 是 `_refresh_info()` 后的内联前置断言 `if status != RUNNING: raise`;文件传输经 `_ensure_control_for_operation` 内的 RUNNING 门,facade.py):`pause()` 冻结的 VM 上任何命令**立即抛**,不自动 resume | pause 态在三个子系统间须共识一个真相源(`manifest.paused`):① 健康巡检**豁免** paused(否则 idle_pause 冻结的 VM 会被 15s 探针连败 3 次误判杀重建,~45s 内清场,永远走不到 idle_evict 快照持久化档);② 消息路径拿到活沙箱**先 resume 再用**(否则 execute 打冻结 VM → exit 137,且 paused 永不复位);③ `pause()`/`resume()` 成对维护该标志。resume 复位后健康巡检恢复正常探活,死 VM 仍被抓 → 兜底自愈 **【2026-08-17 事故 a49b1a3d 后修订】② 改为「任一工具通道触达即 `ensure_running()` 自动唤醒」(execute / upload / download / Bash SSH argv 入口统一);④ 新增 **run-hold**:project 有活跃 Run 时 pool GC 一律不 pause/persist/evict/max_lifetime 驱逐——否则 Bash(SSH argv,曾不 touch)跑满 300s 即被冻结,且 `checkpoint_project` 会把活跃 Run 打成 interrupted;⑤ SDK 对非 RUNNING 的运维提示("run 'smolvm sandbox start …'")**绝不进模型**,统一走 `sandbox/errors.py` 契约文案。 |
 
 ## 3. 关键决策(决策记录)
 
@@ -123,12 +123,12 @@ hagent 现有 sandbox 是 Docker + gVisor(runsc):共享宿主内核、gVisor sys
 | → creating | `POST /sessions` | ledger 占位 → pool.acquire(池空则 lifecycle.start) |
 | creating → running | readiness 过 | 写 manifest 元数据 + `sandbox_state=running` |
 | creating → error | 重试 2 次耗尽 | ledger 释放;session 删除;API 5xx |
-| running → paused | pool GC:idle ≥ `idle_pause_seconds` | `vm.pause()`(内存驻留,账本不释放) |
-| paused → running | 新消息到达 | `vm.resume()` + touch |
-| paused → snapshotted | pool GC:idle ≥ `idle_evict_seconds`(Phase C,持久化可用时优先于驱逐) | DISK 快照 → `stop+delete+close`;ledger 释放;快照 id 落 sessions 表;SSE `sandbox.snapshotted` |
+| running → paused | pool GC:idle ≥ `idle_pause_seconds` **且 project 无活跃 Run(run-hold)** | `vm.pause()`(内存驻留,账本不释放) |
+| paused → running | 新消息到达,**或任一工具通道触达(`ensure_running()` 自动唤醒,广播 "resumed")** | `vm.resume()` + touch |
+| paused → snapshotted | pool GC:idle ≥ `idle_evict_seconds`(Phase C,持久化可用时优先于驱逐)**且无活跃 Run** | DISK 快照 → `stop+delete+close`;ledger 释放;快照 id 落 sessions 表;SSE `sandbox.snapshotted` |
 | snapshotted → running | 新消息到达 | `from_snapshot(resume_vm=True)` 回原 vm_id + readiness;恢复失败回退 orphaned 全新重建;SSE `sandbox.restored` |
-| paused → evicted | pool GC:idle ≥ `idle_evict_seconds`(持久化关闭/失败) 或 max_lifetime 到 | `stop+delete+close`;ledger 释放;SSE `sandbox.evicted` |
-| running → orphaned | reaper/health:VM 进程消失或连续 3 次探活失败 | 残留资源清理;session 保留,首次新消息触发重建(新 VM + 重灌 files) |
+| paused → evicted | pool GC:idle ≥ `idle_evict_seconds`(持久化关闭/失败) 或 max_lifetime 到,**均延后到无活跃 Run(超 `HAGENT_RUN_HOLD_MAX_SECONDS` 的卡死 Run 除外)** | `stop+delete+close`;ledger 释放;SSE `sandbox.evicted` |
+| running → orphaned | reaper/health:VM 进程消失或连续 3 次探活失败 | 残留资源清理;**project 所有活跃 Run 终结 interrupted 并登记取消 → 消息流以 `error{code:sandbox_unavailable}` 终止本轮**;session 保留,首次新消息触发重建(新 VM + 重灌 files) |
 | any → closed | `DELETE /sessions` | 全链清理 |
 
 ### 4.4 启动对账矩阵(startup_reclaim)
@@ -169,9 +169,11 @@ hagent 现有 sandbox 是 Docker + gVisor(runsc):共享宿主内核、gVisor sys
 | `HAGENT_SANDBOX_POOL_MIN/MAX`、`HAGENT_SANDBOX_PREWARM`、`HAGENT_SANDBOX_REUSE` | 沿用 | 语义不变;REUSE 对 smolvm 同样是清 `/workspace` 后回池 |
 | `HAGENT_SANDBOX_RECYCLE_SECONDS` | 3600 | Phase C:warm idle 超龄回收(防漂移;只针对池内闲置实例) |
 | `HAGENT_SMOLVM_SNAPSHOT_PERSIST` | 开(`0` 关) | Phase C:idle_evict 阈值优先 DISK 快照休眠,替代破坏性驱逐 |
+| `HAGENT_SANDBOX_IDLE_PAUSE_SECONDS` / `HAGENT_SANDBOX_IDLE_EVICT_SECONDS` | 300 / 1800 | idle 两级降档阈值(docker/smolvm 两池同源) |
+| `HAGENT_RUN_HOLD_MAX_SECONDS` | 7200 | run-hold 上限:活跃 Run 超时仍未终结时不再阻止 GC 降档(防卡死 Run 霸占 VM;状态由流 finally / 启动对账终结) |
 | `SMOLVM_DATA_DIR` / `SMOLVM_DATABASE_URL` | SDK 默认 | 透传;Postgres 切换属部署项(Phase C 文档化) |
 
-idle 双档沿用 pool 现有 `idle_pause_seconds=300` / `idle_evict_seconds=1800`。**活跃度以 session API 交互计**(消息/工具调用 touch),SSE 长连接本身不算(防机械心跳误刷,Daytona #4805 教训【业界】)。
+idle 双档默认 `idle_pause_seconds=300` / `idle_evict_seconds=1800`(env 可覆盖)。**活跃度以 session API 交互计**(消息 + **所有工具通道触达即活跃**:execute / upload / download / **Bash 的 SSH argv 通道**(入口与命令结束各 touch 一次),不分成败),SSE 长连接本身不算(防机械心跳误刷,Daytona #4805 教训【业界】)。**run-hold**:project 有活跃 Run(RunStore 非终态,且未超 `HAGENT_RUN_HOLD_MAX_SECONDS`)时,GC 对该 project 一律跳过降档;drain/shutdown/显式 evict/release 不受约束。
 
 ## 6. 错误处理分层
 
@@ -181,15 +183,19 @@ idle 双档沿用 pool 现有 `idle_pause_seconds=300` / `idle_evict_seconds=180
 | 镜像 | Docker 不可用 / 构建失败 | 启动期失败(与 docker provider `ensure_image` 语义一致,不静默降级) |
 | 创建 | `start`/`wait_for_ready` 失败或超时 | `delete()` 全清理后重试,≤2 次;耗尽 → ledger 释放 + session 删除 + 5xx;事件表记 create_failed |
 | 准入 | `CapacityExceeded` / `PoolExhausted` | API 503 + `Retry-After`(与现有 pool 超时语义合并) |
-| 单次 exec | `OperationTimeoutError` | `ExecuteResponse(output="command timed out after {n}s", exit_code=124)`;不污染会话 |
-| 单次 exec | 通道断连 / SmolVMError | `ExecuteResponse(output="sandbox exec failed: {exc}", exit_code=137)`(对齐 docker provider 现有约定) |
-| 文件 | 上传/下载失败 | `FileUploadResponse/FileDownloadResponse(error=...)` 部分成功语义,对齐 docker provider |
+| 单次 exec | `OperationTimeoutError` | `ExecuteResponse(output="[sandbox_unavailable:timeout] …({n}s)", exit_code=124)`;不污染会话(文案来自 `sandbox/errors.py`) |
+| 单次 exec | paused / stopped / VM 已拆 / 通道断连 / SmolVMError | 通道入口先 `touch()` + `ensure_running()`(paused 自动唤醒);仍失败 → `classify_exception` 归类为 paused/stopped/gone/connect_failed,`ExecuteResponse(output="[sandbox_unavailable:<reason>] <中性文案>", exit_code=137)`。**SDK 原文只进日志/审计 detail,不进模型**;docker provider byte-equal 同一文案表 |
+| 文件 | 上传/下载失败 | `FileUploadResponse/FileDownloadResponse(error=...)` 部分成功语义:业务错误 `file_not_found` / `upload_failed: …`;基础设施错误 `sandbox_unavailable:<reason>`(`SandboxFileTransport.exists()` 对后者抛 `SandboxUnavailable`,**不再伪装成文件不存在**) |
+| Bash 通道 | `shell_exec_argv` 前沙箱不可用 / ssh 客户端级失败(exit 255 且无 `__HAGENT_PWD__` 哨兵) | `SandboxShellProvider` 抛 `ShellProviderUnavailable` → `BashRuntime` 直接构造 `BashResult`;`translate_transport_failure` 把客户端原文替换为契约文案 |
+| 工具层 | 任何工具的非入参异常(含 `SandboxUnavailable`) | `ToolErrorGuardMiddleware`(hooks 内侧,主图与子代理图均挂)转 `ToolMessage(status="error")`,模型可见可自愈,不再以 `error{agent_error}` 炸整条流 |
 | 健康 | 连续 3 次探活失败 / 进程死(**paused 态豁免探针**,见 F16) | 杀重建:清残留 → session 标 orphaned → 首条新消息触发新 VM + 重灌 files;artifacts 尽力 `download_files` 抢救(Phase B) |
 | server 崩溃 | — | VM 照跑(F1);重启走 §4.4 对账矩阵 |
 
 ## 7. LLM 视角语义不变(硬性)
 
 与 M6 spec §5.5 同一契约:Bash / Read / Write / Edit / Grep / Glob 在 smolvm 模式下的 schema、输出格式、错误信息与 host / docker 模式 byte-equal(除路径前缀);`tests/sandbox/test_tool_parity.py` 扩展为三方对照(host / docker / smolvm)。workspace 仍为 `/workspace`(镜像内建目录,Firecracker 无 bind-mount,文件进出全走 upload/download——与 D8「仅上传下载」决策天然一致)。base prompt 的 sandbox 段无需改动(`_SANDBOX_BACKEND_NAMES` 加 `HagentSmolVMSandbox` 即可)。
+
+**沙箱基础设施错误(2026-08-17 增)**:两 provider 的 execute / upload / download / Bash 通道对「环境不可用」产出 **byte-equal 的中性文案**(`sandbox/errors.py::MODEL_MESSAGES`,`[sandbox_unavailable:<reason>]` 开头),不含 SDK 运维命令、vm_id、宿主路径;系统提示词 `_sandbox_section` 教模型按 reason 处理(paused/connect_failed 重试一次;gone/stopped 停止并报告;任何情况下不执行 `smolvm ...`/`docker ...`)。
 
 ## 8. Testing
 

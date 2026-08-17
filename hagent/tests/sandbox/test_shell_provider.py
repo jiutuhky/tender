@@ -209,11 +209,181 @@ def test_smolvm_shell_exec_argv_arms_ssh_connectivity_once(monkeypatch, tmp_path
     assert _FakeManager.ensure_calls == 1
 
 
-def test_smolvm_shell_exec_argv_without_vm_raises():
+def test_smolvm_shell_exec_argv_without_vm_raises_sandbox_unavailable():
+    from hagent.sandbox.errors import SandboxUnavailable, SandboxUnavailableReason
+
     class FakeLifecycle:
         vm = None
         vm_id = "hagent-x-y"
 
     sb = _make_smolvm_sandbox(FakeLifecycle())
-    with pytest.raises(RuntimeError, match="not running"):
+    with pytest.raises(SandboxUnavailable) as info:
         sb.shell_exec_argv("echo hi")
+    assert info.value.reason is SandboxUnavailableReason.GONE
+    # 契约:面向模型的中性文案,不含 SDK 运维命令
+    assert "smolvm" not in str(info.value)
+    assert str(info.value).startswith("[sandbox_unavailable:gone]")
+
+
+# ---------------------------------------------------------------------------
+# Bash 通道 = agent 主执行通道:触达即活跃 + 防御性唤醒 + 传输失败契约化
+# ---------------------------------------------------------------------------
+
+
+def test_smolvm_shell_exec_argv_touches_and_ensures_running(monkeypatch, tmp_path):
+    class FakeLifecycle:
+        vm = _ArgvFakeVM()
+        vm_id = "hagent-abcd1234-d4e5f6"
+        resumed = 0
+
+        def resume(self):
+            type(self).resumed += 1
+
+    _patch_ssh_deps(monkeypatch, tmp_path)
+    sb = _make_smolvm_sandbox(FakeLifecycle())
+    touched: list[int] = []
+    events: list[str] = []
+    sb.set_activity_callback(lambda: touched.append(1))
+    sb.set_lifecycle_callback(events.append)
+    sb.manifest.paused = True  # 模拟 GC 已 pause、新工具调用到来的残余窗口
+    argv = sb.shell_exec_argv("echo hi")
+    assert argv[0] == "ssh"
+    assert touched == [1], "SSH argv 通道必须刷新活跃时间(事故根因之一)"
+    assert sb.manifest.paused is False
+    assert FakeLifecycle.resumed == 1
+    assert events == ["resumed"]
+
+
+def test_command_argv_translates_sandbox_unavailable_to_shell_provider_error():
+    from hagent.bash_tool.shell_provider import ShellProviderUnavailable
+    from hagent.sandbox.errors import SandboxUnavailable, SandboxUnavailableReason
+    from hagent.sandbox.protocol import SandboxKind
+
+    class GoneSandbox:
+        kind = SandboxKind.SMOLVM
+        workspace_dir = "/workspace"
+
+        def shell_exec_argv(self, command_script):
+            raise SandboxUnavailable(SandboxUnavailableReason.GONE)
+
+    provider = SandboxShellProvider(sandbox=GoneSandbox(), workspace_root=Path("/workspace"))
+    with pytest.raises(ShellProviderUnavailable) as info:
+        provider.command_argv("echo hi")
+    assert info.value.exit_code == 137
+    assert info.value.message.startswith("[sandbox_unavailable:gone]")
+
+
+def test_command_argv_docker_touches_and_ensures_running(fake_sandbox):
+    provider = SandboxShellProvider(sandbox=fake_sandbox, workspace_root=Path("/workspace"))
+    provider.command_argv("echo hi")
+    fake_sandbox.touch.assert_called_once()
+    fake_sandbox.ensure_running.assert_called_once()
+
+
+def test_translate_transport_failure_ssh_255_without_sentinel():
+    from hagent.sandbox.protocol import SandboxKind
+
+    class SmolSandbox:
+        kind = SandboxKind.SMOLVM
+        workspace_dir = "/workspace"
+
+    provider = SandboxShellProvider(sandbox=SmolSandbox(), workspace_root=Path("/workspace"))
+    text = provider.translate_transport_failure(
+        exit_code=255,
+        sentinel_seen=False,
+        tail="ssh: connect to host 172.16.0.9 port 22: Connection refused\n",
+    )
+    assert text is not None and text.startswith("[sandbox_unavailable:connect_failed]")
+    assert "172.16" not in text
+
+
+def test_translate_keeps_user_exit_255_with_sentinel():
+    from hagent.sandbox.protocol import SandboxKind
+
+    class SmolSandbox:
+        kind = SandboxKind.SMOLVM
+        workspace_dir = "/workspace"
+
+    provider = SandboxShellProvider(sandbox=SmolSandbox(), workspace_root=Path("/workspace"))
+    # 用户命令自己 exit 255:哨兵在,是命令行为,不翻译
+    assert (
+        provider.translate_transport_failure(
+            exit_code=255, sentinel_seen=True, tail="__HAGENT_PWD__:/workspace\n"
+        )
+        is None
+    )
+    assert provider.translate_transport_failure(exit_code=1, sentinel_seen=False, tail="") is None
+
+
+def test_translate_docker_paused_container():
+    provider = SandboxShellProvider(sandbox=MagicMock(kind=None), workspace_root=Path("/workspace"))
+    from hagent.sandbox.protocol import SandboxKind
+
+    provider.sandbox.kind = SandboxKind.DOCKER
+    text = provider.translate_transport_failure(
+        exit_code=126,
+        sentinel_seen=False,
+        tail="Error response from daemon: Container abc is paused, unpause the container before exec",
+    )
+    assert text is not None and text.startswith("[sandbox_unavailable:paused]")
+
+
+def test_runtime_returns_bash_result_when_provider_unavailable(tmp_path):
+    """B2:沙箱不可用时 BashRuntime 不 spawn、不抛,直接给模型契约文案。"""
+    from hagent.bash_tool.runtime import BashRuntime
+    from hagent.bash_tool.tool import format_bash_result
+    from hagent.sandbox.errors import SandboxUnavailable, SandboxUnavailableReason
+    from hagent.sandbox.protocol import SandboxKind
+
+    class GoneSandbox:
+        kind = SandboxKind.SMOLVM
+        workspace_dir = "/workspace"
+
+        def shell_exec_argv(self, command_script):
+            raise SandboxUnavailable(SandboxUnavailableReason.GONE)
+
+    provider = SandboxShellProvider(sandbox=GoneSandbox(), workspace_root=Path("/workspace"))
+    runtime = BashRuntime(tmp_path / "host", shell_provider=provider)
+    fg = runtime.execute("echo hi")
+    assert fg.exit_code == 137
+    assert fg.stderr.startswith("[sandbox_unavailable:gone]")
+    rendered = format_bash_result(fg)
+    assert rendered.startswith("[sandbox_unavailable:gone]")
+    assert "Exit code: 137" in rendered
+    bg = runtime.execute("sleep 1", run_in_background=True)
+    assert bg.exit_code == 137
+    assert bg.background_task_id is None
+    runtime.close()
+
+
+def test_runtime_rewrites_ssh_transport_failure(tmp_path):
+    """本地仿真 ssh 客户端失败:无哨兵 + exit 255 → 契约文案替换客户端原文。"""
+    from hagent.bash_tool.runtime import BashRuntime
+    from hagent.sandbox.protocol import SandboxKind
+
+    class BrokenTransportSandbox:
+        kind = SandboxKind.SMOLVM
+        workspace_dir = "/workspace"
+        touches = 0
+
+        def touch(self):
+            type(self).touches += 1
+
+        def shell_exec_argv(self, command_script):
+            # 忽略脚本,模拟 ssh 连接失败:打客户端报错并以 255 退出(哨兵不会出现)
+            return [
+                "/bin/bash",
+                "-c",
+                "echo 'ssh: connect to host 172.16.0.9 port 22: Connection refused' >&2; exit 255",
+            ]
+
+    provider = SandboxShellProvider(
+        sandbox=BrokenTransportSandbox(), workspace_root=Path("/workspace")
+    )
+    runtime = BashRuntime(tmp_path / "host", shell_provider=provider)
+    result = runtime.execute("echo hi")
+    assert result.exit_code == 255
+    assert result.stdout.startswith("[sandbox_unavailable:connect_failed]")
+    assert "172.16" not in result.stdout
+    assert BrokenTransportSandbox.touches >= 1, "命令结束后回调 touch"
+    runtime.close()

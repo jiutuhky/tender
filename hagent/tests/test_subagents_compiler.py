@@ -270,3 +270,20 @@ def test_compile_does_not_preload_disabled_skills(monkeypatch, tmp_path, caplog)
 
     assert captured["system_prompt"] == "base"
     assert "disabled skill secret" in caplog.text
+
+
+def test_compile_attaches_tool_error_guard_middleware(monkeypatch):
+    """子代理图不继承主图 middleware:工具异常兜底须单独挂,否则子代理里的
+    SandboxUnavailable 会穿透炸掉父图的整条流。"""
+    from hagent.tool_error_guard import ToolErrorGuardMiddleware
+
+    captured: dict = {}
+    monkeypatch.setattr(
+        "hagent.subagents.compiler.create_agent", lambda **kw: captured.update(kw) or "x"
+    )
+    compile_subagent_runnable(
+        {"name": "x", "description": "y", "system_prompt": "z", "tools": ["*"]},
+        parent_model="anthropic:claude-sonnet-4-6",
+        parent_tools=[_tool("Read")],
+    )
+    assert any(isinstance(m, ToolErrorGuardMiddleware) for m in captured["middleware"])

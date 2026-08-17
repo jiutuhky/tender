@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from threading import Lock, RLock
 from typing import TYPE_CHECKING
@@ -43,6 +45,24 @@ def _close_agent_quiet(session_id: str) -> None:
         logger.warning("session %s agent 缓存失效失败: %s", session_id, exc)
 
 
+# run-hold 上限:活跃 Run 超过此时长仍未终结,不再阻止 GC 降档(防卡死 Run
+# 永久霸占 VM);状态本身不改,由流的 finally / 启动对账终结
+DEFAULT_RUN_HOLD_MAX_SECONDS = 7200.0
+
+
+# 与 server.runs._ACTIVE_STATUSES 对齐(字符串比较,避免 TYPE_CHECKING 循环导入)
+_ACTIVE_RUN_STATUSES = frozenset({"pending", "running", "checkpointing"})
+
+
+def _iso_to_timestamp(raw: str | None) -> float | None:
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw).timestamp()
+    except ValueError:
+        return None
+
+
 class SessionManager:
     """管理对话会话与项目级运行时租约。"""
 
@@ -57,6 +77,7 @@ class SessionManager:
         project_workspace: ProjectWorkspace | None = None,
         run_store: RunStore | None = None,
         workspace_checkpointer: WorkspaceCheckpointer | None = None,
+        run_hold_max_seconds: float = DEFAULT_RUN_HOLD_MAX_SECONDS,
     ) -> None:
         self._store = store
         self._lease_store = lease_store
@@ -66,7 +87,11 @@ class SessionManager:
         self._project_workspace = project_workspace
         self._run_store = run_store
         self._workspace_checkpointer = workspace_checkpointer
+        self._run_hold_max_seconds = run_hold_max_seconds
         self._leases: dict[str, SandboxLease] = {}
+        # 被生命周期动作(健康杀重建等)取消的活跃 Run:run_id → 原因;
+        # 消息流每个 chunk 查一次,命中即终止本轮
+        self._cancelled_runs: dict[str, str] = {}
         self._project_locks: dict[str, RLock] = {}
         self._project_locks_guard = Lock()
         if self._pool is not None:
@@ -85,6 +110,9 @@ class SessionManager:
             set_checkpoint_fn = getattr(self._pool, "set_checkpoint_fn", None)
             if callable(set_checkpoint_fn):
                 set_checkpoint_fn(self.checkpoint_project)
+            set_active_run_fn = getattr(self._pool, "set_active_run_fn", None)
+            if callable(set_active_run_fn):
+                set_active_run_fn(self.has_active_runs)
 
     @property
     def store(self) -> SessionStore:
@@ -209,12 +237,16 @@ class SessionManager:
     ) -> CheckpointResult:
         if self._workspace_checkpointer is None:
             raise RuntimeError("WorkspaceCheckpointer 尚未装配")
-        return self._workspace_checkpointer.checkpoint(
-            run_id,
-            sandbox=sandbox,
-            interrupted=interrupted,
-            error=error,
-        )
+        try:
+            return self._workspace_checkpointer.checkpoint(
+                run_id,
+                sandbox=sandbox,
+                interrupted=interrupted,
+                error=error,
+            )
+        finally:
+            # 消息流轮末到此即收尾完成,取消登记不再需要
+            self.clear_run_cancel(run_id)
 
     def interrupt_run_best_effort(
         self,
@@ -237,8 +269,14 @@ class SessionManager:
         self,
         project_id: str,
         sandbox: HagentSandboxProtocol | None = None,
+        reason: str = "lifecycle",
     ) -> None:
-        """生命周期动作前 best-effort 保存项目所有未终态 Run。"""
+        """生命周期动作前 best-effort 保存项目所有未终态 Run(终结为 interrupted)。
+
+        只应在 VM 确实要消失/进程要退出的场景到达(drain/shutdown/evict/
+        release/健康杀重建):idle 降档受 pool run-hold 约束,活跃 Run 期间
+        不会走到这里。reason 写进 run.error 便于事后定位。
+        """
         if self._run_store is None or self._workspace_checkpointer is None:
             return
         if sandbox is None:
@@ -249,7 +287,7 @@ class SessionManager:
                     run.id,
                     sandbox=sandbox,
                     interrupted=True,
-                    error="sandbox 生命周期动作触发兜底 checkpoint",
+                    error=f"sandbox 生命周期动作({reason})触发兜底 checkpoint",
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.warning(
@@ -258,6 +296,61 @@ class SessionManager:
                     run.id,
                     exc,
                 )
+
+    def has_active_runs(self, project_id: str) -> bool:
+        """pool run-hold 数据源:project 是否有未终态且未超 hold 上限的 Run。"""
+        if self._run_store is None:
+            return False
+        now = time.time()
+        for run in self._run_store.active_for_project(project_id):
+            created = _iso_to_timestamp(run.created_at)
+            if created is None or now - created < self._run_hold_max_seconds:
+                return True
+            logger.warning(
+                "project %s run %s 已超过 run-hold 上限 %.0fs 仍未终结,不再阻止 GC 降档",
+                project_id,
+                run.id,
+                self._run_hold_max_seconds,
+            )
+        return False
+
+    def cancel_active_runs(
+        self,
+        project_id: str,
+        *,
+        reason: str,
+        run_ids: list[str] | None = None,
+    ) -> list[str]:
+        """把 project 的活跃 Run 终结为 interrupted 并登记取消原因。
+
+        供 VM 消亡型生命周期动作(健康杀重建)调用:消息流据 ``run_cancel_reason``
+        终止本轮,工具通道对已消失的 VM 只会得到 sandbox_unavailable 契约文案。
+        ``run_ids`` 允许调用方传入动作前采样的 Run 集合——动作过程中已被别的
+        路径(如健康抢救 commit)终结的 Run 也要登记取消,否则其消息流不会收尾。
+        """
+        if self._run_store is None:
+            return []
+        from hagent.server.runs import RunStatus
+
+        if run_ids is None:
+            run_ids = [run.id for run in self._run_store.active_for_project(project_id)]
+        cancelled: list[str] = []
+        for run_id in run_ids:
+            run = self._run_store.get(run_id)
+            if run is not None and run.status in _ACTIVE_RUN_STATUSES:
+                try:
+                    self._run_store.finish(run_id, status=RunStatus.INTERRUPTED, error=reason)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("run %s 取消记账失败: %s", run_id, exc)
+            self._cancelled_runs[run_id] = reason
+            cancelled.append(run_id)
+        return cancelled
+
+    def run_cancel_reason(self, run_id: str) -> str | None:
+        return self._cancelled_runs.get(run_id)
+
+    def clear_run_cancel(self, run_id: str) -> None:
+        self._cancelled_runs.pop(run_id, None)
 
     def interrupt_unrecovered_runs(self) -> None:
         """启动对账后终结没有可抢救 VM 的遗留 Run。"""
@@ -285,6 +378,13 @@ class SessionManager:
                 and runtime_lease.sandbox is not expected_sandbox
             ):
                 return False
+            # 动作前采样活跃 Run:before_drop(健康抢救)可能已把其中之一终结,
+            # 但它的消息流同样需要收尾
+            active_run_ids = (
+                [run.id for run in self._run_store.active_for_project(project_id)]
+                if self._run_store is not None
+                else []
+            )
             if before_drop is not None:
                 before_drop()
             if self._pool is not None:
@@ -293,6 +393,12 @@ class SessionManager:
                     return False
             self._leases.pop(project_id, None)
             self._close_project_agents(project_id)
+            # VM 已拆:仍在跑的 Run 不可能继续,终结并登记取消让消息流收尾
+            self.cancel_active_runs(
+                project_id,
+                reason="沙箱健康巡检杀重建,本轮已中断",
+                run_ids=active_run_ids,
+            )
             if after_drop is not None:
                 after_drop()
             return True
@@ -368,13 +474,24 @@ class SessionManager:
             return True
 
     def _resume_if_paused(self, project_id: str, sandbox) -> None:
+        """消息路径拿到 paused 沙箱先唤醒。
+
+        经沙箱自身的 ``ensure_running()``:它唤醒后触发生命周期回调 → pool →
+        ``handle_sandbox_lifecycle("resumed")`` 更新租约状态并推 SSE,与工具
+        通道内的自动唤醒是同一条路径。旧 provider(无 ensure_running)回退直接
+        ``resume()`` 并在此记账。
+        """
         manifest = getattr(sandbox, "manifest", None)
         if not getattr(manifest, "paused", False):
             return
-        resume = getattr(sandbox, "resume", None)
-        if not callable(resume):
-            return
+        ensure_running = getattr(sandbox, "ensure_running", None)
         try:
+            if callable(ensure_running):
+                ensure_running()
+                return
+            resume = getattr(sandbox, "resume", None)
+            if not callable(resume):
+                return
             resume()
             self._lease_store.update_state(project_id, state=SandboxState.RUNNING.value)
             self.emit_project_event("resumed", project_id, sandbox)
@@ -561,6 +678,10 @@ class SessionManager:
                 if runtime_lease is None or runtime_lease.sandbox is not sandbox:
                     return
                 self._lease_store.update_state(project_id, state=SandboxState.PAUSED.value)
+            elif kind == "resumed":
+                if runtime_lease is None or runtime_lease.sandbox is not sandbox:
+                    return
+                self._lease_store.update_state(project_id, state=SandboxState.RUNNING.value)
             elif kind == "evicted":
                 if runtime_lease is not None and runtime_lease.sandbox is not sandbox:
                     return

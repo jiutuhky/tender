@@ -22,7 +22,7 @@
 | --- | --- | --- | --- |
 | W1 | 所有权模型 | Project 绑逻辑工作区（canonical workspace，唯一事实来源）；VM 是可替换租约，不拥有不可再生数据 | 业界共识三层结构；否决「project 常驻 VM」（容量/故障域/漂移，零先例）与「维持 session 绑定」（产品语义缺失） |
 | W2 | 持久层形态 | 宿主目录 `{workspace_root}/projects/<pid>/workspace/` + **host 侧 git 仓**；checkpoint 即 commit；git 完全在宿主跑，VM 无需感知 | revision/diff/三方合并白拿，Phase 2 的 base_revision/changeset 直接铺路；否决纯 manifest（后期重造 git）、DISK 快照链（不可检视、把业务数据锁进镜像格式）、对象存储（单机阶段过度设计） |
-| W3 | checkpoint 时机 | 每个 Run 的 SSE 流结束即增量 checkpoint（正常/异常/打断三路归一进 finally）+ 生命周期时点（pause/快照/evict/release 前）强制兜底 | 丢数据窗口 = 正在执行的一轮；无变更轮次是 no-op；commit 粒度天然对齐交互历史。否决仅生命周期回写（活跃期意外丢整段）、定时器（commit 到半成品）、显式保存（MVP 交互成本高） |
+| W3 | checkpoint 时机 | 每个 Run 的 SSE 流结束即增量 checkpoint（正常/异常/打断三路归一进 finally）+ 生命周期时点（drain/shutdown/evict/release/健康杀重建 前）强制兜底。**2026-08-17 修订：生命周期兜底只在 VM 确实要消亡的场景终结 Run；idle 降档（pause/快照/max_lifetime）受 pool run-hold 约束，活跃 Run 期间不降档、不再打断活跃 Run**（事故 a49b1a3d：pause 前兜底把进行中的 Run 打成 interrupted，轮末正式 checkpoint 短路，后半段产出未 commit） | 丢数据窗口 = 正在执行的一轮；无变更轮次是 no-op；commit 粒度天然对齐交互历史。否决仅生命周期回写（活跃期意外丢整段）、定时器（commit 到半成品）、显式保存（MVP 交互成本高） |
 | W4 | 回写范围 | 全量回写 + 排除名单（`tmp/`、`.cache/`、`__pycache__/` 等 .gitignore 语义）；base prompt 约定临时产物写 `tmp/` | 宁可多存不可错丢（agent 写错位置最多脏不会丢）；否决白名单目录（写到名单外即丢）与显式登记（漏登记即丢，Manus 教训的反面） |
 | W5 | 租约粒度 | VM 租约绑**活跃 Project**：项目内首个 Run 触发租用，所有并行 Run 与会话共享一台；idle 降档/回收沿用 | 画布 fan-out 场景下容量友好（1 活跃项目 1 VM，生成任务 LLM-bound，2 vCPU 可承载多 agent 文件操作）；否决每节点独立 VM + 合并（池上限 4 台，单项目 fan-out 即超容，合并 UI 提前）与单轮编排子代理（交互被绑成批处理，与「随时独立启停节点」冲突） |
 | W6 | 执行单元 | `runs` 表一等实体；对话轮 = `Run(kind=chat_turn)`，节点生成 = `Run(kind=node_generation)`；锁/checkpoint/SSE/审计统一挂 Run；session 回归纯对话容器 | 一套机制不分叉；否决隐藏 session（语义污染，债迟早要还）与会话内消息轮（与并行正面冲突） |
@@ -106,7 +106,7 @@ Run 提交
 ```
 
 - 全量注入排除 `.git/` 与 `.gitignore` 命中项；guest 内 `/workspace` 的临时 git 仅作**变更探测**（非持久层），与 host canonical 仓无对象共享。
-- idle 判定：`last_activity_at` 上移到 lease，任何 Run 的消息/工具交互都续期（`store.touch_activity` 改写 lease）；两级降档（pause 300s / evict 1800s）阈值沿用。
+- idle 判定：`last_activity_at` 上移到 lease，任何 Run 的消息/工具交互都续期（`store.touch_activity` 改写 lease；**所有工具通道触达即活跃，含 Bash 的 SSH argv 通道——曾漏 touch 是事故 a49b1a3d 的直接诱因**）；两级降档（pause 300s / evict 1800s，`HAGENT_SANDBOX_IDLE_PAUSE_SECONDS` / `_EVICT_SECONDS` 可覆盖）。**run-hold**：pool 经 `set_active_run_fn(manager.has_active_runs)` 感知 project 活跃 Run（RunStore 非终态且未超 `HAGENT_RUN_HOLD_MAX_SECONDS`=7200），有则本轮跳过该 project 的一切降档。
 
 ### 4.2 Checkpoint 管道（每 Run）
 
@@ -124,7 +124,7 @@ finally:  # SSE 流退出三路归一（正常耗尽 / 异常 / 打断·断连 G
   8. SSE `workspace.checkpointed {run_id, commit_sha, files_changed}`（在 done 之前）
 ```
 
-- 生命周期兜底：pause/snapshot/evict/release/健康杀重建 前，对该 project **所有非终态 Run** 依次走同一管道（此时 run 标记 interrupted）。health 抢救逻辑（`on_unhealthy`）保留为最后防线，但目标目录改 host workspace + commit。
+- 生命周期兜底：drain/shutdown/evict/release/健康杀重建 前，对该 project **所有非终态 Run** 依次走同一管道（此时 run 标记 interrupted，`error` 带 reason）。pause/snapshot 前若有活跃 Run 则整段跳过（run-hold），不再打断。健康杀重建额外：`manager.drop_sandbox` 把动作前采样的活跃 Run 全部终结并**登记取消**，消息流每 chunk 查 `run_cancel_reason` → 立即以 `error{code:sandbox_unavailable}` 终止本轮；工具通道对已拆 VM 只返回 `[sandbox_unavailable:gone]` 契约文案。health 抢救逻辑（`on_unhealthy`）保留为最后防线，但目标目录改 host workspace + commit。
 - 步骤 3 的归属过滤保证：run A 完成时不会把 run B 写到一半的文件拖进 commit。
 
 ### 4.3 锁体系（W8）
@@ -168,6 +168,8 @@ pending → rejected（409：锁冲突 / 容量 503）
 
 - 终态：committed / interrupted / rejected。interrupted 带 commit_sha 时表示部分成果已保全。
 - server 重启对账：startup 时非终态 run 一律标 interrupted（其 VM 内未 checkpoint 的增量由 lease 兜底路径尽力抢救）。
+- 健康杀重建：活跃 run → interrupted（error 注明原因）+ 取消登记；消息流据此终止本轮（`error{code:sandbox_unavailable}`），`checkpoint_run` 收尾时清理登记。
+- 非终态 run 对 pool 是 run-hold 信号（§4.1）；超过 `HAGENT_RUN_HOLD_MAX_SECONDS` 仍非终态只 WARNING、不改状态。
 
 ## 6. 分期
 

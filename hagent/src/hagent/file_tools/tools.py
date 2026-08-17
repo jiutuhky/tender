@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +19,30 @@ from hagent.file_tools.diff import structured_patch
 from hagent.file_tools.paths import ensure_allowed, expand_file_path
 from hagent.file_tools.readonly import ensure_writable
 from hagent.file_tools.state import FileReadState
+from hagent.sandbox.errors import SandboxUnavailable
+
+
+def _guard_transport_errors(func: Callable[..., str]) -> Callable[..., str]:
+    """把传输层异常转成面向模型的文本,而不是穿透 ToolNode 炸掉整条 agent 流。
+
+    - ``SandboxUnavailable``:沙箱基础设施不可用,契约文案原样返回(不再伪装成
+      「文件不存在」——事故 a49b1a3d 教训);
+    - ``FileNotFoundError``:exists() 与读取之间的竞态,按业务语义返回;
+    - 其它 ``OSError``:host 模式的权限/IO 错误,给可读文本。
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> str:
+        try:
+            return func(*args, **kwargs)
+        except SandboxUnavailable as exc:
+            return str(exc)
+        except FileNotFoundError:
+            return "File does not exist"
+        except OSError as exc:
+            return f"Error: {exc}"
+
+    return wrapper
 
 LEFT_SINGLE_CURLY_QUOTE = "‘"
 RIGHT_SINGLE_CURLY_QUOTE = "’"
@@ -228,7 +254,7 @@ def create_read_tool(
         return format_with_line_numbers(selected_content, start_line=start_line)
 
     return StructuredTool.from_function(
-        func=_read,
+        func=_guard_transport_errors(_read),
         name="Read",
         description="Read a file from the local filesystem.",
         args_schema=ReadInput,
@@ -280,7 +306,7 @@ def create_write_tool(
         return f"The file {file_path} has been updated successfully."
 
     return StructuredTool.from_function(
-        func=_write,
+        func=_guard_transport_errors(_write),
         name="Write",
         description="Write a file to the local filesystem.",
         args_schema=WriteInput,
@@ -382,7 +408,7 @@ def create_edit_tool(
         return f"The file {file_path} has been updated successfully."
 
     return StructuredTool.from_function(
-        func=_edit,
+        func=_guard_transport_errors(_edit),
         name="Edit",
         description="Edit a file on the local filesystem.",
         args_schema=EditInput,

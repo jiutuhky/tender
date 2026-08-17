@@ -208,3 +208,29 @@ def test_build_rg_argv_count_mode() -> None:
         multiline=False,
     )
     assert "-c" in argv
+
+
+def test_grep_passes_through_sandbox_unavailable_message(tmp_path: Path) -> None:
+    """沙箱通道的契约文案原样透传,不加 "Error:" 前缀(保持模型可识别的 marker 形态)。"""
+    from deepagents.backends.protocol import ExecuteResponse
+
+    from hagent.sandbox.errors import SandboxUnavailableReason, execute_error_response
+
+    class PausedSandbox:
+        workspace_dir = str(tmp_path)
+
+        def execute(self, command, timeout=None):
+            return execute_error_response(SandboxUnavailableReason.PAUSED)
+
+    grep_tool, glob_tool = create_grep_tools(tmp_path, sandbox=PausedSandbox())
+    out = grep_tool.invoke({"pattern": "foo"})
+    assert out.startswith("[sandbox_unavailable:paused]")
+    out2 = glob_tool.invoke({"pattern": "*.md"})
+    assert out2.startswith("[sandbox_unavailable:paused]")
+
+    class FailingSandbox(PausedSandbox):
+        def execute(self, command, timeout=None):
+            return ExecuteResponse(output="rg: bad regex", exit_code=2, truncated=False)
+
+    grep_tool, _ = create_grep_tools(tmp_path, sandbox=FailingSandbox())
+    assert grep_tool.invoke({"pattern": "foo"}).startswith("Error: rg: bad regex")

@@ -16,6 +16,14 @@ from deepagents.backends.protocol import (
 from deepagents.backends.sandbox import BaseSandbox
 
 from hagent.sandbox.docker.lifecycle import DockerContainerLifecycle
+from hagent.sandbox.errors import (
+    FILE_NOT_FOUND_ERROR,
+    SandboxUnavailable,
+    SandboxUnavailableReason,
+    classify_exception,
+    execute_error_response,
+    transfer_error,
+)
 from hagent.sandbox.manifest import SandboxManifest
 from hagent.sandbox.protocol import HagentSandboxProtocol, SandboxKind
 
@@ -46,6 +54,7 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
         self._lifecycle = lifecycle
         self._manifest = manifest
         self._activity_callback: Callable[[], None] | None = None
+        self._lifecycle_callback: Callable[[str], None] | None = None
         self._container = lifecycle._container
         self._max_output_bytes = max_output_bytes
         self._default_timeout_seconds = default_timeout_seconds
@@ -83,7 +92,11 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
     def set_activity_callback(self, callback: Callable[[], None] | None) -> None:
         self._activity_callback = callback
 
-    def _touch(self) -> None:
+    def set_lifecycle_callback(self, callback: Callable[[str], None] | None) -> None:
+        self._lifecycle_callback = callback
+
+    def touch(self) -> None:
+        """刷新活跃时间(触达即活跃):所有工具通道入口调用,不分成败。"""
         self._manifest.touch()
         if self._activity_callback is not None:
             try:
@@ -91,15 +104,50 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
             except Exception as exc:  # noqa: BLE001
                 logger.warning("项目租约活跃时间回写失败(忽略): %s", exc)
 
+    _touch = touch  # 兼容旧调用点/测试
+
+    def _emit_lifecycle(self, kind: str) -> None:
+        callback = getattr(self, "_lifecycle_callback", None)
+        if callback is None:
+            return
+        try:
+            callback(kind)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[%s] 生命周期回调(%s)失败(忽略): %s", self.id, kind, exc)
+
+    def ensure_running(self) -> None:
+        """通道入口的防御性唤醒(与 smolvm provider 同语义)。"""
+        if self._container is None or self._manifest.gone:
+            raise SandboxUnavailable(SandboxUnavailableReason.GONE)
+        if not self._manifest.paused:
+            return
+        try:
+            self._lifecycle.resume()
+        except Exception as exc:
+            raise SandboxUnavailable(SandboxUnavailableReason.PAUSED, detail=str(exc)) from exc
+        self._manifest.paused = False
+        self._emit_lifecycle("resumed")
+
+    def _prepare_channel(self) -> SandboxUnavailableReason | None:
+        """通道入口:触达即活跃 + 防御性唤醒;返回不可用原因(None 即可用)。"""
+        if self._container is None or self._manifest.gone:
+            return SandboxUnavailableReason.GONE
+        self.touch()
+        try:
+            self.ensure_running()
+        except SandboxUnavailable as exc:
+            logger.warning("[%s] 唤醒失败: %s", self.id, exc.detail)
+            return exc.reason
+        return None
+
     @property
     def manifest(self) -> SandboxManifest:
         return self._manifest
 
     def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
-        if self._container is None:
-            return ExecuteResponse(
-                output="container not running", exit_code=137, truncated=False
-            )
+        blocked = self._prepare_channel()
+        if blocked is not None:
+            return execute_error_response(blocked)
         try:
             exit_code, demux_out = self._container.exec_run(
                 cmd=["/bin/bash", "-c", command],
@@ -108,9 +156,9 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
                 tty=False,
             )
         except Exception as exc:  # noqa: BLE001
-            return ExecuteResponse(
-                output=f"container exec failed: {exc}", exit_code=137, truncated=False
-            )
+            reason = classify_exception(exc)
+            logger.warning("[%s] exec 失败(%s): %s", self.id, reason.value, exc)
+            return execute_error_response(reason)
 
         stdout, stderr = demux_out if demux_out is not None else (b"", b"")
         stdout = stdout or b""
@@ -129,7 +177,6 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
                 f"\n... Output truncated at {self._max_output_bytes} bytes.".encode("utf-8")
             )
             truncated = True
-        self._touch()
         return ExecuteResponse(
             output=combined.decode("utf-8", errors="replace"),
             exit_code=int(exit_code) if exit_code is not None else 1,
@@ -155,13 +202,21 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         results: list[FileUploadResponse] = []
+        blocked = self._prepare_channel()
         for path, content in files:
+            if blocked is not None:
+                results.append(FileUploadResponse(path=path, error=transfer_error(blocked)))
+                continue
             try:
                 self._upload_one(path, content)
                 results.append(FileUploadResponse(path=path, error=None))
-            except Exception as exc:  # noqa: BLE001
+            except RuntimeError as exc:
+                # 本类脚本级失败(mkdir/写入/解码非零退出):容器内业务错误,保留原文
                 results.append(FileUploadResponse(path=path, error=f"upload_failed: {exc}"))
-        self._touch()
+            except Exception as exc:  # noqa: BLE001
+                reason = classify_exception(exc)
+                logger.warning("[%s] upload %s 失败(%s): %s", self.id, path, reason.value, exc)
+                results.append(FileUploadResponse(path=path, error=transfer_error(reason)))
         return results
 
     def _upload_one(self, path: str, content: bytes) -> None:
@@ -190,14 +245,20 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         results: list[FileDownloadResponse] = []
+        blocked = self._prepare_channel()
         for path in paths:
+            if blocked is not None:
+                results.append(
+                    FileDownloadResponse(path=path, content=None, error=transfer_error(blocked))
+                )
+                continue
             try:
                 code, out, err = self._exec_sh(f"base64 {shlex.quote(path)}")
                 if code != 0:
                     error_str = err.decode(errors="replace")
                     error_code = (
-                        "file_not_found"
-                        if "No such file" in error_str
+                        FILE_NOT_FOUND_ERROR
+                        if "no such file" in error_str.lower()
                         else f"download_failed: {error_str.strip()}"
                     )
                     results.append(FileDownloadResponse(path=path, content=None, error=error_code))
@@ -205,10 +266,11 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
                 content = base64.b64decode(out)
                 results.append(FileDownloadResponse(path=path, content=content, error=None))
             except Exception as exc:  # noqa: BLE001
+                reason = classify_exception(exc)
+                logger.warning("[%s] download %s 失败(%s): %s", self.id, path, reason.value, exc)
                 results.append(
-                    FileDownloadResponse(path=path, content=None, error=f"download_failed: {exc}")
+                    FileDownloadResponse(path=path, content=None, error=transfer_error(reason))
                 )
-        self._touch()
         return results
 
     def pause(self) -> None:
@@ -226,6 +288,7 @@ class HagentDockerSandbox(BaseSandbox, HagentSandboxProtocol):
     def close(self) -> None:
         self._lifecycle.stop()
         self._container = None
+        self._manifest.gone = True
 
     def __enter__(self) -> "HagentDockerSandbox":
         return self

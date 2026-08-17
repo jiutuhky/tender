@@ -37,8 +37,18 @@ from hagent.grep_tool.schema import (
     GREP_ALLOWED_KEYS,
     GREP_SCHEMA,
 )
+from hagent.sandbox.errors import is_infra_message
 
 __all__ = ["create_grep_tools"]
+
+
+def _render_exec_failure(output: str, fallback: str) -> str:
+    """非零退出的呈现:沙箱基础设施契约文案原样透传(不加 "Error:" 前缀,
+    保持系统提示词教给模型的 ``[sandbox_unavailable:...]`` 识别形态);其它照旧。"""
+    text = output.strip()
+    if is_infra_message(text):
+        return text
+    return f"Error: {text or fallback}"
 
 
 def _truncate(text: str, head_limit: int | None) -> str:
@@ -131,7 +141,7 @@ def create_grep_tools(
         if result_code == 1 and not result_output.strip():
             return "No matches found"
         if result_code not in (0, 1):
-            return f"Error: {result_output.strip() or 'grep failed'}"
+            return _render_exec_failure(result_output, "grep failed")
         if not result_output.strip():
             return "No matches found"
         return _truncate(result_output.rstrip("\n"), head_limit)
@@ -151,7 +161,7 @@ def create_grep_tools(
         argv = [executor.python_cmd, "-c", GLOB_SCRIPT, str(search_path), pattern]
         result = executor.run_argv(argv, GLOB_TIMEOUT_S)
         if result.exit_code != 0:
-            return f"Error: {result.output.strip() or 'glob failed'}"
+            return _render_exec_failure(result.output, "glob failed")
         if not result.output.strip():
             return "No files found"
         return result.output.rstrip("\n")

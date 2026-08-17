@@ -91,7 +91,12 @@ class SandboxPool:
         self._lifecycle_fn: Callable[[str, str, HagentSandboxProtocol], None] | None = None
         self._activity_touch_fn: Callable[[str], None] | None = None
         self._last_activity_fn: Callable[[str], float | None] | None = None
-        self._checkpoint_fn: Callable[[str, HagentSandboxProtocol], None] | None = None
+        self._checkpoint_fn: (
+            Callable[[str, HagentSandboxProtocol, str], None] | None
+        ) = None
+        # run-hold:project 有活跃 Run 时 GC 一律不降档(pause/persist/evict/
+        # max_lifetime),由 manager 注入 RunStore 视图;未注入即无 hold
+        self._active_run_fn: Callable[[str], bool] | None = None
         self._project_guard_fn: Callable[[str], AbstractContextManager] | None = None
         self._restore_factory = restore_factory
         self._idle: Queue = Queue()
@@ -136,6 +141,19 @@ class SandboxPool:
                 set_activity_callback(callback)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("project %s 活跃回调绑定失败(忽略): %s", project_id, exc)
+        # 沙箱自发的生命周期变化(通道内 ensure_running 唤醒 → "resumed"、
+        # pause → "paused")经此回到 manager,与 GC 触发的事件同一出口
+        set_lifecycle_callback = getattr(sandbox, "set_lifecycle_callback", None)
+        if callable(set_lifecycle_callback):
+            lifecycle_callback = None
+            if project_id is not None:
+                lifecycle_callback = lambda kind: self._notify_lifecycle(
+                    kind, project_id, sandbox
+                )
+            try:
+                set_lifecycle_callback(lifecycle_callback)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("project %s 生命周期回调绑定失败(忽略): %s", project_id, exc)
 
     # —— 创建 / 销毁(统一走账本)———————————————————————————————
 
@@ -371,20 +389,42 @@ class SandboxPool:
 
     def set_checkpoint_fn(
         self,
-        checkpoint_fn: Callable[[str, HagentSandboxProtocol], None] | None,
+        checkpoint_fn: Callable[[str, HagentSandboxProtocol, str], None] | None,
     ) -> None:
-        """注入生命周期动作前的项目工作区兜底 checkpoint。"""
+        """注入生命周期动作前的项目工作区兜底 checkpoint。
+
+        签名 ``(project_id, sandbox, reason)``;reason ∈ pause/persist/evict/
+        release/drain/shutdown,供 run 终结记账写明原因。
+        """
         self._checkpoint_fn = checkpoint_fn
 
-    def _checkpoint_before_lifecycle(self, lease: SandboxLease) -> None:
+    def set_active_run_fn(self, active_run_fn: Callable[[str], bool] | None) -> None:
+        """注入「project 是否有活跃 Run」判定(run-hold 的数据源)。"""
+        self._active_run_fn = active_run_fn
+
+    def _has_active_run(self, project_id: str) -> bool:
+        """run-hold 判定。判定函数异常按 **有活跃 Run** 处理(fail-safe:
+        宁可晚一轮降档,也不能在 Run 中冻结/拆掉 VM)。"""
+        if self._active_run_fn is None:
+            return False
+        try:
+            return bool(self._active_run_fn(project_id))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "project %s 活跃 Run 判定失败,按 run-hold 处理: %s", project_id, exc
+            )
+            return True
+
+    def _checkpoint_before_lifecycle(self, lease: SandboxLease, *, reason: str) -> None:
         if self._checkpoint_fn is None:
             return
         try:
-            self._checkpoint_fn(lease.project_id, lease.sandbox)
+            self._checkpoint_fn(lease.project_id, lease.sandbox, reason)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "project %s 生命周期前 checkpoint 失败(继续回收): %s",
+                "project %s 生命周期(%s)前 checkpoint 失败(继续回收): %s",
                 lease.project_id,
+                reason,
                 exc,
             )
 
@@ -416,7 +456,7 @@ class SandboxPool:
         assert self._persist_fn is not None
         if not self._is_current(lease):
             return True
-        self._checkpoint_before_lifecycle(lease)
+        self._checkpoint_before_lifecycle(lease, reason="persist")
         try:
             persisted = bool(self._persist_fn(lease))
         except Exception as exc:  # noqa: BLE001
@@ -445,14 +485,17 @@ class SandboxPool:
     def stats(self) -> dict:
         """只读池快照(ops 监控用):容量档位 + 在册数 + 补货熔断态。"""
         with self._lock:
-            leased = len(self._leased)
+            leased_ids = list(self._leased.keys())
+            leased = len(leased_ids)
             size = self._size
             breaker_open = time.monotonic() < self._breaker_open_until
             replenish_failures = self._replenish_failures
+        held = sum(1 for pid in leased_ids if self._has_active_run(pid))
         return {
             "size": size,
             "idle": self._idle.qsize(),
             "leased": leased,
+            "held": held,
             "min_size": self._min_size,
             "max_size": self._max_size,
             "replenish_breaker_open": breaker_open,
@@ -518,7 +561,7 @@ class SandboxPool:
         with self._lock:
             if self._leased.get(lease.project_id) is not lease:
                 return False
-        self._checkpoint_before_lifecycle(lease)
+        self._checkpoint_before_lifecycle(lease, reason="evict")
         with self._lock:
             if self._leased.get(lease.project_id) is not lease:
                 return False
@@ -543,7 +586,7 @@ class SandboxPool:
             if self._leased.get(lease.project_id) is not lease:
                 # 已被并发路径摘除或替换时保持幂等，避免 size 双减或误删新租约。
                 return False
-        self._checkpoint_before_lifecycle(lease)
+        self._checkpoint_before_lifecycle(lease, reason="release")
         with self._lock:
             if self._leased.get(lease.project_id) is not lease:
                 return False
@@ -581,7 +624,7 @@ class SandboxPool:
             leases = list(self._leased.values())
         for lease in leases:
             try:
-                self._checkpoint_before_lifecycle(lease)
+                self._checkpoint_before_lifecycle(lease, reason="drain")
                 lease.sandbox.pause()
             except Exception as exc:  # noqa: BLE001
                 logger.warning("drain pause 失败 project=%s: %s", lease.project_id, exc)
@@ -599,7 +642,7 @@ class SandboxPool:
             leases = list(self._leased.values())
             self._leased.clear()
         for lease in leases:
-            self._checkpoint_before_lifecycle(lease)
+            self._checkpoint_before_lifecycle(lease, reason="shutdown")
             self._teardown_sandbox(lease.sandbox)
         with self._lock:
             self._size = 0
@@ -646,8 +689,13 @@ class SandboxPool:
             with self._project_guard(lease.project_id):
                 if not self._is_current(lease):
                     continue
+                # run-hold:活跃 Run 期间任何降档(pause/persist/evict/max_lifetime)
+                # 都会让正在跑的工具打到冻结/消失的 VM,一律跳过,等 Run 结束
+                if self._has_active_run(lease.project_id):
+                    logger.debug("project %s run-hold: 跳过本轮 GC 降档", lease.project_id)
+                    continue
                 manifest = getattr(lease.sandbox, "manifest", None)
-                # 绝对寿命上限与 idle 无关，活跃沙箱到期同样驱逐。
+                # 绝对寿命上限与 idle 无关(但受 run-hold 约束),到期即驱逐。
                 if self._max_lifetime is not None and manifest is not None:
                     age = now - getattr(manifest, "created_at", now)
                     if age >= self._max_lifetime:
@@ -686,7 +734,7 @@ class SandboxPool:
                         idle,
                     )
                     try:
-                        self._checkpoint_before_lifecycle(lease)
+                        self._checkpoint_before_lifecycle(lease, reason="pause")
                         lease.sandbox.pause()
                         if manifest is not None:
                             manifest.paused = True

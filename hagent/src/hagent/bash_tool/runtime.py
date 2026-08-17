@@ -14,7 +14,7 @@ from typing import IO
 
 from hagent.bash_tool.output import OutputManager
 from hagent.bash_tool.schema import BashResult, get_default_timeout_ms
-from hagent.bash_tool.shell_provider import ShellProvider
+from hagent.bash_tool.shell_provider import ShellProvider, ShellProviderUnavailable
 from hagent.bash_tool.tasks import TaskRegistry
 
 
@@ -84,9 +84,15 @@ class BashRuntime:
         interrupted = False
         stderr = ""
         exit_code: int | None = None
+        try:
+            argv = self.shell_provider.command_argv(command_script)
+        except ShellProviderUnavailable as exc:
+            # 沙箱环境不可用:不 spawn,直接给模型契约文案(不炸流)
+            output_path.unlink(missing_ok=True)
+            return BashResult(stdout="", stderr=exc.message, exit_code=exc.exit_code)
         with output_path.open("ab", buffering=0) as output_handle:
             proc = subprocess.Popen(
-                self.shell_provider.command_argv(command_script),
+                argv,
                 cwd=str(self.workspace_root),
                 env=self._process_env(),
                 stdin=subprocess.DEVNULL,
@@ -117,9 +123,31 @@ class BashRuntime:
 
         # cwd 捕获必须在 finalize 之前:finalize 对未截断的小输出会 unlink
         # 输出文件,之后再读哨兵只会静默失败(sandbox 模式 cd 从不持久的根因)
+        transport_failure: str | None = None
         if getattr(self.shell_provider, "sandbox", None) is not None:
-            self._capture_sandbox_cwd_from_output(output_path)
+            sentinel_seen = self._capture_sandbox_cwd_from_output(output_path)
+            # 命令结束再 touch 一次:长命令期间的活跃度以结束时刻起算
+            self._notify_shell_activity()
+            translate = getattr(self.shell_provider, "translate_transport_failure", None)
+            if callable(translate) and not interrupted:
+                transport_failure = translate(
+                    exit_code=exit_code,
+                    sentinel_seen=sentinel_seen,
+                    tail=self._read_output_tail(output_path),
+                )
         summary = self.output_manager.finalize_foreground(output_path)
+        if transport_failure is not None:
+            # 传输层失败(ssh/docker 客户端报错):模型只看契约文案,不看客户端原文
+            return BashResult(
+                stdout=transport_failure,
+                stderr="",
+                exit_code=exit_code,
+                interrupted=False,
+                persisted_output_path=None,
+                persisted_output_size=None,
+                truncated=False,
+                no_output_expected=False,
+            )
         return BashResult(
             stdout=summary.inline_text,
             stderr=stderr,
@@ -136,9 +164,14 @@ class BashRuntime:
         output_path = self.output_manager.create_output_file(task_id)
         cwd_file = self._cwd_file(task_id)
         command_script = self.shell_provider.build_command(command, cwd_file=cwd_file)
+        try:
+            argv = self.shell_provider.command_argv(command_script)
+        except ShellProviderUnavailable as exc:
+            output_path.unlink(missing_ok=True)
+            return BashResult(stdout="", stderr=exc.message, exit_code=exc.exit_code)
         output_handle = output_path.open("ab", buffering=0)
         proc = subprocess.Popen(
-            self.shell_provider.command_argv(command_script),
+            argv,
             cwd=str(self.workspace_root),
             env=self._process_env(),
             stdin=subprocess.DEVNULL,
@@ -202,8 +235,27 @@ class BashRuntime:
         finally:
             output_handle.close()
             cwd_file.unlink(missing_ok=True)
+            self._notify_shell_activity()
             with self._watcher_lock:
                 self._watcher_threads.pop(task_id, None)
+
+    def _notify_shell_activity(self) -> None:
+        notify = getattr(self.shell_provider, "touch_activity", None)
+        if callable(notify):
+            try:
+                notify()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _read_output_tail(self, output_path: Path, *, max_bytes: int = 4096) -> str:
+        try:
+            with output_path.open("rb") as handle:
+                handle.seek(0, os.SEEK_END)
+                size = handle.tell()
+                handle.seek(max(0, size - max_bytes))
+                return handle.read().decode("utf-8", errors="replace")
+        except OSError:
+            return ""
 
     def _process_env(self) -> dict[str, str]:
         env = dict(os.environ)
@@ -226,19 +278,26 @@ class BashRuntime:
         if raw_cwd:
             self.shell_provider.update_cwd(Path(raw_cwd))
 
-    def _capture_sandbox_cwd_from_output(self, output_path: Path) -> None:
-        """Parse __HAGENT_PWD__: lines from sandbox output to update shell_provider cwd."""
+    def _capture_sandbox_cwd_from_output(self, output_path: Path) -> bool:
+        """Parse __HAGENT_PWD__: lines from sandbox output to update shell_provider cwd.
+
+        返回是否见到哨兵——哨兵由 EXIT trap 打印,缺失说明命令根本没在 guest
+        里跑起来(传输层失败),供 ``translate_transport_failure`` 判定。
+        """
         try:
             text = output_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
-            return
+            return False
         sentinel = "__HAGENT_PWD__:"
         last: str | None = None
+        seen = False
         for line in text.splitlines():
             if line.startswith(sentinel):
+                seen = True
                 last = line[len(sentinel):].strip()
         if last:
             self.shell_provider.update_cwd(Path(last))
+        return seen
 
     def _kill_process_group(self, process_group_id: int) -> None:
         try:

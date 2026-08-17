@@ -58,7 +58,21 @@ def _build_docker_pool() -> SandboxPool:
         sandbox_factory=lambda: HagentDockerSandbox.start(),
         min_size=int(os.environ.get("HAGENT_SANDBOX_POOL_MIN", "1")),
         max_size=int(os.environ.get("HAGENT_SANDBOX_POOL_MAX", "4")),
+        **_idle_thresholds_from_env(),
     )
+
+
+def _float_env(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    return float(raw) if raw else default
+
+
+def _idle_thresholds_from_env() -> dict[str, float]:
+    """idle 两级降档阈值(spec §5):pause 300s / evict 1800s,env 可覆盖。"""
+    return {
+        "idle_pause_seconds": _float_env("HAGENT_SANDBOX_IDLE_PAUSE_SECONDS", 300.0),
+        "idle_evict_seconds": _float_env("HAGENT_SANDBOX_IDLE_EVICT_SECONDS", 1800.0),
+    }
 
 
 def _build_smolvm_auditor(db_path: str):
@@ -91,6 +105,7 @@ def _build_smolvm_pool(auditor=None) -> SandboxPool:
         ledger=AdmissionLedger(),
         quota_mem_mib=int(os.environ.get("HAGENT_SMOLVM_MEMORY_MIB", "2048")),
         quota_vcpus=int(os.environ.get("HAGENT_SMOLVM_VCPUS", "2")),
+        **_idle_thresholds_from_env(),
     )
 
 
@@ -245,6 +260,8 @@ def create_app() -> FastAPI:
             runs=run_store,
             leases=lease_store,
         ),
+        # run-hold 上限:活跃 Run 超时仍未终结时不再阻止 GC 降档(防卡死 Run 霸占 VM)
+        run_hold_max_seconds=_float_env("HAGENT_RUN_HOLD_MAX_SECONDS", 7200.0),
     )
     set_session_manager(mgr)
     set_draining(False)  # 新装配复位(测试多 app 实例共享模块旗标)

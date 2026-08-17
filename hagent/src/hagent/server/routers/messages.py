@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any, Iterator, Protocol
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -185,7 +186,13 @@ def _stream_agent_events(
     project_id: str | None = None,
     run_id: str | None = None,
     checkpoint: CheckpointCallback | None = None,
+    cancel_check: Callable[[], str | None] | None = None,
 ) -> Iterator[bytes]:
+    """把 agent.stream 转成 SSE 帧;轮末 checkpoint 三路(正常/异常/断连)归一进 finally。
+
+    ``cancel_check`` 每个 chunk 查一次:生命周期动作(健康杀重建)已把本 Run 取消时
+    立即终止本轮并明示原因,不让模型继续跑在已消失的 VM 上。
+    """
     fmt = SSEFormatter()
     tool_call_states: dict[str, dict[int, dict[str, str]]] = {"": {}}
     # 简版 transcript：累积主图（非子代理 namespace）的 assistant 增量
@@ -199,13 +206,6 @@ def _stream_agent_events(
         yield render_sandbox_event(sandbox_event).encode("utf-8")
     if run_id is not None:
         yield fmt.format(event="run.started", data={"run_id": run_id})
-
-    def finish_checkpoint(
-        *, interrupted: bool, error: str | None = None
-    ) -> CheckpointResult | None:
-        if checkpoint is None:
-            return None
-        return checkpoint(interrupted=interrupted, error=error)
 
     def checkpoint_frame(result: CheckpointResult | None) -> bytes | None:
         if result is None:
@@ -221,6 +221,26 @@ def _stream_agent_events(
             )
         return None
 
+    def finish_checkpoint_quiet(
+        *, interrupted: bool, error: str | None
+    ) -> tuple[CheckpointResult | None, str | None]:
+        """finally 内不 yield:只返回 (result, failure_message)。"""
+        if checkpoint is None:
+            return None, None
+        try:
+            return checkpoint(interrupted=interrupted, error=error), None
+        except CheckpointFailure as checkpoint_error:
+            logger.warning("run %s checkpoint 未完整收尾: %s", run_id, checkpoint_error)
+            return checkpoint_error.result, str(checkpoint_error)
+        except Exception as checkpoint_error:  # noqa: BLE001
+            logger.warning("run %s checkpoint 失败: %s", run_id, checkpoint_error)
+            return None, str(checkpoint_error)
+
+    agent_error: Exception | None = None
+    cancelled: str | None = None
+    client_closed = False
+    ckpt_result: CheckpointResult | None = None
+    ckpt_failure: str | None = None
     try:
         for chunk in agent.stream(
             {"messages": [{"role": "user", "content": content}]},
@@ -228,6 +248,10 @@ def _stream_agent_events(
             stream_mode=["updates", "messages"],
             subgraphs=True,
         ):
+            if cancel_check is not None:
+                cancelled = cancel_check()
+                if cancelled:
+                    break
             # subgraphs=True 时 chunk = (namespace, mode, payload); 否则 (mode, payload)
             if isinstance(chunk, tuple) and len(chunk) == 3:
                 _ns, mode, payload = chunk
@@ -248,67 +272,55 @@ def _stream_agent_events(
                     if isinstance(part, str):
                         assistant_parts.append(part)
                 yield fmt.format(event=event, data=data)
+            # run 进行中的沙箱生命周期事件(paused/resumed/health_fail…)即时可见
+            for sandbox_event in drain_sandbox_events(thread_id):
+                yield render_sandbox_event(sandbox_event).encode("utf-8")
     except GeneratorExit:
-        try:
-            finish_checkpoint(interrupted=True, error="客户端断连或用户打断")
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("run %s 断连 checkpoint 失败: %s", run_id, exc)
+        # 客户端断连/用户打断:finally 仍执行 checkpoint,但此后不得再 yield
+        client_closed = True
         raise
-    except Exception as agent_error:  # noqa: BLE001
-        result = None
-        try:
-            result = finish_checkpoint(interrupted=True, error=str(agent_error))
-        except CheckpointFailure as checkpoint_error:
-            result = checkpoint_error.result
-            logger.warning(
-                "run %s 异常后的 checkpoint 未完整收尾: %s",
-                run_id,
-                checkpoint_error,
-            )
-        except Exception as checkpoint_error:  # noqa: BLE001
-            logger.warning(
-                "run %s 异常后的 checkpoint 失败: %s", run_id, checkpoint_error
-            )
-        frame = checkpoint_frame(result)
-        if frame is not None:
-            yield frame
+    except Exception as exc:  # noqa: BLE001
+        agent_error = exc
+    finally:
+        interrupted = client_closed or agent_error is not None or cancelled is not None
+        if client_closed:
+            error_text: str | None = "客户端断连或用户打断"
+        elif cancelled is not None:
+            error_text = cancelled
+        elif agent_error is not None:
+            error_text = str(agent_error)
+        else:
+            error_text = None
+        ckpt_result, ckpt_failure = finish_checkpoint_quiet(
+            interrupted=interrupted, error=error_text
+        )
+
+    # —— finally 之后按 outcome 统一出帧(GeneratorExit 已 raise,不会到这里)——
+    frame = checkpoint_frame(ckpt_result)
+    if frame is not None:
+        yield frame
+    if cancelled is not None:
+        yield fmt.format(
+            event="error",
+            data={"code": "sandbox_unavailable", "message": cancelled},
+        )
+        return
+    if agent_error is not None:
         yield fmt.format(
             event="error",
             data={"code": "agent_error", "message": str(agent_error)},
         )
         return
-
     try:
         append_transcript(thread_id, "assistant", "".join(assistant_parts))
     except Exception as exc:  # noqa: BLE001
         logger.warning("session %s assistant transcript 写入失败: %s", thread_id, exc)
-
-    try:
-        result = finish_checkpoint(interrupted=False)
-    except CheckpointFailure as checkpoint_error:
-        frame = checkpoint_frame(checkpoint_error.result)
-        if frame is not None:
-            yield frame
+    if ckpt_failure is not None:
         yield fmt.format(
             event="error",
-            data={
-                "code": "workspace_checkpoint_error",
-                "message": str(checkpoint_error),
-            },
+            data={"code": "workspace_checkpoint_error", "message": ckpt_failure},
         )
         return
-    except Exception as checkpoint_error:  # noqa: BLE001
-        yield fmt.format(
-            event="error",
-            data={
-                "code": "workspace_checkpoint_error",
-                "message": str(checkpoint_error),
-            },
-        )
-        return
-    frame = checkpoint_frame(result)
-    if frame is not None:
-        yield frame
     yield fmt.format(event="done", data={"thread_id": thread_id})
 
 
@@ -402,6 +414,7 @@ def post_message(sid: str, body: MessageBody) -> StreamingResponse:
                 sandbox=sandbox,
                 **kwargs,
             ),
+            cancel_check=lambda: manager.run_cancel_reason(run.id),
         ),
         media_type="text/event-stream",
     )

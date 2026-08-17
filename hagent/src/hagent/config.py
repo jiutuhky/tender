@@ -53,6 +53,26 @@ def load_base_prompt() -> str:
 _SANDBOX_BACKEND_NAMES = frozenset(
     {"HagentDockerSandbox", "HagentDaytonaSandbox", "HagentSmolVMSandbox"}
 )
+# 各 provider 的命令路由机制:提示词只陈述事实,smolvm 走 microVM 内 SSH/vsock,
+# 不是 docker exec(曾硬写 docker exec,对 smolvm 是错误描述)
+_SANDBOX_MECHANISM = {
+    "HagentDockerSandbox": "`docker exec`",
+    "HagentSmolVMSandbox": "microVM 内的 SSH/vsock 通道",
+    "HagentDaytonaSandbox": "Daytona API",
+}
+
+# 沙箱基础设施错误的处理指引:与 sandbox/errors.py 契约文案的 marker 对齐
+SANDBOX_INFRA_ERROR_GUIDANCE = (
+    "\n"
+    "## 沙箱基础设施错误\n"
+    "工具输出以 `[sandbox_unavailable:<reason>]` 开头时，失败来自沙箱环境本身，"
+    "而不是你的命令或文件。处理规则：\n"
+    " - `paused` / `connect_failed`：原样重试一次；若仍失败，停止当前操作并向用户说明。\n"
+    " - `gone` / `stopped`：立即停止本轮工作并告知用户重新发送请求，不要继续调用工具。\n"
+    " - `timeout`：缩小处理范围或延长 timeout 后重试。\n"
+    " - 任何情况下都**不要**执行沙箱运维命令（如 `smolvm ...`、`docker ...`、`firecracker ...`），"
+    "也不要猜测或访问宿主路径——这些命令在沙箱内不存在，也不该由你执行。\n"
+)
 
 
 def _sandbox_section(sandbox_type: str, working_directory: str) -> str:
@@ -82,9 +102,10 @@ def _sandbox_section(sandbox_type: str, working_directory: str) -> str:
         '{"write":{"allowOnly":["' + workspace + '"]},'
         '"hostPaths":"not reachable from inside the container"}'
     )
+    mechanism = _SANDBOX_MECHANISM.get(sandbox_type, "sandbox 通道")
     return (
         "\n\n## Command sandbox\n"
-        f"当前 session 的 Bash 命令默认在 sandbox 容器（{sandbox_type}）内运行。"
+        f"当前 session 的 Bash 命令默认在隔离沙箱（{sandbox_type}）内运行。"
         "sandbox 控制哪些目录和网络主机可以被命令访问或修改。\n"
         "\n"
         "The sandbox has the following restrictions:\n"
@@ -95,10 +116,11 @@ def _sandbox_section(sandbox_type: str, working_directory: str) -> str:
         " - All commands MUST run inside the sandbox container — the container "
         "boundary is the only trust boundary, and there is no per-command bypass.\n"
         " - Bash 工具的 `dangerouslyDisableSandbox` 参数仅为 schema 与 Claude Code 对齐而保留，"
-        "Hagent **不会**遵循它；每条命令都通过 `docker exec` 路由。\n"
+        f"Hagent **不会**遵循它；每条命令都经{mechanism}路由。\n"
         " - Host paths (e.g. `~/`, `/etc/`, `/Users/...`) are NOT reachable from inside "
         "the container — attempts to read or write them will fail.\n"
         f" - 工作产物写到 `{workspace}/` 下；用户可通过 session 文件 API 下载。\n"
+        + SANDBOX_INFRA_ERROR_GUIDANCE
     )
 
 

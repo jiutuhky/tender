@@ -484,7 +484,8 @@ def test_evict_unknown_session_returns_false():
 # ---------------------------------------------------------------------------
 
 
-def test_gc_evicts_on_max_lifetime_even_if_active(monkeypatch):
+def test_gc_evicts_on_max_lifetime_even_if_recently_touched(monkeypatch):
+    # 语义澄清:「刚 touch 过」不是 run-hold;未注入 active_run_fn 时寿命到期照旧驱逐
     monkeypatch.setenv("HAGENT_SANDBOX_REUSE", "true")  # 寿命到期必须真拆,不得回池
     factory, _ = _make_sandbox_factory()
     pool = SandboxPool(
@@ -558,8 +559,8 @@ def test_gc_persist_replaces_evict_when_fn_returns_true():
         ledger=ledger,
     )
     pool.set_checkpoint_fn(
-        lambda project_id, sandbox: lifecycle_events.append(
-            f"checkpoint:{project_id}"
+        lambda project_id, sandbox, reason: lifecycle_events.append(
+            f"checkpoint:{project_id}:{reason}"
         )
     )
     pool.set_persist_fn(
@@ -567,7 +568,7 @@ def test_gc_persist_replaces_evict_when_fn_returns_true():
     )
     lease = _paused_overdue_lease(pool)
     pool._gc_pass(now=time.time())
-    assert lifecycle_events == ["checkpoint:s1", "snapshot:s1"]
+    assert lifecycle_events == ["checkpoint:s1:persist", "snapshot:s1"]
     assert len(ledger.released) == 1, "持久化后必须归还内存额度(D13 的痛点)"
     assert pool._size == 0
     assert pool.live_vm_ids() == set(), "lease 必须摘除"
@@ -595,6 +596,7 @@ def test_persist_cleanup_keeps_replacement_lease_created_after_callback():
         "size": 1,
         "idle": 0,
         "leased": 1,
+        "held": 0,
         "min_size": 0,
         "max_size": 2,
         "replenish_breaker_open": False,
@@ -964,3 +966,147 @@ def test_drain_pause_failure_does_not_block_others():
     lease1.sandbox.pause.side_effect = RuntimeError("freeze failed")
     pool.drain()
     lease2.sandbox.pause.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# run-hold:project 有活跃 Run 时 GC 一律不降档(pause / persist / evict / max_lifetime)
+# ---------------------------------------------------------------------------
+
+
+def _idle_overdue_lease(pool, project_id="s1"):
+    lease = pool.acquire(project_id=project_id)
+    lease.sandbox.manifest = MagicMock(
+        created_at=time.time() - 5.0, last_used_at=time.time() - 10.0, paused=False
+    )
+    lease.sandbox.pause = MagicMock()
+    return lease
+
+
+def test_gc_skips_pause_when_project_has_active_run():
+    factory, _ = _make_sandbox_factory()
+    pool = SandboxPool(
+        sandbox_factory=factory, min_size=0, max_size=2, idle_pause_seconds=0.1
+    )
+    checkpoints: list[str] = []
+    pool.set_checkpoint_fn(lambda pid, sb, reason: checkpoints.append(reason))
+    pool.set_active_run_fn(lambda project_id: True)
+    lease = _idle_overdue_lease(pool)
+    pool._gc_pass(now=time.time())
+    lease.sandbox.pause.assert_not_called()
+    assert checkpoints == [], "run-hold 期间不得触发兜底 checkpoint(否则会把活跃 Run 打成 interrupted)"
+    assert pool.stats()["held"] == 1
+    # Run 结束后同一轮 idle 判定恢复正常
+    pool.set_active_run_fn(lambda project_id: False)
+    pool._gc_pass(now=time.time())
+    lease.sandbox.pause.assert_called_once()
+    assert checkpoints == ["pause"]
+    pool.shutdown()
+
+
+def test_gc_skips_persist_and_evict_when_run_active():
+    factory, _ = _make_sandbox_factory()
+    pool = SandboxPool(
+        sandbox_factory=factory,
+        min_size=0,
+        max_size=2,
+        idle_pause_seconds=0.1,
+        idle_evict_seconds=0.2,
+    )
+    persisted: list[str] = []
+    pool.set_persist_fn(lambda lease: persisted.append(lease.project_id) or True)
+    pool.set_active_run_fn(lambda project_id: True)
+    lease = _paused_overdue_lease(pool)
+    pool._gc_pass(now=time.time())
+    assert persisted == []
+    lease.sandbox.close.assert_not_called()
+    pool.shutdown()
+
+
+def test_gc_defers_max_lifetime_while_run_active():
+    factory, _ = _make_sandbox_factory()
+    pool = SandboxPool(
+        sandbox_factory=factory,
+        min_size=0,
+        max_size=2,
+        idle_pause_seconds=3600,
+        idle_evict_seconds=7200,
+        max_lifetime_seconds=10,
+    )
+    active = {"value": True}
+    pool.set_active_run_fn(lambda project_id: active["value"])
+    lease = pool.acquire(project_id="s1")
+    now = time.time()
+    lease.sandbox.manifest = MagicMock(created_at=now - 11, last_used_at=now, paused=False)
+    pool._gc_pass(now=now)
+    lease.sandbox.close.assert_not_called()
+    active["value"] = False
+    pool._gc_pass(now=now)
+    lease.sandbox.close.assert_called_once()
+    pool.shutdown()
+
+
+def test_gc_holds_when_active_run_fn_raises():
+    """判定函数异常按 fail-safe(有活跃 Run)处理:宁可晚一轮降档也不能误冻结。"""
+    factory, _ = _make_sandbox_factory()
+    pool = SandboxPool(
+        sandbox_factory=factory, min_size=0, max_size=2, idle_pause_seconds=0.1
+    )
+
+    def boom(project_id):
+        raise RuntimeError("db down")
+
+    pool.set_active_run_fn(boom)
+    lease = _idle_overdue_lease(pool)
+    pool._gc_pass(now=time.time())
+    lease.sandbox.pause.assert_not_called()
+    pool.shutdown()
+
+
+def test_drain_and_shutdown_ignore_run_hold():
+    factory, _ = _make_sandbox_factory()
+    pool = SandboxPool(sandbox_factory=factory, min_size=0, max_size=2)
+    reasons: list[str] = []
+    pool.set_checkpoint_fn(lambda pid, sb, reason: reasons.append(reason))
+    pool.set_active_run_fn(lambda project_id: True)
+    lease = pool.acquire(project_id="s1")
+    lease.sandbox.pause = MagicMock()
+    pool.drain()
+    lease.sandbox.pause.assert_called_once()
+    assert reasons == ["drain"]
+    pool.shutdown()
+    lease.sandbox.close.assert_called_once()
+    assert reasons == ["drain", "shutdown"]
+
+
+def test_checkpoint_fn_receives_reason_for_evict():
+    factory, _ = _make_sandbox_factory()
+    pool = SandboxPool(sandbox_factory=factory, min_size=0, max_size=2)
+    reasons: list[str] = []
+    pool.set_checkpoint_fn(lambda pid, sb, reason: reasons.append(reason))
+    pool.acquire(project_id="s1")
+    assert pool.evict("s1") is True
+    assert reasons == ["evict"]
+    pool.shutdown()
+
+
+def test_bind_project_wires_lifecycle_callback_to_notify():
+    """沙箱自发的 "resumed"(通道内自动唤醒)经 pool 回到 manager 的同一出口。"""
+    events: list[tuple[str, str]] = []
+
+    class CallbackSandbox:
+        def __init__(self):
+            self.manifest = MagicMock(created_at=time.time(), last_used_at=time.time(), paused=False)
+            self.close = MagicMock()
+            self.lifecycle_callback = None
+
+        def set_lifecycle_callback(self, callback):
+            self.lifecycle_callback = callback
+
+    sandbox = CallbackSandbox()
+    pool = SandboxPool(sandbox_factory=lambda: sandbox, min_size=0, max_size=1)
+    pool.set_lifecycle_fn(lambda kind, pid, sb: events.append((kind, pid)))
+    pool.acquire(project_id="p1")
+    assert sandbox.lifecycle_callback is not None
+    sandbox.lifecycle_callback("resumed")
+    assert events == [("resumed", "p1")]
+    pool.shutdown()

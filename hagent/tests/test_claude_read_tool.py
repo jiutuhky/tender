@@ -160,3 +160,25 @@ def test_registered_read_tool_uses_shared_state_with_write_and_edit_stubs(tmp_pa
     states = [tool.metadata["hagent_file_state"] for tool in tools]
     assert states[0] is states[1] is states[2]
     assert states[0].get(target).content == "shared"
+
+
+def test_read_returns_neutral_message_when_sandbox_unavailable(tmp_path: Path) -> None:
+    """沙箱基础设施错误:工具返回契约文案(模型可见、可自愈),不抛异常炸流。"""
+    from hagent.sandbox.errors import SandboxUnavailable, SandboxUnavailableReason
+
+    class BrokenTransport:
+        def exists(self, path):
+            raise SandboxUnavailable(SandboxUnavailableReason.PAUSED)
+
+        def is_directory(self, path):
+            return False
+
+        def read_text_metadata(self, path):
+            raise AssertionError("不应到达")
+
+    tool = create_read_tool(
+        tmp_path, permissions=None, state=FileReadState(), transport=BrokenTransport()
+    )
+    result = tool.invoke({"file_path": "notes.txt"})
+    assert result.startswith("[sandbox_unavailable:paused]")
+    assert "File does not exist" not in result

@@ -877,3 +877,111 @@ def test_interrupt_endpoint_accepts_decision(tmp_path, monkeypatch):
     )
     assert r.status_code == 200
     assert r.json()["ok"] is True
+
+
+# ---------------------------------------------------------------------------
+# 轮末 checkpoint 三路归一进 finally + 取消路径 + run 中沙箱事件即时冲刷
+# ---------------------------------------------------------------------------
+
+
+class _AIChunk:
+    type = "AIMessageChunk"
+    content = "片段"
+    tool_call_chunks = []
+
+
+def _collect_checkpoints():
+    calls: list[dict] = []
+
+    def checkpoint(**kwargs):
+        calls.append(kwargs)
+        return CheckpointResult("run-one", None, ())
+
+    return calls, checkpoint
+
+
+def test_stream_checkpoints_exactly_once_on_success():
+    calls, checkpoint = _collect_checkpoints()
+    body = b"".join(
+        _stream_agent_events(FakeAgent(), "x", "s", run_id="run-one", checkpoint=checkpoint)
+    ).decode("utf-8")
+    assert calls == [{"interrupted": False, "error": None}]
+    assert body.rstrip().endswith('{"thread_id": "s"}') or "event: done" in body
+
+
+def test_stream_checkpoints_exactly_once_on_agent_error():
+    class ExplodingAgent:
+        def stream(self, *_a, **_k):
+            yield ((), "messages", (_AIChunk(), {}))
+            raise RuntimeError("model down")
+
+    calls, checkpoint = _collect_checkpoints()
+    body = b"".join(
+        _stream_agent_events(ExplodingAgent(), "x", "s", run_id="run-one", checkpoint=checkpoint)
+    ).decode("utf-8")
+    assert calls == [{"interrupted": True, "error": "model down"}]
+    assert '"code": "agent_error"' in body
+    assert "event: done" not in body
+
+
+def test_stream_checkpoints_exactly_once_on_generator_exit():
+    class Endless:
+        def stream(self, *_a, **_k):
+            while True:
+                yield ((), "messages", (_AIChunk(), {}))
+
+    calls, checkpoint = _collect_checkpoints()
+    stream = _stream_agent_events(Endless(), "x", "s", run_id="run-one", checkpoint=checkpoint)
+    next(stream)
+    next(stream)
+    stream.close()
+    assert calls == [{"interrupted": True, "error": "客户端断连或用户打断"}]
+
+
+def test_stream_terminates_with_sandbox_unavailable_when_run_cancelled():
+    """健康杀重建把 Run 取消后,消息流必须终止本轮而不是让模型继续跑在死 VM 上。"""
+
+    class Endless:
+        def stream(self, *_a, **_k):
+            while True:
+                yield ((), "messages", (_AIChunk(), {}))
+
+    calls, checkpoint = _collect_checkpoints()
+    seen = {"n": 0}
+
+    def cancel_check():
+        seen["n"] += 1
+        return "沙箱健康巡检杀重建,本轮已中断" if seen["n"] >= 3 else None
+
+    body = b"".join(
+        _stream_agent_events(
+            Endless(),
+            "x",
+            "s",
+            run_id="run-one",
+            checkpoint=checkpoint,
+            cancel_check=cancel_check,
+        )
+    ).decode("utf-8")
+    assert calls == [{"interrupted": True, "error": "沙箱健康巡检杀重建,本轮已中断"}]
+    assert '"code": "sandbox_unavailable"' in body
+    assert "event: done" not in body
+
+
+def test_stream_flushes_sandbox_events_mid_run():
+    from hagent.server import sse as sse_mod
+
+    class TwoChunkAgent:
+        def stream(self, *_a, **_k):
+            yield ((), "messages", (_AIChunk(), {}))
+            # 后台线程在 run 中途推入的生命周期事件
+            sse_mod.push_sandbox_event(
+                sse_mod.SandboxEvent(kind="paused", session_id="s-mid", sandbox_id="smolvm-x")
+            )
+            yield ((), "messages", (_AIChunk(), {}))
+
+    frames = list(_stream_agent_events(TwoChunkAgent(), "x", "s-mid", run_id="run-one"))
+    body = b"".join(frames).decode("utf-8")
+    assert "event: sandbox.paused" in body
+    # 出现在 done 之前(run 中即时可见),而不是只在下一轮流首冲刷
+    assert body.index("event: sandbox.paused") < body.index("event: done")

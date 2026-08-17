@@ -63,7 +63,7 @@ def test_full_chain_exec_files_timeout_pause_close(sb):
     # —— 超时 → exit 124(不污染会话,后续命令照常)——
     resp = sb.execute("sleep 30", timeout=2)
     assert resp.exit_code == 124
-    assert resp.output == "command timed out after 2s"
+    assert resp.output.startswith("[sandbox_unavailable:timeout]") and "2s" in resp.output
     resp = sb.execute("echo alive")
     assert resp.output == "alive\n"
 
@@ -535,3 +535,49 @@ def test_kill9_vm_mid_conversation_preserves_checkpointed_turns(tmp_path):
     finally:
         supervisor.shutdown()
         manager.shutdown()
+
+
+def test_paused_vm_channels_auto_resume_with_neutral_contract(sb, tmp_path):
+    """事故 a49b1a3d 的 L3 回归(真 Firecracker):
+
+    1. paused VM 被 execute / download / SSH argv 触达时**自动唤醒**并正常工作
+       (旧实现:SDK 抛 "run 'smolvm sandbox start …'" 原文进模型);
+    2. 唤醒失败或 VM 已拆时,模型只看到 `[sandbox_unavailable:…]` 契约文案。
+    """
+    from pathlib import Path
+
+    from hagent.bash_tool.runtime import BashRuntime
+    from hagent.sandbox.providers.shell import SandboxShellProvider
+
+    up = sb.upload_files([("/workspace/sentinel.txt", b"alive\n")])
+    assert up[0].error is None
+    events: list[str] = []
+    sb.set_lifecycle_callback(events.append)
+
+    # execute 通道
+    sb.pause()
+    resp = sb.execute("cat /workspace/sentinel.txt")
+    assert resp.exit_code == 0 and resp.output == "alive\n"
+    assert sb.manifest.paused is False and events == ["resumed"]
+
+    # download 通道
+    sb.pause()
+    down = sb.download_files(["/workspace/sentinel.txt"])
+    assert down[0].content == b"alive\n"
+    assert sb.manifest.paused is False and events == ["resumed", "resumed"]
+
+    # Bash 工具的 SSH argv 通道
+    sb.pause()
+    provider = SandboxShellProvider(sandbox=sb, workspace_root=Path("/workspace"))
+    runtime = BashRuntime(tmp_path / "host", shell_provider=provider)
+    result = runtime.execute("cat /workspace/sentinel.txt")
+    runtime.close()
+    assert result.exit_code == 0 and "alive" in result.stdout
+    assert sb.manifest.paused is False and events == ["resumed"] * 3
+
+    # VM 拆掉后:任何通道都是 gone 契约,不是 SDK 原文
+    sb.close()
+    gone = sb.execute("true")
+    assert gone.exit_code == 137 and gone.output.startswith("[sandbox_unavailable:gone]")
+    assert "smolvm" not in gone.output
+    assert sb.download_files(["/workspace/sentinel.txt"])[0].error == "sandbox_unavailable:gone"

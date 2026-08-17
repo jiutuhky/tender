@@ -28,6 +28,14 @@ from hagent.sandbox.docker.sandbox import (
     DEFAULT_EXEC_TIMEOUT_SECONDS,
     DEFAULT_MAX_OUTPUT_BYTES,
 )
+from hagent.sandbox.errors import (
+    FILE_NOT_FOUND_ERROR,
+    SandboxUnavailable,
+    SandboxUnavailableReason,
+    classify_exception,
+    execute_error_response,
+    transfer_error,
+)
 from hagent.sandbox.manifest import SandboxManifest
 from hagent.sandbox.protocol import HagentSandboxProtocol, SandboxKind
 from hagent.sandbox.smolvm.audit import SandboxAuditor
@@ -78,6 +86,8 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
         self._auditor = auditor or SandboxAuditor()
         self._project_id = project_id
         self._activity_callback: Callable[[], None] | None = None
+        # 沙箱自发生命周期变化(通道内自动唤醒)的出口,由 pool 绑定
+        self._lifecycle_callback: Callable[[str], None] | None = None
 
     @classmethod
     def start(
@@ -139,6 +149,7 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
         """DISK 快照 + 全拆 VM(池 GC 的持久化钩子);失败上抛,调用方退回驱逐。"""
         with self._lock:
             snapshot_id = self._lifecycle.persist_to_snapshot()
+            self._manifest.gone = True  # VM 已拆,后续触达按 gone 契约
         self._auditor.record_event(
             event="snapshotted",
             project_id=self._project_id,
@@ -154,13 +165,52 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
     def set_activity_callback(self, callback: Callable[[], None] | None) -> None:
         self._activity_callback = callback
 
-    def _touch(self) -> None:
+    def set_lifecycle_callback(self, callback: Callable[[str], None] | None) -> None:
+        self._lifecycle_callback = callback
+
+    def touch(self) -> None:
+        """刷新活跃时间(触达即活跃):所有工具通道入口调用,不分成败。"""
         self._manifest.touch()
         if self._activity_callback is not None:
             try:
                 self._activity_callback()
             except Exception as exc:  # noqa: BLE001
                 logger.warning("项目租约活跃时间回写失败(忽略): %s", exc)
+
+    # 兼容旧调用点/测试
+    _touch = touch
+
+    def _emit_lifecycle(self, kind: str) -> None:
+        if self._lifecycle_callback is None:
+            return
+        try:
+            self._lifecycle_callback(kind)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[%s] 生命周期回调(%s)失败(忽略): %s", self.id, kind, exc)
+
+    def ensure_running(self) -> None:
+        """通道入口的防御性唤醒:paused 则 resume 并复位标志,锁外广播 "resumed"。
+
+        run-hold 保证活跃 Run 期间池不会 pause;这里兜住残余窗口(GC 刚 pause、
+        新 Run 刚建)与显式 pause 后的下一次触达。失败抛 ``SandboxUnavailable``
+        (PAUSED),通道按契约产出可重试文案。
+        """
+        if self._manifest.gone:
+            raise SandboxUnavailable(SandboxUnavailableReason.GONE)
+        if not self._manifest.paused:
+            return
+        with self._lock:
+            if not self._manifest.paused:
+                return
+            try:
+                self._lifecycle.resume()
+            except Exception as exc:
+                raise SandboxUnavailable(
+                    SandboxUnavailableReason.PAUSED, detail=str(exc)
+                ) from exc
+            self._manifest.paused = False
+        self._audit_event("resumed")
+        self._emit_lifecycle("resumed")
 
     def _audit_command(self, **kwargs) -> None:
         self._auditor.record_command(
@@ -222,8 +272,15 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
 
     def _execute_inner(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
         vm = self._lifecycle.vm
-        if vm is None:
-            return ExecuteResponse(output="sandbox not running", exit_code=137, truncated=False)
+        if vm is None or self._manifest.gone:
+            return execute_error_response(SandboxUnavailableReason.GONE)
+        # 触达即活跃 + 防御性唤醒(契约:模型看到的只有中性文案,SDK 原文进日志)
+        self.touch()
+        try:
+            self.ensure_running()
+        except SandboxUnavailable as exc:
+            logger.warning("[%s] execute 前唤醒失败: %s", self._manifest.container_id, exc.detail)
+            return execute_error_response(exc.reason)
         effective_timeout = int(timeout) if timeout else self._default_timeout_seconds
         wrapped = self._wrap_command(command)
         for attempt in range(1 + EXEC_CONNECT_RETRIES):
@@ -232,10 +289,8 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
                     result = vm.run(wrapped, timeout=effective_timeout, shell="raw")
                 break
             except OperationTimeoutError:
-                return ExecuteResponse(
-                    output=f"command timed out after {effective_timeout}s",
-                    exit_code=124,
-                    truncated=False,
+                return execute_error_response(
+                    SandboxUnavailableReason.TIMEOUT, timeout_seconds=effective_timeout
                 )
             except Exception as exc:  # noqa: BLE001
                 # 只重试连接建立阶段的瞬时错误(命令未送达);其余可能已有副作用
@@ -249,9 +304,11 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
                     )
                     time.sleep(EXEC_CONNECT_RETRY_BACKOFF_SECONDS)
                     continue
-                return ExecuteResponse(
-                    output=f"sandbox exec failed: {exc}", exit_code=137, truncated=False
+                reason = classify_exception(exc)
+                logger.warning(
+                    "[%s] exec 失败(%s): %s", self._manifest.container_id, reason.value, exc
                 )
+                return execute_error_response(reason)
 
         # 合并逻辑与 docker provider 逐行对齐(bytes 域截断,marker byte-equal)
         stdout = result.stdout.encode("utf-8")
@@ -269,7 +326,6 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
                 f"\n... Output truncated at {self._max_output_bytes} bytes.".encode("utf-8")
             )
             truncated = True
-        self._touch()
         return ExecuteResponse(
             output=combined.decode("utf-8", errors="replace"),
             exit_code=int(result.exit_code),
@@ -300,8 +356,11 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
         摊薄每次调用的握手成本;LogLevel=ERROR 防 ssh 告警污染工具输出。
         """
         vm = self._lifecycle.vm
-        if vm is None:
-            raise RuntimeError("sandbox not running")
+        if vm is None or self._manifest.gone:
+            raise SandboxUnavailable(SandboxUnavailableReason.GONE)
+        # Bash 是 agent 的主执行通道,同样触达即活跃 + 防御性唤醒
+        self.touch()
+        self.ensure_running()
         with self._lock:  # F4:facade 非线程安全
             if not self._ssh_armed:
                 # F14:vsock 通道 VM 创建时跳过 TAP 路由/NAT,host→guest:22
@@ -347,16 +406,42 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
 
     # —— 文件传输:tempfile 桥接 SDK 的本地路径 API(F8)———————————————
 
+    def _prepare_transfer(self) -> SandboxUnavailableReason | None:
+        """文件通道入口:触达即活跃 + 防御性唤醒;返回不可用原因(None 即可用)。"""
+        self.touch()
+        try:
+            self.ensure_running()
+        except SandboxUnavailable as exc:
+            logger.warning("[%s] 文件传输前唤醒失败: %s", self._manifest.container_id, exc.detail)
+            return exc.reason
+        return None
+
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         results: list[FileUploadResponse] = []
+        blocked = self._prepare_transfer()
         with self._lock:
             for path, content in files:
                 started = time.monotonic()
-                try:
-                    self._upload_one(path, content)
-                    results.append(FileUploadResponse(path=path, error=None))
-                except Exception as exc:  # noqa: BLE001
-                    results.append(FileUploadResponse(path=path, error=f"upload_failed: {exc}"))
+                if blocked is not None:
+                    results.append(FileUploadResponse(path=path, error=transfer_error(blocked)))
+                else:
+                    try:
+                        self._upload_one(path, content)
+                        results.append(FileUploadResponse(path=path, error=None))
+                    except SandboxUnavailable as exc:
+                        results.append(
+                            FileUploadResponse(path=path, error=transfer_error(exc.reason))
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        reason = classify_exception(exc)
+                        logger.warning(
+                            "[%s] upload %s 失败(%s): %s",
+                            self._manifest.container_id,
+                            path,
+                            reason.value,
+                            exc,
+                        )
+                        results.append(FileUploadResponse(path=path, error=transfer_error(reason)))
                 self._audit_command(
                     action="upload",
                     path=path,
@@ -364,13 +449,12 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
                     bytes_out=len(content),
                     error=results[-1].error,
                 )
-        self._touch()
         return results
 
     def _upload_one(self, path: str, content: bytes) -> None:
         vm = self._lifecycle.vm
-        if vm is None:
-            raise RuntimeError("sandbox not running")
+        if vm is None or self._manifest.gone:
+            raise SandboxUnavailable(SandboxUnavailableReason.GONE)
         fd, tmp_path = tempfile.mkstemp(prefix="hagent-upload-")
         try:
             with os.fdopen(fd, "wb") as f:
@@ -385,10 +469,16 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         results: list[FileDownloadResponse] = []
+        blocked = self._prepare_transfer()
         with self._lock:
             for path in paths:
                 started = time.monotonic()
-                result = self._download_one(path)
+                if blocked is not None:
+                    result = FileDownloadResponse(
+                        path=path, content=None, error=transfer_error(blocked)
+                    )
+                else:
+                    result = self._download_one(path)
                 results.append(result)
                 self._audit_command(
                     action="download",
@@ -397,14 +487,15 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
                     bytes_out=len(result.content or b""),
                     error=result.error,
                 )
-        self._touch()
         return results
 
     def _download_one(self, path: str) -> FileDownloadResponse:
         vm = self._lifecycle.vm
-        if vm is None:
+        if vm is None or self._manifest.gone:
             return FileDownloadResponse(
-                path=path, content=None, error="download_failed: sandbox not running"
+                path=path,
+                content=None,
+                error=transfer_error(SandboxUnavailableReason.GONE),
             )
         with tempfile.TemporaryDirectory(prefix="hagent-download-") as tmp_dir:
             local_path = os.path.join(tmp_dir, "content")
@@ -414,12 +505,21 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
                     return FileDownloadResponse(path=path, content=f.read(), error=None)
             except Exception as exc:  # noqa: BLE001
                 message = str(exc)
-                error = (
-                    "file_not_found"
-                    if "no such file" in message.lower() or "not found" in message.lower()
-                    else f"download_failed: {message.strip()}"
+                if "no such file" in message.lower() or "not found" in message.lower():
+                    return FileDownloadResponse(
+                        path=path, content=None, error=FILE_NOT_FOUND_ERROR
+                    )
+                reason = classify_exception(exc)
+                logger.warning(
+                    "[%s] download %s 失败(%s): %s",
+                    self._manifest.container_id,
+                    path,
+                    reason.value,
+                    message.strip(),
                 )
-                return FileDownloadResponse(path=path, content=None, error=error)
+                return FileDownloadResponse(
+                    path=path, content=None, error=transfer_error(reason)
+                )
 
     # —— 生命周期委派 ——————————————————————————————————————————
 
@@ -446,6 +546,8 @@ class HagentSmolVMSandbox(BaseSandbox, HagentSandboxProtocol):
         with self._lock:
             had_vm = self._lifecycle.vm is not None
             self._lifecycle.stop()
+            # 之后任何通道触达都产出 sandbox_unavailable:gone,而不是 SDK 原文
+            self._manifest.gone = True
         if had_vm:
             self._audit_event("evicted")
 

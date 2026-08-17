@@ -19,6 +19,8 @@ def _make_sandbox(monkeypatch) -> HagentDockerSandbox:
         image_tag="hagent/sandbox:dev",
         runtime="runsc",
         workspace_dir="/workspace",
+        paused=False,
+        gone=False,
     )
     container = MagicMock()
     container.id = "cidcid"

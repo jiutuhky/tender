@@ -37,3 +37,18 @@ def test_hagent_config_env_overrides(monkeypatch):
     assert cfg.langsmith_tracing is True
     assert cfg.max_tokens == 24000
     assert cfg.skills_paths == "/tmp/skills:Tmp"
+
+
+def test_sandbox_section_describes_mechanism_per_provider():
+    from hagent.config import _sandbox_section
+
+    smol = _sandbox_section("HagentSmolVMSandbox", "/workspace")
+    docker = _sandbox_section("HagentDockerSandbox", "/workspace")
+    assert "docker exec" not in smol, "smolvm 走 SSH/vsock,不得再硬写 docker exec"
+    assert "SSH/vsock" in smol
+    assert "docker exec" in docker
+    # 沙箱基础设施错误处理指引(与 sandbox/errors.py 契约 marker 对齐)
+    for section in (smol, docker):
+        assert "[sandbox_unavailable:<reason>]" in section
+        assert "**不要**执行沙箱运维命令" in section
+    assert _sandbox_section("FilesystemBackend", "/x") == ""

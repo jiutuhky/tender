@@ -31,6 +31,19 @@ SNAPSHOT_ENV_ALLOWLIST = (
 )
 
 
+class ShellProviderUnavailable(RuntimeError):
+    """ShellProvider 无法给出可执行 argv(沙箱环境不可用)。
+
+    BashRuntime 捕获后直接构造 ``BashResult``(stderr=message, exit_code),
+    让模型拿到面向模型的契约文案,而不是异常穿透炸掉整条 agent 流。
+    """
+
+    def __init__(self, message: str, *, exit_code: int = 137) -> None:
+        super().__init__(message)
+        self.message = message
+        self.exit_code = exit_code
+
+
 def _is_executable(path: Path) -> bool:
     return path.exists() and os.access(path, os.X_OK)
 

@@ -8,6 +8,7 @@ from deepagents._models import resolve_model
 from langchain.agents import create_agent
 
 from hagent.hooks.config import load_hooks_dict
+from hagent.tool_error_guard import ToolErrorGuardMiddleware
 from hagent.hooks.context import HookContext
 from hagent.hooks.events import HookEvent
 from hagent.hooks.middleware import HagentHooksMiddleware
@@ -141,6 +142,8 @@ def compile_subagent_runnable(
     hooks_mw = _subagent_hooks_middleware(spec, hook_runner, hook_context)
     if hooks_mw is not None:
         middleware.insert(0, hooks_mw)
+    # 与主图一致:工具异常兜底在 hooks 内侧(子代理图不继承主图 middleware)
+    middleware.insert(1 if hooks_mw is not None else 0, ToolErrorGuardMiddleware())
     kwargs: dict[str, Any] = {"middleware": middleware}
 
     return create_agent(

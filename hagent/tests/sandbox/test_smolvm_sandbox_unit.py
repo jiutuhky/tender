@@ -204,14 +204,16 @@ def test_execute_timeout_maps_to_124():
     vm.run_error = OperationTimeoutError("run", 120.0)
     resp = sb.execute("sleep 999")
     assert resp.exit_code == 124
-    assert resp.output == "command timed out after 120s"
+    assert resp.output.startswith("[sandbox_unavailable:timeout]")
+    assert "120s" in resp.output
 
 
 def test_execute_timeout_uses_explicit_timeout():
     sb, vm = make_sandbox()
     vm.run_error = OperationTimeoutError("run", 5.0)
     resp = sb.execute("sleep 999", timeout=5)
-    assert resp.output == "command timed out after 5s"
+    assert resp.output.startswith("[sandbox_unavailable:timeout]")
+    assert "5s" in resp.output
     assert vm.run_calls == [] or vm.run_calls[0]["timeout"] == 5
 
 
@@ -220,8 +222,33 @@ def test_execute_smolvm_error_maps_to_137():
     vm.run_error = SmolVMError("vsock channel closed")
     resp = sb.execute("true")
     assert resp.exit_code == 137
-    assert resp.output.startswith("sandbox exec failed: ")
-    assert "vsock channel closed" in resp.output
+    # 契约:SDK 原文不进模型可见输出,只给中性文案
+    assert resp.output.startswith("[sandbox_unavailable:")
+    assert "vsock channel closed" not in resp.output
+
+
+def test_execute_on_paused_sdk_error_returns_neutral_message():
+    """事故 a49b1a3d 回归:SDK 的运维提示("run 'smolvm sandbox start ...'")
+    绝不能原样进模型输出。"""
+    sb, vm = make_sandbox()
+    vm.run_error = SmolVMError(
+        "Start sandbox 'hagent-a49b1a3d-324010' before running commands by running "
+        "'smolvm sandbox start hagent-a49b1a3d-324010' (current state: paused)."
+    )
+    resp = sb.execute("rg foo")
+    assert resp.exit_code == 137
+    assert resp.output.startswith("[sandbox_unavailable:paused]")
+    assert "smolvm sandbox start" not in resp.output
+    assert "hagent-a49b1a3d" not in resp.output
+
+
+def test_execute_after_close_returns_gone_message():
+    sb, _vm = make_sandbox()
+    sb.close()
+    resp = sb.execute("true")
+    assert resp.exit_code == 137
+    assert resp.output.startswith("[sandbox_unavailable:gone]")
+    assert sb.manifest.gone is True
 
 
 def test_execute_after_close_returns_137():
@@ -329,7 +356,7 @@ def test_upload_partial_success():
     vm.upload_error = SmolVMError("transfer failed")
     results = sb.upload_files([("/workspace/x.txt", b"1")])
     assert results[0].error is not None
-    assert results[0].error.startswith("upload_failed: ")
+    assert results[0].error.startswith("sandbox_unavailable:")
 
 
 def test_download_roundtrip():
@@ -351,7 +378,8 @@ def test_download_other_error():
     sb, vm = make_sandbox()
     vm.download_error = SmolVMError("channel broke")
     results = sb.download_files(["/workspace/x"])
-    assert results[0].error.startswith("download_failed: ")
+    # 基础设施类失败与 file_not_found 区分,机器可解析
+    assert results[0].error == "sandbox_unavailable:connect_failed"
 
 
 def test_download_partial_success_order_preserved():
@@ -504,3 +532,93 @@ def test_restore_classmethod_builds_sandbox(monkeypatch):
     assert sb.manifest.image_tag == "restored"
     assert sb.manifest.container_id == "hagent-abcd1234-x1y2z3"
     assert "restored" in events
+
+
+# ---------------------------------------------------------------------------
+# 活跃统一 touch(触达即活跃)+ 通道内防御性唤醒(ensure_running)
+# ---------------------------------------------------------------------------
+
+
+def test_execute_touches_on_entry_and_on_failure():
+    """execute 通道:进入即 touch,失败也 touch(旧实现只在成功路径末尾 touch)。"""
+    sb, vm = make_sandbox()
+    touched: list[int] = []
+    sb.set_activity_callback(lambda: touched.append(1))
+    vm.run_error = SmolVMError("vsock channel closed")
+    resp = sb.execute("true")
+    assert resp.exit_code == 137
+    assert touched == [1]
+
+
+def test_ensure_running_resumes_paused_and_emits_resumed():
+    sb, _vm = make_sandbox()
+    events: list[str] = []
+    sb.set_lifecycle_callback(events.append)
+    sb.pause()
+    assert sb.manifest.paused is True
+    sb.ensure_running()
+    assert sb.manifest.paused is False
+    assert sb._lifecycle.resumed == 1
+    assert events == ["resumed"]
+    # 已 running 时幂等,不重复广播
+    sb.ensure_running()
+    assert sb._lifecycle.resumed == 1
+    assert events == ["resumed"]
+
+
+def test_execute_on_paused_sandbox_auto_resumes_before_running():
+    """A3:通道内自动唤醒——paused 沙箱被工具触达时先 resume 再执行,而不是把
+    SDK 的 non-RUNNING 报错回给模型。"""
+    sb, vm = make_sandbox()
+    sb.pause()
+    resp = sb.execute("echo hi")
+    assert resp.exit_code == 0
+    assert sb.manifest.paused is False
+    assert sb._lifecycle.resumed == 1
+    assert len(vm.run_calls) == 1
+
+
+def test_ensure_running_failure_maps_to_paused_contract():
+    from hagent.sandbox.errors import SandboxUnavailable, SandboxUnavailableReason
+
+    sb, vm = make_sandbox()
+    sb.pause()
+
+    def broken_resume():
+        raise SmolVMError("Cannot resume VM in state 'stopped'")
+
+    sb._lifecycle.resume = broken_resume
+    with pytest.raises(SandboxUnavailable) as info:
+        sb.ensure_running()
+    assert info.value.reason is SandboxUnavailableReason.PAUSED
+    assert "Cannot resume" in (info.value.detail or "")
+    # execute 通道把它变成契约文案而不是异常
+    resp = sb.execute("true")
+    assert resp.exit_code == 137
+    assert resp.output.startswith("[sandbox_unavailable:paused]")
+    assert vm.run_calls == []
+
+
+def test_download_on_paused_sandbox_auto_resumes():
+    sb, vm = make_sandbox()
+    vm.files["/workspace/a.txt"] = b"x"
+    sb.pause()
+    results = sb.download_files(["/workspace/a.txt"])
+    assert results[0].content == b"x"
+    assert sb.manifest.paused is False
+
+
+def test_download_after_close_marks_gone_not_sdk_text():
+    sb, _vm = make_sandbox()
+    sb.close()
+    results = sb.download_files(["/workspace/a.txt"])
+    assert results[0].error == "sandbox_unavailable:gone"
+    uploads = sb.upload_files([("/workspace/b.txt", b"1")])
+    assert uploads[0].error == "sandbox_unavailable:gone"
+
+
+def test_persist_to_snapshot_marks_manifest_gone():
+    sb, _vm = make_sandbox()
+    sb.persist_to_snapshot()
+    assert sb.manifest.gone is True
+    assert sb.execute("true").output.startswith("[sandbox_unavailable:gone]")

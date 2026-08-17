@@ -224,3 +224,19 @@ def test_smolvm_pool_reads_recycle_env(base_env, monkeypatch):
     monkeypatch.delenv("HAGENT_SANDBOX_RECYCLE_SECONDS")
     pool = app_mod._build_smolvm_pool()
     assert pool._recycle_after == 3600, "默认 1h recycle 一轮 warm 实例(防漂移)"
+
+
+def test_idle_thresholds_from_env(base_env, monkeypatch):
+    """idle 两级降档阈值 env 可配(spec §5),默认 300/1800 不变;docker/smolvm 两池同源。"""
+    import hagent.server.app as app_mod
+
+    monkeypatch.delenv("HAGENT_SANDBOX_IDLE_PAUSE_SECONDS", raising=False)
+    monkeypatch.delenv("HAGENT_SANDBOX_IDLE_EVICT_SECONDS", raising=False)
+    pool = app_mod._build_smolvm_pool()
+    assert (pool._idle_pause_seconds, pool._idle_evict_seconds) == (300.0, 1800.0)
+    monkeypatch.setenv("HAGENT_SANDBOX_IDLE_PAUSE_SECONDS", "60")
+    monkeypatch.setenv("HAGENT_SANDBOX_IDLE_EVICT_SECONDS", "180")
+    pool = app_mod._build_smolvm_pool()
+    assert (pool._idle_pause_seconds, pool._idle_evict_seconds) == (60.0, 180.0)
+    docker_pool = app_mod._build_docker_pool()
+    assert (docker_pool._idle_pause_seconds, docker_pool._idle_evict_seconds) == (60.0, 180.0)

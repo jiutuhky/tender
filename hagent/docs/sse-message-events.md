@@ -247,12 +247,13 @@ type ContentBlock =
 
 ```ts
 {
-  code: "agent_error" | "workspace_checkpoint_error",
+  code: "agent_error" | "workspace_checkpoint_error" | "sandbox_unavailable",
   message: string
 }
 ```
 
 - `agent_error`：`agent.stream` 抛异常时的兜底帧（`message = str(e)`）。服务端会先 best-effort checkpoint，成功时先发 `workspace.checkpointed`。
+- `sandbox_unavailable`：本轮进行中沙箱被生命周期动作回收（健康巡检杀重建），Run 已标 interrupted 并终止流；`message` 为原因。前端应提示用户重新发送请求（下一条消息触发 VM 重建）。此外，`_stream_agent_events` 在每个 chunk 后也会冲刷积压的 `sandbox.*` 事件，run 中的 paused/resumed/health_fail 即时可见，不再只在下一轮流首出现。
 - `workspace_checkpoint_error`：Agent 已正常结束，但轮末持久化未完整收尾。若 host commit 已成功，仍会先发带真实 `files_changed` 的 `workspace.checkpointed`，随后用此错误提示 guest 基线或租约元数据需要下一轮追平。
 
 出现 `error` 后流即终止（不会再有 `done`）。前端追加一条错误消息（参考 reducer：`role:"error"`）。

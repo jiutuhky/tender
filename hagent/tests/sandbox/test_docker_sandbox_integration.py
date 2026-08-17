@@ -52,8 +52,9 @@ def test_stop_then_execute_returns_error():
     sb = HagentDockerSandbox.start(prefer_runtime="runc")
     sb.close()
     resp = sb.execute("echo hi")
-    assert resp.exit_code != 0
-    assert "not running" in resp.output.lower() or "exec" in resp.output.lower()
+    assert resp.exit_code == 137
+    # 契约:与 smolvm provider 同一文案(sandbox/errors.py),不再是 "container not running"
+    assert resp.output.startswith("[sandbox_unavailable:gone]")
 
 
 from pathlib import Path  # noqa: E402

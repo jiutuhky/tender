@@ -14,7 +14,13 @@ import threading
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
-from hagent.bash_tool.shell_provider import ShellProvider
+from hagent.bash_tool.shell_provider import ShellProvider, ShellProviderUnavailable
+from hagent.sandbox.errors import (
+    SANDBOX_INFRA_EXIT_CODE,
+    SandboxUnavailable,
+    SandboxUnavailableReason,
+    model_message,
+)
 from hagent.sandbox.protocol import SandboxKind
 
 if TYPE_CHECKING:
@@ -89,13 +95,64 @@ class SandboxShellProvider(ShellProvider):
             ]
         )
 
+    # —— 活跃度 / 可用性(Bash 是 agent 主执行通道,须与 execute 通道同语义)——
+
+    def touch_activity(self) -> None:
+        """刷新沙箱活跃时间;BashRuntime 在命令结束时回调(触达即活跃)。"""
+        touch = getattr(self.sandbox, "touch", None)
+        if callable(touch):
+            try:
+                touch()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _kind_value(self) -> str | None:
+        kind = getattr(self.sandbox, "kind", None)
+        return getattr(kind, "value", kind)
+
+    def translate_transport_failure(
+        self, *, exit_code: int | None, sentinel_seen: bool, tail: str
+    ) -> str | None:
+        """把「传输层失败」翻译成契约文案;命令本身的失败返回 None。
+
+        判据:``build_command`` 的 EXIT trap 必打 ``__HAGENT_PWD__`` 哨兵——命令
+        真正在 guest 里跑过(哪怕失败)一定有哨兵;哨兵缺失 + 客户端级退出码
+        (ssh 255 / docker 125,126)= 命令根本没送达。
+        """
+        if sentinel_seen or exit_code is None:
+            return None
+        kind = self._kind_value()
+        lowered = tail.lower()
+        if kind == SandboxKind.SMOLVM.value:
+            if exit_code == 255:
+                return model_message(SandboxUnavailableReason.CONNECT_FAILED)
+            return None
+        if kind == SandboxKind.DOCKER.value and exit_code in (125, 126):
+            if "is paused" in lowered:
+                return model_message(SandboxUnavailableReason.PAUSED)
+            if "is not running" in lowered or "no such container" in lowered:
+                return model_message(SandboxUnavailableReason.STOPPED)
+            return None
+        return None
+
     def command_argv(self, command_script: str) -> list[str]:
         # smolvm 等非 docker provider:argv 构造下放给 sandbox 本体
-        #(它掌握 guest ip / 密钥等 SDK 细节;docker 分支保持原状零影响)
-        kind = getattr(self.sandbox, "kind", None)
-        if getattr(kind, "value", kind) == SandboxKind.SMOLVM.value:
-            return self.sandbox.shell_exec_argv(command_script)
-        container_id = self.sandbox._container.id  # noqa: SLF001
+        #(它掌握 guest ip / 密钥等 SDK 细节,并在内部完成 touch + ensure_running)
+        kind = self._kind_value()
+        try:
+            if kind == SandboxKind.SMOLVM.value:
+                return self.sandbox.shell_exec_argv(command_script)
+            # docker 分支:同样触达即活跃 + 防御性唤醒(paused 容器 exec 必失败)
+            self.touch_activity()
+            ensure_running = getattr(self.sandbox, "ensure_running", None)
+            if callable(ensure_running):
+                ensure_running()
+            container = getattr(self.sandbox, "_container", None)
+            if container is None:
+                raise SandboxUnavailable(SandboxUnavailableReason.GONE)
+        except SandboxUnavailable as exc:
+            raise ShellProviderUnavailable(str(exc), exit_code=SANDBOX_INFRA_EXIT_CODE) from exc
+        container_id = container.id
         with self._lock:
             cwd_str = str(self._current_cwd)
         argv: list[str] = [

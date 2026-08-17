@@ -101,3 +101,30 @@ def test_write_preserves_model_supplied_crlf_content(tmp_path: Path) -> None:
     tool.invoke({"file_path": "notes.txt", "content": "alpha\r\nbeta\r\n"})
 
     assert target.read_bytes() == b"alpha\r\nbeta\r\n"
+
+
+def test_write_returns_neutral_message_when_sandbox_unavailable(tmp_path):
+    from pathlib import Path
+
+    from hagent.file_tools.state import FileReadState
+    from hagent.file_tools.tools import create_write_tool
+    from hagent.sandbox.errors import SandboxUnavailable, SandboxUnavailableReason
+
+    class BrokenTransport:
+        def exists(self, path):
+            return False
+
+        def is_directory(self, path):
+            return False
+
+        def write_text(self, path, content, encoding, line_endings):
+            raise SandboxUnavailable(SandboxUnavailableReason.GONE)
+
+        def read_text_metadata(self, path):
+            raise AssertionError("不应到达")
+
+    tool = create_write_tool(
+        Path(tmp_path), permissions=None, state=FileReadState(), transport=BrokenTransport()
+    )
+    result = tool.invoke({"file_path": "out.txt", "content": "x"})
+    assert result.startswith("[sandbox_unavailable:gone]")
