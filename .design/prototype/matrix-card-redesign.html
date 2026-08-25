@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="zh-CN" data-appearance="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>应答矩阵四卡 · 卡面与详情重做</title>
+<meta name="description" content="工作台画布上四张应答矩阵卡的信息密度重做：统一卡面语法、撤除状态标签、详情列表降噪。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231670EC'/><rect x='11' y='9' width='3.4' height='9' rx='1.7' fill='white'/><rect x='17.6' y='9' width='3.4' height='9' rx='1.7' fill='white'/></svg>">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+/* ===========================================================================
+   应答矩阵四卡重做（Frost 霜）
+   ---------------------------------------------------------------------------
+   立意：卡面回答一个问题，详情回答所有问题。
+   四张卡共用一套四行语法 —— 题名 / 主指标 / 结构条 / 信号行 ——
+   停靠列里横向基线自然对齐；颜色预算全卡只留「中性灰 + 橙(实质性) + 红(致命)」，
+   蓝收回给「可交互 / 进行中」。
+   数据取自真实语料：信保体系建设数据资源池项目（506135819）。
+   =========================================================================== */
+
+/* ---- Frost tokens（自 .claude/skills/frost-design/tokens 摘录，值逐字照抄）---- */
+:root {
+  --canvas:    #eef0f3;
+  --surface:   #ffffff;
+  --surface-2: #f5f6f8;
+  --label:     #1d1d1f;
+  --label-2:   #55555e;
+  --label-3:   #6b6b76;
+  --separator: rgba(60, 60, 67, .12);
+
+  --blue:      #0064e1;
+  --blue-soft: rgba(0, 100, 225, .10);
+  --green:     #34c759;  --green-text:  #1d8f45;
+  --orange:    #ff9500;  --orange-text: #b25e00;
+  --red:       #ff3b30;  --red-text:    #d70015;
+
+  --font-ui:   "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+               "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
+
+  --r-control: 7px;
+  --r-card:    14px;
+  --r-panel:   18px;
+
+  --elev-1: 0 1px 2px rgba(18, 24, 38, .10), 0 0 0 .5px rgba(18, 24, 38, .07);
+  --elev-2: 0 10px 30px rgba(18, 24, 38, .12), 0 2px 8px rgba(18, 24, 38, .06),
+            0 0 0 .5px rgba(18, 24, 38, .05);
+
+  --t-micro: 120ms;
+  --t-float: 200ms;
+  --ease-std: cubic-bezier(.32, .72, 0, 1);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; }
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--label);
+  background: var(--canvas);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ---- 页面骨架 ---- */
+.wrap { max-width: 1180px; margin: 0 auto; padding: 56px 32px 120px; }
+.pg-head { margin-bottom: 44px; }
+.pg-kicker { font-size: 12px; font-weight: 600; color: var(--blue); letter-spacing: .02em; }
+.pg-title { font-size: 30px; font-weight: 700; letter-spacing: -.022em; margin: 6px 0 8px; }
+.pg-lede { font-size: 14.5px; color: var(--label-2); max-width: 62ch; margin: 0; }
+
+section { margin-top: 52px; }
+.sec-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.sec-no {
+  font-size: 11px; font-weight: 700; color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+.sec-title { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.sec-note { font-size: 13px; color: var(--label-2); margin: 0 0 22px; max-width: 68ch; }
+
+/* 画布台面：网格点 + 冷灰底，卡片落在上面才看得出真实观感 */
+.stage {
+  --gap: 24px;
+  background-color: var(--surface-2);
+  background-image: radial-gradient(circle, rgba(60, 60, 67, .16) 1px, transparent 1.5px);
+  background-size: var(--gap) var(--gap);
+  border-radius: var(--r-panel);
+  box-shadow: inset 0 0 0 .5px rgba(18, 24, 38, .08);
+  padding: 28px 26px 30px;
+}
+.stage-label {
+  font-size: 11.5px; font-weight: 600; color: var(--label-3);
+  margin-bottom: 16px; display: flex; align-items: center; gap: 7px;
+}
+.stage-label i { font-size: 13px; }
+.cards { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+@media (max-width: 960px) { .split { grid-template-columns: 1fr; } }
+
+/* ===========================================================================
+   A · 现状还原（.old-*）—— 逐像素照搬 globals.css 现行实现，用于对照
+   =========================================================================== */
+.old-card {
+  width: 232px; background: var(--surface); border-radius: 14px;
+  box-shadow: var(--elev-2); overflow: hidden;
+}
+.old-prog { height: 3px; background: linear-gradient(90deg, var(--blue) 71%, var(--surface-2) 71%); }
+.old-head {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid var(--separator);
+}
+.old-tile {
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px;
+  background: var(--blue-soft); color: var(--blue); flex: 0 0 auto; font-size: 15px;
+}
+.old-title { flex: 1; font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.old-stage {
+  font-size: 10.5px; font-weight: 600; color: var(--label-3);
+  background: var(--surface-2); padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+}
+.old-body { padding: 11px 12px; display: flex; flex-direction: column; gap: 7px; }
+.old-foot {
+  display: flex; align-items: center; padding: 8px 12px; border-top: 1px solid var(--separator);
+}
+.old-badge {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+}
+.old-badge i { width: 6px; height: 6px; border-radius: 999px; display: block; }
+.old-badge.green { background: rgba(52,199,89,.15); color: var(--green-text); }
+.old-badge.green i { background: var(--green-text); }
+.old-expand {
+  margin-left: auto; font-size: 11px; color: var(--label-3);
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.old-deadline {
+  display: flex; flex-direction: column; gap: 2px; padding: 7px 9px;
+  border-radius: 8px; background: var(--surface-2);
+}
+.old-deadline-top { display: flex; align-items: baseline; gap: 8px; font-size: 10.5px; color: var(--label-3); }
+.old-deadline-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--label-2); font-variant-numeric: tabular-nums; }
+.old-deadline-date { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.old-proj { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.old-kv { display: flex; gap: 8px; font-size: 11.5px; }
+.old-kv b { width: 52px; color: var(--label-3); font-weight: 400; }
+.old-kv span { flex: 1; font-variant-numeric: tabular-nums; }
+.old-badges { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.old-fb {
+  display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px; background: rgba(60,60,67,.10); color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+.old-fb.mand { background: rgba(255,149,0,.15); color: var(--orange-text); }
+.old-fb.risk { background: rgba(255,59,48,.10); color: var(--red-text); }
+.old-row { display: flex; align-items: center; gap: 8px; }
+.old-row > b { width: 44px; font-size: 11px; font-weight: 400; color: var(--label-2); }
+.old-bar { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.old-bar i { display: block; height: 100%; background: var(--blue); border-radius: 999px; }
+.old-row > span { width: 20px; text-align: right; font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.old-sum { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.old-score-top { display: flex; align-items: baseline; gap: 7px; }
+.old-score-top b { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.old-score-top span { font-size: 11px; color: var(--label-3); }
+.old-tiles { display: flex; gap: 6px; }
+.old-tile-cell { flex: 1; background: var(--surface-2); border-radius: 8px; padding: 6px 0 7px; text-align: center; }
+.old-tile-cell b { display: block; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.old-tile-cell span { font-size: 10.5px; color: var(--label-3); }
+.old-weight { height: 3px; margin: 5px 8px 0; border-radius: 999px; background: rgba(60,60,67,.12); overflow: hidden; }
+.old-weight i { display: block; height: 100%; background: var(--blue); border-radius: 999px; }
+
+/* ===========================================================================
+   B · 重做（.nc-*）—— 四行语法
+   题名 / 主指标 / 结构条 / 信号行。分隔线、阶段签、状态徽标、展开提示全部撤除。
+   =========================================================================== */
+.nc {
+  position: relative; width: 232px; background: var(--surface);
+  border-radius: var(--r-card); box-shadow: var(--elev-1);
+  padding: 13px 14px 14px; cursor: pointer;
+  transition: box-shadow var(--t-float) var(--ease-std), transform var(--t-float) var(--ease-std);
+}
+/* 悬停即抬起 —— 「可点开」由深度说，不由一行「展开 →」说 */
+.nc:hover { box-shadow: var(--elev-2); transform: translateY(-1px); }
+.nc:active { transform: translateY(0) scale(.995); }
+
+/* 行 1 · 题名：线性图标与题名同色阶，蓝方砖撤除（蓝只归可交互 / 进行中） */
+.nc-head { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; }
+.nc-head i { font-size: 14px; color: var(--label-3); }
+.nc-head b { font-size: 12px; font-weight: 600; letter-spacing: -.005em; }
+.nc-head em {
+  margin-left: auto; font-style: normal; font-size: 11px; color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 行 2 · 主指标：全卡唯一的大字。数字扛信息，后缀退到三级灰 */
+.nc-hero { display: flex; align-items: baseline; gap: 5px; }
+.nc-hero b {
+  font-size: 27px; font-weight: 600; letter-spacing: -.028em;
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.nc-hero span { font-size: 11.5px; color: var(--label-3); }
+.nc-hero.is-warn b { color: var(--orange-text); }
+
+/* 行 3 · 结构条：4 行分类条形图压成一条 4px 堆叠条。
+   段色走中性灰阶（深→浅 = 多→少），只有需要示警的段染橙；段间 2px 白缝更精致 */
+.nc-stack { display: flex; gap: 2px; height: 4px; margin: 11px 0 9px; }
+.nc-stack i { display: block; height: 100%; border-radius: 999px; background: rgba(29,29,31,.14); }
+.nc-stack i.s1 { background: rgba(29,29,31,.52); }
+.nc-stack i.s2 { background: rgba(29,29,31,.34); }
+.nc-stack i.s3 { background: rgba(29,29,31,.22); }
+.nc-stack i.s4 { background: rgba(29,29,31,.14); }
+.nc-stack i.rest { background: rgba(29,29,31,.08); }
+.nc-stack i.warn { background: var(--orange); }
+
+/* 行 4 · 信号行：色点作扫描锚、数字扛语义色，文字本身保持中性 ——
+   一张卡只该有一个最响的元素（主指标），信号行是次响，不与它抢 */
+.nc-sig {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  font-size: 11.5px; color: var(--label-2); font-variant-numeric: tabular-nums;
+}
+.nc-sig s {
+  --sig: var(--label-3);
+  text-decoration: none; display: inline-flex; align-items: baseline; gap: 5px;
+  white-space: nowrap; min-width: 0;
+}
+.nc-sig s::before {
+  content: ""; width: 5px; height: 5px; border-radius: 999px; background: var(--sig);
+  flex: 0 0 auto; transform: translateY(-2px);
+}
+/* 只有数字染色 —— 语义落在那个数上，句子本身不必跟着喊 */
+.nc-sig s b { font-weight: 600; color: var(--sig); }
+.nc-sig s.mand { --sig: var(--orange-text); }
+.nc-sig s.fatal { --sig: var(--red-text); }
+/* 次级注解：无点、三级灰，挤不下时先截它 */
+.nc-sig s.plain {
+  color: var(--label-3); overflow: hidden; text-overflow: ellipsis; display: block;
+}
+.nc-sig s.plain::before { display: none; }
+
+/* 非就绪态 —— 进行中：静态骨架（Frost 禁无限循环动效），进行感交给卡顶那条发丝线 */
+.nc-thread {
+  position: absolute; left: 14px; right: 14px; top: 0; height: 2px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue) 62%, rgba(0,100,225,.14) 62%);
+}
+.nc-skel { display: flex; flex-direction: column; gap: 9px; padding: 4px 0 5px; }
+.nc-skel i { display: block; height: 9px; border-radius: 999px; background: var(--surface-2); }
+/* 失败 / 中断：不发红药丸，只在卡面左缘立一根 2px 色条 + 一句直陈 */
+.nc.is-failed { box-shadow: var(--elev-1), inset 2px 0 0 var(--orange); }
+.nc-failtext { font-size: 12px; color: var(--label-2); line-height: 1.65; }
+.nc-failtext b { display: block; font-weight: 600; color: var(--orange-text); margin-bottom: 2px; }
+
+/* ===========================================================================
+   C · 抽屉详情
+   =========================================================================== */
+.drawer {
+  background: var(--surface); border-radius: var(--r-panel); box-shadow: var(--elev-2);
+  overflow: hidden; max-width: 560px;
+}
+.dw-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+  border-bottom: 1px solid var(--separator);
+}
+.dw-head b { font-size: 14px; font-weight: 700; }
+.dw-head span { font-size: 11.5px; color: var(--label-3); margin-left: auto; font-variant-numeric: tabular-nums; }
+.dw-body { padding: 16px 18px 22px; }
+
+/* —— 现状：吸顶两行 + 卡中卡 + 常驻动作条 —— */
+.od-seg {
+  display: inline-flex; background: var(--surface-2); border-radius: var(--r-control); padding: 2px; gap: 2px;
+}
+.od-seg button {
+  border: 0; background: transparent; font: inherit; font-size: 11.5px; font-weight: 600;
+  color: var(--label-2); padding: 4px 10px; border-radius: 5px; cursor: pointer;
+}
+.od-seg button.on { background: var(--surface); box-shadow: var(--elev-1); color: var(--label); }
+.od-anchors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.od-anchor {
+  border: 0; font: inherit; font-size: 11px; color: var(--label-2); background: var(--surface-2);
+  padding: 3px 9px; border-radius: 999px; cursor: pointer;
+}
+.od-anchor b { font-weight: 600; color: var(--label-3); margin-left: 5px; }
+.od-group {
+  border: 1px solid var(--separator); border-radius: 12px; padding: 12px 14px;
+  background: var(--surface); margin-top: 12px;
+}
+.od-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.od-group-head b { font-size: 13px; font-weight: 700; }
+.od-group-head span { font-size: 11px; color: var(--label-3); }
+.od-item { padding: 9px 0; border-top: 1px solid var(--separator); }
+.od-item:first-of-type { border-top: 0; }
+.od-item-top { display: flex; align-items: center; gap: 8px; }
+.od-item-top em { font-style: normal; font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.od-item-top b { flex: 1; font-size: 12.5px; font-weight: 600; }
+.od-text { font-size: 12.5px; line-height: 1.75; color: var(--label-2); margin: 4px 0 0; }
+.od-src { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.od-src > span { font-size: 11px; color: var(--label-3); }
+.od-chip {
+  border: 0; font: inherit; font-size: 11px; font-weight: 600; color: var(--blue);
+  background: var(--blue-soft); padding: 2px 8px; border-radius: 999px; cursor: pointer;
+}
+.od-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.od-confirm {
+  border: 0; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--label-2);
+  background: var(--surface-2); padding: 4px 12px; border-radius: var(--r-control); cursor: pointer;
+}
+
+/* —— 重做：吸顶一行 + 无卡中卡 + 动作悬停浮现 —— */
+.nd-head {
+  display: flex; align-items: center; gap: 8px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--separator); margin-bottom: 4px;
+}
+.nd-seg { display: inline-flex; gap: 2px; background: var(--surface-2); border-radius: var(--r-control); padding: 2px; }
+.nd-seg button {
+  border: 0; background: transparent; font: inherit; font-size: 11.5px; font-weight: 600;
+  color: var(--label-2); padding: 4px 10px; border-radius: 5px; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: color var(--t-micro) ease, background-color var(--t-micro) ease;
+}
+.nd-seg button:hover { color: var(--label); }
+.nd-seg button.on { background: var(--surface); box-shadow: var(--elev-1); color: var(--label); }
+.nd-seg button.on.mand { color: var(--orange-text); }
+/* 分类锚点收进一枚下拉，不再平铺十几枚胶囊占两行 */
+.nd-jump {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  border: 0; font: inherit; font-size: 11.5px; color: var(--label-2); background: transparent;
+  padding: 4px 8px; border-radius: var(--r-control); cursor: pointer;
+  transition: background-color var(--t-micro) ease;
+}
+.nd-jump:hover { background: var(--surface-2); color: var(--label); }
+.nd-jump i { font-size: 12px; }
+
+/* 分组眉：小标题 + 计数，靠留白分组，不再套第二层卡 */
+.nd-grouphead {
+  display: flex; align-items: baseline; gap: 8px; padding: 18px 0 6px;
+  position: sticky; top: 0; background: var(--surface);
+}
+.nd-grouphead b { font-size: 12px; font-weight: 700; letter-spacing: -.005em; }
+.nd-grouphead span { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.nd-grouphead s {
+  text-decoration: none; margin-left: auto; font-size: 11px; color: var(--orange-text); font-weight: 600;
+}
+
+.nd-item {
+  position: relative; padding: 11px 0 12px; border-top: 1px solid var(--separator);
+}
+.nd-item:hover { background: linear-gradient(90deg, var(--surface-2), rgba(245,246,248,0)); }
+.nd-item-top { display: flex; align-items: baseline; gap: 8px; }
+.nd-item-top b { flex: 1; font-size: 12.5px; font-weight: 600; line-height: 1.55; }
+/* ★ 不再是橙药丸：一枚 ★ 字符 + 橙色，紧贴条目名 */
+.nd-star { color: var(--orange-text); font-size: 11px; font-weight: 700; flex: 0 0 auto; }
+.nd-risk {
+  width: 5px; height: 5px; border-radius: 999px; background: var(--red);
+  flex: 0 0 auto; transform: translateY(-3px);
+}
+.nd-text {
+  font-size: 12.5px; line-height: 1.75; color: var(--label-2); margin: 3px 0 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.nd-item.is-open .nd-text { -webkit-line-clamp: unset; }
+/* 脚注行：条目号从标题行下沉到这里 —— 它是检索用的编号，不是读者第一眼要的东西 */
+.nd-foot { display: flex; align-items: center; gap: 10px; margin: 7px 0 0; min-height: 20px; }
+.nd-foot em {
+  font-style: normal; font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums;
+}
+/* 来源签降噪：常态是一枚安静的文本签，悬停才染蓝底 */
+.nd-chip {
+  border: 0; font: inherit; font-size: 11px; color: var(--label-3); background: transparent;
+  padding: 2px 7px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1px var(--separator);
+  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, box-shadow var(--t-micro) ease;
+}
+.nd-chip:hover { color: var(--blue); background: var(--blue-soft); box-shadow: none; }
+.nd-more {
+  border: 0; background: transparent; font: inherit; font-size: 11.5px; color: var(--blue);
+  padding: 0; cursor: pointer;
+}
+/* 已落的应答状态：常驻，但只是一枚色点 + 两个字 */
+.nd-state { margin-left: auto; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; }
+.nd-state::before { content: ""; width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+.nd-state.ok { color: var(--green-text); }
+.nd-state.pos { color: var(--blue); }
+.nd-state.neg { color: var(--orange-text); }
+.nd-state.none { color: var(--label-3); }
+.nd-state.none::before { background: rgba(60,60,67,.28); }
+/* 人工动作：常态不占位，悬停 / 聚焦才浮现。它与状态标记共用行尾同一个槽 ——
+   浮现时状态淡出，来源签始终露在左边可点 */
+.nd-act {
+  position: absolute; right: 0; bottom: 9px; display: flex; align-items: center; gap: 2px;
+  background: var(--surface); box-shadow: var(--elev-1); border-radius: 9px; padding: 3px;
+  opacity: 0; transform: translateY(2px); pointer-events: none;
+  transition: opacity var(--t-micro) ease, transform var(--t-float) var(--ease-std);
+}
+.nd-item:hover .nd-state, .nd-item.is-demo .nd-state { opacity: 0; }
+.nd-state { transition: opacity var(--t-micro) ease; }
+.nd-item:hover .nd-act, .nd-item:focus-within .nd-act,
+.nd-item.is-demo .nd-act { opacity: 1; transform: none; pointer-events: auto; }
+.nd-act button {
+  border: 0; background: transparent; font: inherit; font-size: 11.5px; color: var(--label-2);
+  padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  transition: background-color var(--t-micro) ease, color var(--t-micro) ease;
+}
+.nd-act button.tick { display: inline-grid; place-items: center; padding: 3px 7px; font-size: 13px; }
+.nd-act button.tick.on { color: var(--green-text); }
+.nd-act button:hover { background: var(--surface-2); color: var(--label); }
+.nd-act button.on { background: var(--blue-soft); color: var(--blue); font-weight: 600; }
+.nd-act hr { width: 1px; height: 14px; border: 0; background: var(--separator); margin: 0 1px; }
+
+/* 概要详情：主指标区 + 定义列表 */
+.nd-hero {
+  display: flex; align-items: flex-end; gap: 22px; padding: 2px 0 16px;
+  border-bottom: 1px solid var(--separator); margin-bottom: 16px;
+}
+.nd-hero-cell b { display: block; font-size: 26px; font-weight: 600; letter-spacing: -.028em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.nd-hero-cell span { font-size: 11.5px; color: var(--label-3); }
+.nd-dl { display: grid; grid-template-columns: 76px 1fr; gap: 9px 14px; font-size: 12.5px; }
+.nd-dl dt { color: var(--label-3); }
+.nd-dl dd { margin: 0; font-variant-numeric: tabular-nums; }
+.nd-tl { margin-top: 18px; display: flex; flex-direction: column; }
+.nd-tl-row {
+  display: flex; align-items: baseline; gap: 12px; padding: 8px 0;
+  border-top: 1px solid var(--separator); font-size: 12.5px;
+}
+.nd-tl-row:first-child { border-top: 0; }
+.nd-tl-row b { min-width: 66px; font-weight: 500; }
+.nd-tl-row span { color: var(--label-3); font-variant-numeric: tabular-nums; }
+.nd-tl-row.on b { color: var(--orange-text); font-weight: 600; }
+.nd-tl-row.on span { color: var(--orange-text); }
+.nd-tl-row.past { color: var(--label-3); }
+.nd-tl-row em { margin-left: auto; font-style: normal; font-size: 11.5px; color: var(--label-3); }
+
+/* 评分详情：分段条 + 行式评分项（替代 4 列窄表） */
+.nd-scorebar { display: flex; gap: 2px; height: 6px; margin: 4px 0 10px; }
+.nd-scorebar i { display: block; height: 100%; border-radius: 999px; }
+.nd-scorebar i.tech { background: rgba(29,29,31,.52); }
+.nd-scorebar i.price { background: rgba(29,29,31,.30); }
+.nd-scorebar i.biz { background: rgba(29,29,31,.16); }
+.nd-legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.nd-legend s { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+.nd-legend s::before { content: ""; width: 6px; height: 6px; border-radius: 2px; }
+.nd-legend s.tech::before { background: rgba(29,29,31,.52); }
+.nd-legend s.price::before { background: rgba(29,29,31,.30); }
+.nd-legend s.biz::before { background: rgba(29,29,31,.16); }
+/* 提示不做彩色填充块、不立彩色边线 —— 那是便利贴。语义色只落在图标与标题上,
+   条文照常用主色读,分区交给 hairline 与留白;中性序号让它读作一份清单。 */
+.nd-veto { margin: 16px 0; padding-bottom: 2px; border-bottom: 1px solid var(--separator); }
+.nd-veto-head {
+  display: flex; align-items: center; gap: 7px; padding: 2px 0 8px;
+  font-size: 12.5px; font-weight: 700; color: var(--red-text); letter-spacing: -.005em;
+}
+.nd-veto-head i { font-size: 15px; }
+.nd-veto-head em {
+  margin-left: auto; font-style: normal; font-size: 11px; font-weight: 600;
+  color: var(--label-3); font-variant-numeric: tabular-nums;
+}
+.nd-veto-row {
+  display: flex; align-items: baseline; gap: 10px; padding: 8px 0;
+  border-top: 1px solid var(--separator); font-size: 12.5px; line-height: 1.75; color: var(--label);
+}
+.nd-veto-row s {
+  text-decoration: none; flex: 0 0 auto; min-width: 15px;
+  font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums;
+}
+.nd-srow {
+  display: flex; align-items: baseline; gap: 12px; padding: 10px 0;
+  border-top: 1px solid var(--separator); font-size: 12.5px;
+}
+.nd-srow b { flex: 1; font-weight: 500; }
+.nd-srow > span { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 26px; text-align: right; }
+.nd-srow p { margin: 3px 0 0; font-size: 12px; color: var(--label-3); line-height: 1.7; }
+
+/* ---- 说明清单 ---- */
+.notes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+@media (max-width: 860px) { .notes { grid-template-columns: 1fr; } }
+.note {
+  background: var(--surface); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 16px 18px;
+}
+.note b { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.note p { margin: 0; font-size: 12.5px; line-height: 1.75; color: var(--label-2); }
+.note s { text-decoration: none; color: var(--label-3); }
+.tag {
+  display: inline-block; font-size: 11px; font-weight: 600; color: var(--label-3);
+  background: var(--surface-2); border-radius: 999px; padding: 2px 9px; margin-bottom: 10px;
+}
+.tag.cut { color: var(--red-text); background: rgba(255,59,48,.08); }
+.tag.keep { color: var(--green-text); background: rgba(52,199,89,.12); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="pg-head">
+  <div class="pg-kicker">Prose · Frost 霜 · 工作台画布</div>
+  <h1 class="pg-title">应答矩阵四卡：卡面与详情重做</h1>
+  <p class="pg-lede">
+    卡面回答一个问题，详情回答所有问题。四张卡收敛到同一套四行语法 —— 题名、主指标、结构条、信号行；
+    状态药丸、阶段签、展开提示、蓝色图标砖全部撤除，颜色预算只留中性灰加橙红两枚警示。
+    数据取自真实语料「信保体系建设数据资源池项目（506135819）」。
+  </p>
+</header>
+
+<!-- ==================== 1 · 卡面对照 ==================== -->
+<section>
+  <div class="sec-head"><span class="sec-no">01</span><h2 class="sec-title">卡面 · 现状与重做</h2></div>
+  <p class="sec-note">
+    现状每张卡携带 15–19 个信息单元、3 条分隔线、2 枚胶囊；四卡并排即 60 余个单元同时争夺注意力。
+    重做后每卡 5–7 个单元，卡高由 244–256px 降到约 132px，四卡在停靠列里逐行对齐。
+  </p>
+
+  <div class="stage" style="margin-bottom:18px">
+    <div class="stage-label"><i class="ph ph-clock-counter-clockwise"></i>现状</div>
+    <div class="cards">
+
+      <!-- 概要 · 现状 -->
+      <div class="old-card">
+        <div class="old-head">
+          <span class="old-tile"><i class="ph ph-identification-card"></i></span>
+          <span class="old-title">项目概要</span>
+          <span class="old-stage">解析</span>
+        </div>
+        <div class="old-body">
+          <div class="old-deadline">
+            <div class="old-deadline-top"><span>投标截止</span><span class="old-deadline-count">23 天后</span></div>
+            <div class="old-deadline-date">2026-09-12 09:30</div>
+          </div>
+          <div class="old-proj">信保体系建设数据资源池项目</div>
+          <div class="old-kv"><b>项目预算</b><span>2,700,000 元</span></div>
+          <div class="old-kv"><b>采购方式</b><span>公开招标</span></div>
+          <div class="old-kv"><b>评标方法</b><span>综合评分法</span></div>
+        </div>
+        <div class="old-foot">
+          <span class="old-badge green"><i></i>已生成</span>
+          <span class="old-expand">展开 <i class="ph ph-arrow-right"></i></span>
+        </div>
+      </div>
+
+      <!-- 商务 · 现状 -->
+      <div class="old-card">
+        <div class="old-head">
+          <span class="old-tile"><i class="ph ph-briefcase"></i></span>
+          <span class="old-title">商务应答矩阵</span>
+          <span class="old-stage">应答</span>
+        </div>
+        <div class="old-body">
+          <div class="old-badges"><span class="old-fb mand">★ 实质性 9 项</span></div>
+          <div class="old-row"><b>资格</b><span class="old-bar"><i style="width:100%"></i></span><span>6</span></div>
+          <div class="old-row"><b>符合性</b><span class="old-bar"><i style="width:67%"></i></span><span>4</span></div>
+          <div class="old-row"><b>报价</b><span class="old-bar"><i style="width:33%"></i></span><span>2</span></div>
+          <div class="old-row"><b>合同</b><span class="old-bar"><i style="width:33%"></i></span><span>2</span></div>
+          <div class="old-sum">共 14 条</div>
+        </div>
+        <div class="old-foot">
+          <span class="old-badge green"><i></i>已生成</span>
+          <span class="old-expand">展开 <i class="ph ph-arrow-right"></i></span>
+        </div>
+      </div>
+
+      <!-- 技术 · 现状 -->
+      <div class="old-card">
+        <div class="old-head">
+          <span class="old-tile"><i class="ph ph-list-dashes"></i></span>
+          <span class="old-title">技术应答矩阵</span>
+          <span class="old-stage">应答</span>
+        </div>
+        <div class="old-body">
+          <div class="old-badges">
+            <span class="old-fb mand">★ 实质性 11 项</span>
+            <span class="old-fb risk">高风险 3</span>
+          </div>
+          <div class="old-row"><b>功能</b><span class="old-bar"><i style="width:100%"></i></span><span>9</span></div>
+          <div class="old-row"><b>数据</b><span class="old-bar"><i style="width:67%"></i></span><span>6</span></div>
+          <div class="old-row"><b>安全</b><span class="old-bar"><i style="width:56%"></i></span><span>5</span></div>
+          <div class="old-row"><b>交付物</b><span class="old-bar"><i style="width:44%"></i></span><span>4</span></div>
+          <div class="old-sum">共 26 条</div>
+        </div>
+        <div class="old-foot">
+          <span class="old-badge green"><i></i>已生成</span>
+          <span class="old-expand">展开 <i class="ph ph-arrow-right"></i></span>
+        </div>
+      </div>
+
+      <!-- 评分 · 现状 -->
+      <div class="old-card">
+        <div class="old-head">
+          <span class="old-tile"><i class="ph ph-chart-bar"></i></span>
+          <span class="old-title">评分办法</span>
+          <span class="old-stage">评审</span>
+        </div>
+        <div class="old-body">
+          <div class="old-score-top"><b>100</b><span>综合评分法 · 18 项</span></div>
+          <div class="old-tiles">
+            <div class="old-tile-cell"><b>25</b><span>价格</span><div class="old-weight"><i style="width:25%"></i></div></div>
+            <div class="old-tile-cell"><b>19</b><span>商务</span><div class="old-weight"><i style="width:19%"></i></div></div>
+            <div class="old-tile-cell"><b>56</b><span>技术</span><div class="old-weight"><i style="width:56%"></i></div></div>
+          </div>
+        </div>
+        <div class="old-foot">
+          <span class="old-badge green"><i></i>已生成</span>
+          <span class="old-expand">展开 <i class="ph ph-arrow-right"></i></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-label"><i class="ph ph-sparkle"></i>重做</div>
+    <div class="cards">
+
+      <!-- 概要 · 重做：主指标 = 还剩多少天 -->
+      <article class="nc">
+        <div class="nc-head"><i class="ph ph-identification-card"></i><b>项目概要</b></div>
+        <div class="nc-hero"><b>23</b><span>天后投标截止</span></div>
+        <!-- 结构条 = 公告到截止的时间窗，深色段即剩余；≤7 天整段翻橙 -->
+        <div class="nc-stack">
+          <i class="rest" style="flex:7"></i><i class="s1" style="flex:23"></i>
+        </div>
+        <div class="nc-sig">
+          <s class="plain">09-12 09:30 截止 · 预算 270 万</s>
+        </div>
+      </article>
+
+      <!-- 商务 · 重做：主指标 = 多少条要求，信号 = 几条会废标 -->
+      <article class="nc">
+        <div class="nc-head"><i class="ph ph-briefcase"></i><b>商务应答矩阵</b></div>
+        <div class="nc-hero"><b>14</b><span>条商务要求</span></div>
+        <div class="nc-stack">
+          <i class="s1" style="flex:6"></i><i class="s2" style="flex:4"></i>
+          <i class="s3" style="flex:2"></i><i class="s4" style="flex:2"></i>
+        </div>
+        <div class="nc-sig">
+          <s class="mand">实质性 <b>9</b> 项</s>
+          <s class="plain">资格 6 · 符合性 4</s>
+        </div>
+      </article>
+
+      <!-- 技术 · 重做 -->
+      <article class="nc">
+        <div class="nc-head"><i class="ph ph-list-dashes"></i><b>技术应答矩阵</b></div>
+        <div class="nc-hero"><b>26</b><span>条技术要求</span></div>
+        <div class="nc-stack">
+          <i class="s1" style="flex:9"></i><i class="s2" style="flex:6"></i>
+          <i class="s3" style="flex:5"></i><i class="s4" style="flex:4"></i><i class="rest" style="flex:2"></i>
+        </div>
+        <div class="nc-sig">
+          <s class="mand">实质性 <b>11</b> 项</s>
+          <s class="fatal">高风险 <b>3</b></s>
+        </div>
+      </article>
+
+      <!-- 评分 · 重做：主指标 = 总分，结构条 = 分值去向 -->
+      <article class="nc">
+        <div class="nc-head"><i class="ph ph-chart-bar"></i><b>评分办法</b></div>
+        <div class="nc-hero"><b>100</b><span>分 · 18 项</span></div>
+        <div class="nc-stack">
+          <i class="s1" style="flex:56"></i><i class="s3" style="flex:25"></i><i class="s4" style="flex:19"></i>
+        </div>
+        <div class="nc-sig">
+          <s class="fatal">否决项 <b>5</b> 条</s>
+          <s class="plain">技术 56 · 价格 25</s>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 2 · 非就绪态 ==================== -->
+<section>
+  <div class="sec-head"><span class="sec-no">02</span><h2 class="sec-title">状态怎么说话</h2></div>
+  <p class="sec-note">
+    终态不需要标签 —— 卡面出现数字本身就是「已生成」，全局进度已在画布工具栏报过一次。
+    只有偏离常态的三种情形才发声：解析中（一根发丝线加骨架）、解析失败与中断（左缘立一根橙条加一句直陈）。
+  </p>
+  <div class="stage">
+    <div class="cards">
+
+      <article class="nc" style="cursor:default">
+        <span class="nc-thread"></span>
+        <div class="nc-head"><i class="ph ph-list-dashes"></i><b>技术应答矩阵</b><em>正在解析</em></div>
+        <div class="nc-skel"><i style="width:46%"></i><i style="width:100%"></i><i style="width:72%"></i></div>
+      </article>
+
+      <article class="nc is-failed" style="cursor:default">
+        <div class="nc-head"><i class="ph ph-chart-bar"></i><b>评分办法</b></div>
+        <div class="nc-failtext">
+          <b>未取到评分办法</b>
+          第五章表格跨页断裂，可在对话中要求重新解析。
+        </div>
+      </article>
+
+      <article class="nc" style="cursor:default">
+        <div class="nc-head"><i class="ph ph-identification-card"></i><b>项目概要</b></div>
+        <div class="nc-hero"><b>270</b><span>万元 · 项目预算</span></div>
+        <!-- 招标文件未写明投标截止时，主指标顺位降到预算；没有结构可画就不画空轨道 -->
+        <div class="nc-sig" style="margin-top:13px"><s class="plain">未写明投标截止时间</s></div>
+      </article>
+
+      <article class="nc" style="cursor:default">
+        <div class="nc-head"><i class="ph ph-briefcase"></i><b>商务应答矩阵</b></div>
+        <div class="nc-hero"><b>8</b><span>条商务要求</span></div>
+        <div class="nc-stack"><i class="s1" style="flex:5"></i><i class="s3" style="flex:3"></i></div>
+        <!-- 零实质性条款：中性陈述，不发绿标 -->
+        <div class="nc-sig"><s class="plain">无实质性条款 · 资格 5 · 报价 3</s></div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 3 · 详情条目列表 ==================== -->
+<section>
+  <div class="sec-head"><span class="sec-no">03</span><h2 class="sec-title">抽屉详情 · 条目列表降噪</h2></div>
+  <p class="sec-note">
+    详情里最重的负担不是文字，是每一条目都常驻的四枚控件 —— 几十条叠起来就是几百枚按钮。
+    重做后行内只留一枚状态点，人工动作悬停浮现；分组卡的边框撤掉换成留白与吸顶眉；原文默认两行，需要时展开。
+  </p>
+  <div class="split">
+
+    <!-- 现状 -->
+    <div class="drawer">
+      <div class="dw-head"><b>技术应答矩阵</b><span>现状</span></div>
+      <div class="dw-body">
+        <div class="od-seg">
+          <button class="on">全部 26</button><button>★ 实质性 11</button><button>高风险 3</button>
+        </div>
+        <div class="od-anchors">
+          <span class="od-anchor">功能<b>9</b></span><span class="od-anchor">数据<b>6</b></span>
+          <span class="od-anchor">安全<b>5</b></span><span class="od-anchor">交付物<b>4</b></span>
+          <span class="od-anchor">验收<b>2</b></span>
+        </div>
+        <div class="od-group">
+          <div class="od-group-head"><b>功能</b><span>9 条</span>
+            <span style="margin-left:auto;font-size:10.5px;color:var(--orange-text)">实质性 4</span>
+          </div>
+          <div class="od-item">
+            <div class="od-item-top">
+              <em>TECH-003</em><b>数据资源目录管理</b>
+              <span class="old-fb mand">★ 实质性</span>
+            </div>
+            <p class="od-text">系统应支持数据资源目录的分级分类管理，具备目录的创建、审核、发布、下线全生命周期管控能力，并支持按主题域、来源单位、更新频率三个维度检索。</p>
+            <div class="od-src"><span>来源</span><button class="od-chip">L412-418 · 技术需求</button></div>
+            <div class="od-actions">
+              <div class="od-seg">
+                <button class="on">合规</button><button>正偏离</button><button>负偏离</button>
+              </div>
+              <button class="od-confirm">确认</button>
+            </div>
+          </div>
+          <div class="od-item">
+            <div class="od-item-top"><em>TECH-004</em><b>数据质量核查规则</b></div>
+            <p class="od-text">应内置不少于 20 类数据质量核查规则，支持规则自定义与批量执行，核查结果生成质量报告。</p>
+            <div class="od-src"><span>来源</span><button class="od-chip">L419-424 · 技术需求</button></div>
+            <div class="od-actions">
+              <div class="od-seg"><button>合规</button><button>正偏离</button><button>负偏离</button></div>
+              <button class="od-confirm">确认</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 重做 -->
+    <div class="drawer">
+      <div class="dw-head"><b>技术应答矩阵</b><span>重做 · 悬停条目看动作</span></div>
+      <div class="dw-body">
+        <div class="nd-head">
+          <div class="nd-seg">
+            <button class="on">全部 26</button><button class="mand">★ 实质性 11</button><button>高风险 3</button>
+          </div>
+          <button class="nd-jump">功能 <i class="ph ph-caret-down"></i></button>
+        </div>
+
+        <div class="nd-grouphead"><b>功能</b><span>9 条</span><s>实质性 4</s></div>
+
+        <div class="nd-item is-open">
+          <div class="nd-item-top">
+            <span class="nd-star">★</span><b>数据资源目录管理</b>
+          </div>
+          <p class="nd-text">系统应支持数据资源目录的分级分类管理，具备目录的创建、审核、发布、下线全生命周期管控能力，并支持按主题域、来源单位、更新频率三个维度检索。</p>
+          <div class="nd-foot">
+            <em>TECH-003</em>
+            <button class="nd-chip">L412-418</button>
+            <span class="nd-state ok">已确认 · 合规</span>
+          </div>
+          <div class="nd-act">
+            <button class="on">合规</button><button>正偏离</button><button>负偏离</button>
+            <hr><button class="tick on" title="已确认，点按撤销"><i class="ph ph-check-circle"></i></button>
+          </div>
+        </div>
+
+        <div class="nd-item">
+          <div class="nd-item-top"><b>数据质量核查规则</b></div>
+          <p class="nd-text">应内置不少于 20 类数据质量核查规则，支持规则自定义与批量执行，核查结果生成质量报告；核查规则需覆盖完整性、唯一性、一致性、时效性四类维度。</p>
+          <div class="nd-foot">
+            <em>TECH-004</em>
+            <button class="nd-chip">L419-424</button>
+            <button class="nd-more">展开原文</button>
+            <span class="nd-state none">待应答</span>
+          </div>
+          <div class="nd-act">
+            <button>合规</button><button>正偏离</button><button>负偏离</button>
+            <hr><button class="tick" title="确认本条"><i class="ph ph-check"></i></button>
+          </div>
+        </div>
+
+        <div class="nd-item is-demo">
+          <div class="nd-item-top">
+            <span class="nd-risk" title="高风险"></span><b>国产化密码算法支持</b>
+          </div>
+          <p class="nd-text">数据传输与存储应采用国密 SM2/SM4 算法，并通过商用密码应用安全性评估。</p>
+          <div class="nd-foot">
+            <em>TECH-006</em>
+            <button class="nd-chip">L431-436</button>
+            <span class="nd-state neg">负偏离</span>
+          </div>
+          <div class="nd-act">
+            <button>合规</button><button>正偏离</button><button class="on">负偏离</button>
+            <hr><button class="tick" title="确认本条"><i class="ph ph-check"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== 4 · 概要与评分详情 ==================== -->
+<section>
+  <div class="sec-head"><span class="sec-no">04</span><h2 class="sec-title">抽屉详情 · 概要与评分</h2></div>
+  <p class="sec-note">
+    概要详情把八格键值网格拆成「主指标区 + 定义列表 + 时间线」三层；评分详情把四列窄表换成行式条目，
+    分值靠右成一条数字轴，评分规则退到二级灰。否决项照旧排在最前，但用左缘红条而不是整块红卡。
+  </p>
+  <div class="split">
+
+    <div class="drawer">
+      <div class="dw-head"><b>项目概要</b><span>2025-JQ04-F1054</span></div>
+      <div class="dw-body">
+        <div class="nd-hero">
+          <div class="nd-hero-cell"><b>23</b><span>天后投标截止</span></div>
+          <div class="nd-hero-cell"><b>270 万</b><span>项目预算</span></div>
+        </div>
+        <dl class="nd-dl">
+          <dt>项目名称</dt><dd>信保体系建设数据资源池项目</dd>
+          <dt>采购方式</dt><dd>公开招标</dd>
+          <dt>评标方法</dt><dd>综合评分法</dd>
+          <dt>服务期</dt><dd>合同签订后 180 日历天</dd>
+          <dt>采购人</dt><dd>中国出口信用保险公司</dd>
+          <dt>代理机构</dt><dd>中招国际招标有限公司</dd>
+        </dl>
+        <div class="nd-tl">
+          <div class="nd-tl-row past"><b>标书发售</b><span>2026-08-13 09:00</span><em>已过</em></div>
+          <div class="nd-tl-row past"><b>质疑截止</b><span>2026-09-02 17:00</span><em>已过</em></div>
+          <div class="nd-tl-row on"><b>投标截止</b><span>2026-09-12 09:30</span><em>23 天后</em></div>
+          <div class="nd-tl-row"><b>开标</b><span>2026-09-12 10:00</span><em>线上</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer">
+      <div class="dw-head"><b>评分办法</b><span>综合评分法</span></div>
+      <div class="dw-body">
+        <div class="nd-hero" style="border:0;padding-bottom:6px;margin-bottom:0">
+          <div class="nd-hero-cell"><b>100</b><span>分 · 18 项评分项</span></div>
+        </div>
+        <div class="nd-scorebar">
+          <i class="tech" style="flex:56"></i><i class="price" style="flex:25"></i><i class="biz" style="flex:19"></i>
+        </div>
+        <div class="nd-legend">
+          <s class="tech">技术 56</s><s class="price">价格 25</s><s class="biz">商务 19</s>
+        </div>
+        <section class="nd-veto">
+          <div class="nd-veto-head">
+            <i class="ph ph-prohibit"></i>否决项 / 通过性条款<em>5 条</em>
+          </div>
+          <div class="nd-veto-row"><s>01</s><span>投标文件未按规定加盖电子签章的，评标委员会认定投标无效。</span></div>
+          <div class="nd-veto-row"><s>02</s><span>投标报价超过采购预算 270 万元的，作无效投标处理。</span></div>
+          <div class="nd-veto-row"><s>03</s><span>未提供信息系统集成二级及以上资质证书的，投标无效。</span></div>
+        </section>
+        <div class="nd-grouphead" style="padding-top:6px"><b>技术</b><span>9 项 · 56 分</span></div>
+        <div class="nd-srow">
+          <div style="flex:1">
+            <b>技术方案完整性</b>
+            <p>方案覆盖数据接入、治理、共享全链路且论述充分得 18 分，缺项每处扣 3 分。</p>
+          </div>
+          <span>18</span>
+        </div>
+        <div class="nd-srow">
+          <div style="flex:1">
+            <b>数据治理能力</b>
+            <p>提供不少于 3 个同类项目治理实施案例，每个得 4 分。</p>
+          </div>
+          <span>12</span>
+        </div>
+        <div class="nd-srow">
+          <div style="flex:1">
+            <b>安全保障措施</b>
+            <p>通过商用密码应用安全性评估的得 10 分，未通过不得分。</p>
+          </div>
+          <span>10</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== 5 · 取舍清单 ==================== -->
+<section>
+  <div class="sec-head"><span class="sec-no">05</span><h2 class="sec-title">删了什么，为什么</h2></div>
+  <div class="notes">
+    <div class="note">
+      <span class="tag cut">撤除</span>
+      <b>卡脚状态徽标「已生成」</b>
+      <p>四卡到终态后一律绿标，零信息量；而画布工具栏已经在报「项目名 · 已完成 / 正在解析」。同一件事说两遍，第二遍就是噪音。异常才发声。</p>
+    </div>
+    <div class="note">
+      <span class="tag cut">撤除</span>
+      <b>卡脚「展开 →」</b>
+      <p>整张卡都可点，提示的是已知事实。可点性交给悬停抬升与指针形态 —— 深度说话比文字说话安静。</p>
+    </div>
+    <div class="note">
+      <span class="tag cut">撤除</span>
+      <b>卡头阶段签「解析 / 应答 / 评审」</b>
+      <p>停靠列自上而下的顺序本身就是阶段。它还与卡脚徽标构成一卡两枚胶囊，视觉上互相打架。</p>
+    </div>
+    <div class="note">
+      <span class="tag cut">撤除</span>
+      <b>蓝底图标方砖</b>
+      <p>四张卡四块蓝，把「蓝 = 可交互 / 进行中」稀释成了装饰色。改 14px 线性图标，与题名同一色阶。</p>
+    </div>
+    <div class="note">
+      <span class="tag keep">改形</span>
+      <b>四行分类条形图 → 一条 4px 堆叠条</b>
+      <p>「资格 6 条、符合性 4 条」不驱动任何决定，但类目结构值得一眼。压成一条堆叠条，12 个元素变 1 个，信息不丢。</p>
+    </div>
+    <div class="note">
+      <span class="tag keep">改形</span>
+      <b>橙红药丸 → 色点加文字</b>
+      <p>实质性与高风险是全卡最该被看见的两个数，但药丸底色会让它们读成「标签」而不是「事实」。点 + 数字更冷静，也更现代。</p>
+    </div>
+    <div class="note">
+      <span class="tag keep">改形</span>
+      <b>条目常驻动作条 → 悬停浮现</b>
+      <p>状态是常驻的（一枚色点），操作是按需的。macOS 列表一贯如此：静止时读，指到才操作。</p>
+    </div>
+    <div class="note">
+      <span class="tag cut">撤除</span>
+      <b>彩色填充提示块与彩色左边线</b>
+      <p>浅红底加一根红圆角竖条读作便利贴，不读作提示。语义色只落在图标与标题上，条文照常用主色；分区交给 hairline 与留白，秩序交给中性序号。这是 iOS destructive、macOS 危险区、Figma 分区提示的共同做法。</p>
+    </div>
+    <div class="note">
+      <span class="tag keep">保留</span>
+      <b>决策触发器四项照旧</b>
+      <p>截止倒计时、实质性条款数、高风险条目数、分值结构 —— 领域词汇表定义的四个触发器一个不少，只是换了更轻的说法。</p>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>
