@@ -1,4 +1,4 @@
-/* @ds-bundle: {"format":3,"namespace":"FrostDesignSystemProse_5680eb","components":[{"name":"Button","sourcePath":"components/controls/Button.jsx"},{"name":"Checkbox","sourcePath":"components/controls/Checkbox.jsx"},{"name":"IconButton","sourcePath":"components/controls/IconButton.jsx"},{"name":"Segmented","sourcePath":"components/controls/Segmented.jsx"},{"name":"Switch","sourcePath":"components/controls/Switch.jsx"},{"name":"Avatar","sourcePath":"components/data/Avatar.jsx"},{"name":"Badge","sourcePath":"components/feedback/Badge.jsx"},{"name":"Toast","sourcePath":"components/feedback/Toast.jsx"},{"name":"ToolChip","sourcePath":"components/feedback/ToolChip.jsx"},{"name":"Tooltip","sourcePath":"components/feedback/Tooltip.jsx"},{"name":"Field","sourcePath":"components/forms/Field.jsx"},{"name":"Menu","sourcePath":"components/navigation/Menu.jsx"},{"name":"SidebarGroup","sourcePath":"components/navigation/SidebarItem.jsx"},{"name":"SidebarItem","sourcePath":"components/navigation/SidebarItem.jsx"},{"name":"Card","sourcePath":"components/surfaces/Card.jsx"},{"name":"Window","sourcePath":"components/surfaces/Window.jsx"}],"sourceHashes":{"components/controls/Button.jsx":"0b1f092ee372","components/controls/Checkbox.jsx":"3e5a3c2f3c59","components/controls/IconButton.jsx":"169c81fbe8f0","components/controls/Segmented.jsx":"09b3a48a9fe6","components/controls/Switch.jsx":"3a93dedcf5d8","components/data/Avatar.jsx":"9676281b0b97","components/feedback/Badge.jsx":"d5a8a3002c0e","components/feedback/Toast.jsx":"8c64cf4f317c","components/feedback/ToolChip.jsx":"ae1ddf9923c7","components/feedback/Tooltip.jsx":"ab1a28069fde","components/forms/Field.jsx":"e3c4a20fdfa8","components/navigation/Menu.jsx":"f9cc87323741","components/navigation/SidebarItem.jsx":"b11a90c7f19c","components/surfaces/Card.jsx":"d24d6e3f0cc4","components/surfaces/Window.jsx":"197cc7635024","ui_kits/prose/AgentStream.jsx":"0024bbac4023","ui_kits/prose/DocOutline.jsx":"d769d577eefa","ui_kits/prose/ProseApp.jsx":"ef9ab51323ae","ui_kits/prose/Sidebar.jsx":"70a5cf8b59a2","ui_kits/prose/data.js":"a9a87264ddaa"},"inlinedExternals":[],"unexposedExports":[]} */
+/* @ds-bundle: {"format":3,"namespace":"FrostDesignSystemProse_5680eb","components":[{"name":"Button","sourcePath":"components/controls/Button.jsx"},{"name":"Checkbox","sourcePath":"components/controls/Checkbox.jsx"},{"name":"IconButton","sourcePath":"components/controls/IconButton.jsx"},{"name":"Segmented","sourcePath":"components/controls/Segmented.jsx"},{"name":"Switch","sourcePath":"components/controls/Switch.jsx"},{"name":"Avatar","sourcePath":"components/data/Avatar.jsx"},{"name":"Badge","sourcePath":"components/feedback/Badge.jsx"},{"name":"Toast","sourcePath":"components/feedback/Toast.jsx"},{"name":"ToolChip","sourcePath":"components/feedback/ToolChip.jsx"},{"name":"Tooltip","sourcePath":"components/feedback/Tooltip.jsx"},{"name":"Field","sourcePath":"components/forms/Field.jsx"},{"name":"Menu","sourcePath":"components/navigation/Menu.jsx"},{"name":"SidebarGroup","sourcePath":"components/navigation/SidebarItem.jsx"},{"name":"SidebarItem","sourcePath":"components/navigation/SidebarItem.jsx"},{"name":"Card","sourcePath":"components/surfaces/Card.jsx"},{"name":"Window","sourcePath":"components/surfaces/Window.jsx"}],"sourceHashes":{"components/controls/Button.jsx":"0b1f092ee372","components/controls/Checkbox.jsx":"3e5a3c2f3c59","components/controls/IconButton.jsx":"169c81fbe8f0","components/controls/Segmented.jsx":"09b3a48a9fe6","components/controls/Switch.jsx":"3a93dedcf5d8","components/data/Avatar.jsx":"9676281b0b97","components/feedback/Badge.jsx":"d5a8a3002c0e","components/feedback/Toast.jsx":"eaed3a52943a","components/feedback/ToolChip.jsx":"ae1ddf9923c7","components/feedback/Tooltip.jsx":"ab1a28069fde","components/forms/Field.jsx":"e3c4a20fdfa8","components/navigation/Menu.jsx":"527ac4ac4858","components/navigation/SidebarItem.jsx":"6418aa7ab439","components/surfaces/Card.jsx":"67dcf43de7af","components/surfaces/Window.jsx":"60dc524b91ae","ui_kits/prose/AgentStream.jsx":"0024bbac4023","ui_kits/prose/DocOutline.jsx":"d769d577eefa","ui_kits/prose/ProseApp.jsx":"ef9ab51323ae","ui_kits/prose/Sidebar.jsx":"ac42e769ca76","ui_kits/prose/data.js":"a9a87264ddaa"},"inlinedExternals":[],"unexposedExports":[]} */
 
 (() => {
 
@@ -508,7 +508,7 @@ Object.assign(__ds_scope, { Badge });
 // components/feedback/Toast.jsx
 try { (() => {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
-/* Frost Toast — a floating popover-glass notification. Leading status icon in
+/* Frost Toast — a floating lens-glass (凝 · regular) notification. Leading status icon in
    the semantic color, title + optional detail, optional action + dismiss. */
 
 let injected = false;
@@ -563,7 +563,7 @@ function Toast({
 }) {
   ensureStyles();
   return /*#__PURE__*/React.createElement("div", _extends({
-    className: `frost-toast frost-glass-popover frost-toast--${tone}`,
+    className: `frost-toast frost-glass frost-glass--lens frost-toast--${tone}`,
     role: "status",
     style: style
   }, rest), /*#__PURE__*/React.createElement("span", {
@@ -772,7 +772,7 @@ Object.assign(__ds_scope, { Field });
 // components/navigation/Menu.jsx
 try { (() => {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
-/* Frost Menu — a popover-glass context menu. Items take an icon, label, and an
+/* Frost Menu — a lens-glass (凝 · regular) context menu. Items take an icon, label, and an
    optional keyboard hint; the hovered row fills full-width blue. Pass items, or
    compose with Menu.Item / Menu.Separator. */
 
@@ -784,7 +784,7 @@ function ensureStyles() {
   el.setAttribute("data-frost", "menu");
   el.textContent = `
 .frost-menu{
-  width:248px;border-radius:var(--r-field,9px);padding:5px;
+  width:248px;border-radius:var(--r-window,12px);padding:6px;
 }
 .frost-menu__item{
   display:flex;align-items:center;gap:10px;
@@ -842,7 +842,7 @@ function Menu({
 }) {
   ensureStyles();
   return /*#__PURE__*/React.createElement("div", _extends({
-    className: "frost-menu frost-glass-popover",
+    className: "frost-menu frost-glass frost-glass--lens",
     role: "menu",
     style: style
   }, rest), items ? items.map((it, i) => it === "---" || it.separator ? /*#__PURE__*/React.createElement(Separator, {
@@ -859,7 +859,7 @@ Object.assign(__ds_scope, { Menu });
 // components/navigation/SidebarItem.jsx
 try { (() => {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
-/* Frost SidebarItem — a row in the glass sidebar. Icon + label, optional
+/* Frost SidebarItem — a row in the soft-glass (霜) sidebar. Icon + label, optional
    trailing badge/count; the active row gets the soft-blue backing and a blue
    icon. Use `group` for a section header above a run of items. */
 
@@ -945,12 +945,16 @@ function ensureStyles() {
 .frost-card--pad-lg{padding:36px;}
 .frost-card__title{margin:0 0 8px;font-size:16px;font-weight:700;color:var(--label,#1d1d1f);letter-spacing:var(--tracking-title,-.014em);}
 .frost-card__body{margin:0;color:var(--label-2,#55555e);font-size:14px;line-height:1.6;}
+.frost-glass .frost-card__title{color:inherit;}
 `;
   document.head.appendChild(el);
 }
 function Card({
   material,
-  // "sidebar" | "toolbar" | "popover" | "sheet"
+  // "lens" | "soft"
+  thickness,
+  // "thin" | "regular" | "thick"
+  interactive = false,
   inset = false,
   raised = false,
   panel = false,
@@ -963,14 +967,16 @@ function Card({
   ...rest
 }) {
   ensureStyles();
-  const glass = material ? `frost-glass-${material}` : "";
+  const glass = material ? `frost-glass frost-glass--${material}${interactive ? " frost-glass--interactive" : ""}` : "";
   const cls = [glass ? "" : "frost-card", glass, inset ? "frost-card--inset" : "", raised ? "frost-card--raised" : "", panel ? "frost-card--panel" : "", pad === "sm" ? "frost-card--pad-sm" : pad === "lg" ? "frost-card--pad-lg" : "", className].filter(Boolean).join(" ");
   const glassStyle = glass ? {
-    borderRadius: panel ? "var(--r-panel,18px)" : "var(--r-card,14px)",
+    borderRadius: panel ? "20px" : "var(--r-card,14px)",
     padding: pad === "sm" ? 16 : pad === "lg" ? 36 : 24
   } : undefined;
+  const thick = glass ? thickness || (panel ? "thick" : "regular") : undefined;
   return /*#__PURE__*/React.createElement("div", _extends({
     className: cls,
+    "data-thick": thick,
     style: {
       ...glassStyle,
       ...style
@@ -1006,7 +1012,7 @@ function ensureStyles() {
 .frost-window__toolbar{
   height:var(--toolbar-h,52px);flex:none;
   display:flex;align-items:center;gap:14px;padding:0 16px;
-  border-bottom:1px solid var(--separator);
+  box-shadow:inset 0 -.5px 0 var(--separator);
 }
 .frost-window__traffic{display:flex;gap:8px;}
 .frost-window__traffic span{width:12px;height:12px;border-radius:50%;display:block;}
@@ -1023,7 +1029,7 @@ function Window({
   subtitle,
   actions,
   traffic = true,
-  toolbarClassName = "frost-glass-toolbar",
+  toolbarClassName = "frost-glass frost-glass--soft frost-glass--flush",
   children,
   style,
   ...rest
@@ -1411,13 +1417,13 @@ try { (() => {
     onSelectProject
   }) {
     return /*#__PURE__*/React.createElement("aside", {
-      className: "frost-glass-sidebar",
+      className: "frost-glass frost-glass--soft frost-glass--flush",
       style: {
         padding: "14px 10px",
         display: "flex",
         flexDirection: "column",
         gap: 2,
-        borderRight: "1px solid rgba(60,60,67,.10)",
+        boxShadow: "inset -0.5px 0 0 var(--separator)",
         overflow: "hidden"
       }
     }, /*#__PURE__*/React.createElement(SidebarGroup, null, "\u9879\u76EE"), data.projects.map(p => /*#__PURE__*/React.createElement(SidebarItem, {

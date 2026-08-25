@@ -1,8 +1,9 @@
 import React from "react";
 
-/* Frost Menu — a popover-glass context menu. Items take an icon, label, and an
-   optional keyboard hint; the hovered row fills full-width blue. Pass items, or
-   compose with Menu.Item / Menu.Separator. */
+/* Frost Menu — a lens-glass (凝 · regular) context menu. Items take an icon,
+   label, and an optional keyboard hint; the hovered row fills full-width blue.
+   Concentric corners: menu 12 − padding 6 = row 6. Pass items, or compose with
+   Menu.Item / Menu.Separator. */
 
 let injected = false;
 function ensureStyles() {
@@ -12,7 +13,7 @@ function ensureStyles() {
   el.setAttribute("data-frost", "menu");
   el.textContent = `
 .frost-menu{
-  width:248px;border-radius:var(--r-field,9px);padding:5px;
+  width:248px;border-radius:var(--r-window,12px);padding:6px;
 }
 .frost-menu__item{
   display:flex;align-items:center;gap:10px;
@@ -60,7 +61,7 @@ function Separator() {
 export function Menu({ items, children, style, ...rest }) {
   ensureStyles();
   return (
-    <div className="frost-menu frost-glass-popover" role="menu" style={style} {...rest}>
+    <div className="frost-menu frost-glass frost-glass--lens" role="menu" style={style} {...rest}>
       {items
         ? items.map((it, i) =>
             it === "---" || it.separator ? <Separator key={i} /> : <Item key={i} {...it} />

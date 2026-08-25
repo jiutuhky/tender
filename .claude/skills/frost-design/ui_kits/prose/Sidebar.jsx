@@ -1,4 +1,4 @@
-/* Prose · Sidebar — glass navigation: projects + knowledge base.
+/* Prose · Sidebar — soft-glass (霜, embedded chrome) navigation: projects + knowledge base.
    Composes SidebarItem / SidebarGroup / Badge from the Frost bundle. */
 (function () {
   const { SidebarItem, SidebarGroup, Badge } = window.FrostDesignSystemProse_5680eb;
@@ -6,13 +6,13 @@
   function Sidebar({ data, activeProject, onSelectProject }) {
     return (
       <aside
-        className="frost-glass-sidebar"
+        className="frost-glass frost-glass--soft frost-glass--flush"
         style={{
           padding: "14px 10px",
           display: "flex",
           flexDirection: "column",
           gap: 2,
-          borderRight: "1px solid rgba(60,60,67,.10)",
+          boxShadow: "inset -0.5px 0 0 var(--separator)",
           overflow: "hidden",
         }}
       >

@@ -1,7 +1,8 @@
 import React from "react";
 
-/* Frost Toast — a floating popover-glass notification. Leading status icon in
-   the semantic color, title + optional detail, optional action + dismiss. */
+/* Frost Toast — a floating lens-glass (凝 · regular) notification. Leading
+   status icon in the semantic color, title + optional detail, optional
+   action + dismiss. */
 
 let injected = false;
 function ensureStyles() {
@@ -42,7 +43,7 @@ const ICON = { info: "info", success: "check-circle", warning: "warning", danger
 export function Toast({ tone = "info", icon, title, detail, action, onAction, onClose, style, ...rest }) {
   ensureStyles();
   return (
-    <div className={`frost-toast frost-glass-popover frost-toast--${tone}`} role="status" style={style} {...rest}>
+    <div className={`frost-toast frost-glass frost-glass--lens frost-toast--${tone}`} role="status" style={style} {...rest}>
       <span className="frost-toast__icon"><i className={`ph ph-${icon || ICON[tone]}`} /></span>
       <div className="frost-toast__body">
         {title ? <div className="frost-toast__title">{title}</div> : null}

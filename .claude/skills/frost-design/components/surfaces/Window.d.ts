@@ -7,7 +7,8 @@ export interface WindowProps {
   actions?: React.ReactNode;
   /** Show the macOS traffic-light dots. */
   traffic?: boolean;
-  /** Class for the toolbar surface — defaults to the glass toolbar; pass "" for solid. */
+  /** Class for the toolbar surface — defaults to embedded soft glass
+   *  ("frost-glass frost-glass--soft frost-glass--flush"); pass "" for solid. */
   toolbarClassName?: string;
   /** Window body content (often a sidebar + main + inspector grid). */
   children?: React.ReactNode;
@@ -15,8 +16,9 @@ export interface WindowProps {
 }
 
 /**
- * macOS window chrome: glass toolbar with traffic-light dots, title/subtitle,
- * a trailing actions slot, 12px corners, level-3 floating shadow. The frame for
- * any full app view; place it on a `.frost-wallpaper` background.
+ * macOS window chrome: soft-glass toolbar with traffic-light dots, title/subtitle,
+ * a trailing actions slot, 12px corners, level-3 floating shadow. The toolbar
+ * meets the body on a .5px contact edge, not a 1px line. The frame for any full
+ * app view; place it on a `.frost-wallpaper` background.
  */
 export function Window(props: WindowProps): JSX.Element;

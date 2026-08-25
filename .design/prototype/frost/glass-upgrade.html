@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="zh-CN" data-appearance="light" data-glass="clear">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frost 2 · 凝光 — 玻璃材质升级方案</title>
+<meta name="description" content="Prose 设计系统 Frost 的材质升级提案：借 iOS 26 Liquid Glass 的光学与澎湃OS 4 柔光玻璃的可读性立场，把「材质即层级」升级为「材质即层级 · 光即状态 · 环境即上下文」。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231670EC'/><rect x='11' y='9' width='3.4' height='9' rx='1.7' fill='white'/><rect x='17.6' y='9' width='3.4' height='9' rx='1.7' fill='white'/></svg>">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<style>
+/* ===========================================================================
+   Frost 2 · 凝光 —— 玻璃材质升级方案（提案板）
+   ---------------------------------------------------------------------------
+   这份文件既是提案文档也是活体规范：所有材质样本都是真实 CSS/SVG 渲染，不是截图。
+   右上角三个开关：外观（浅/深）、玻璃模式（通透/柔和）、指针高光（开/关）。
+
+   立场变化一句话：
+     Frost 1  材质即层级        —— 玻璃靠「厚薄」区分前后（blur × 白度四档）
+     Frost 2  材质即层级 + 光即状态 + 环境即上下文
+              —— 玻璃有棱、有照明、会折射；光随交互走；玻璃感知背后是什么并自调。
+   =========================================================================== */
+
+/* ---- Frost 1 tokens（逐字自 tokens/ 摘录，不改）---- */
+:root {
+  --canvas:    #eef0f3;  --surface: #ffffff;  --surface-2: #f5f6f8;
+  --label:     #1d1d1f;  --label-2: #55555e;  --label-3:   #6b6b76;
+  --separator: rgba(60, 60, 67, .12);
+  --blue: #0064e1;  --blue-press: #0052bc;  --blue-soft: rgba(0, 100, 225, .10);
+  --green: #34c759; --green-text: #1d8f45;
+  --orange: #ff9500; --orange-text: #b25e00;
+  --red: #ff3b30;   --red-text: #d70015;
+
+  --font-ui:   "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+               "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+
+  --r-control: 7px; --r-field: 9px; --r-window: 12px; --r-card: 14px; --r-panel: 18px;
+
+  --elev-1: 0 1px 2px rgba(18,24,38,.10), 0 0 0 .5px rgba(18,24,38,.07);
+  --elev-2: 0 10px 30px rgba(18,24,38,.12), 0 2px 8px rgba(18,24,38,.06), 0 0 0 .5px rgba(18,24,38,.05);
+  --elev-3: 0 28px 80px rgba(12,18,32,.26), 0 8px 24px rgba(12,18,32,.12), 0 0 0 .5px rgba(12,18,32,.10);
+
+  --t-micro: 120ms; --t-float: 200ms; --t-panel: 320ms;
+  --ease-std: cubic-bezier(.32,.72,0,1);
+
+  /* Frost 1 四档毛玻璃（对照组） */
+  --mat-sidebar-bg: rgba(255,255,255,.55); --mat-sidebar-blur: 60px;
+  --mat-toolbar-bg: rgba(255,255,255,.68); --mat-toolbar-blur: 40px;
+  --mat-popover-bg: rgba(255,255,255,.75); --mat-popover-blur: 40px;
+  --mat-sheet-bg:   rgba(255,255,255,.85); --mat-sheet-blur:   24px;
+
+  /* Frost 1 壁纸（品牌板原值） */
+  --wallpaper-v1:
+    radial-gradient(1100px 700px at 12% -10%, #c8e6ff 0%, rgba(200,230,255,0) 58%),
+    radial-gradient(900px 620px at 92% 6%, #8fc0f5 0%, rgba(143,192,245,0) 55%),
+    radial-gradient(1100px 850px at 78% 100%, #0a4ecf 0%, rgba(10,78,207,0) 62%),
+    radial-gradient(820px 640px at 14% 86%, #2e8fd8 0%, rgba(46,143,216,0) 58%),
+    linear-gradient(162deg, #d4e8fb 0%, #6aa4e6 46%, #1c4796 100%);
+  /* 产线 /workspace 目前实际用的 body 底（几乎无色） */
+  --wallpaper-prod:
+    radial-gradient(1000px 620px at 14% -8%, #ffffff 0%, rgba(255,255,255,0) 60%),
+    radial-gradient(880px 560px at 88% 4%, #eef2f8 0%, rgba(238,242,248,0) 55%),
+    radial-gradient(900px 700px at 80% 100%, #ccd5e2 0%, rgba(204,213,226,0) 60%),
+    linear-gradient(165deg, #f4f6fa 0%, #e9edf4 48%, #dde3ec 100%);
+
+  /* =========================================================================
+     Frost 2 · 新增 tokens（提案）
+     ========================================================================= */
+
+  /* 画布壁纸 v2：低频、大色块、以浅为主，只在一角沉一块深蓝——
+     玻璃要有东西可折，实底制品卡要有东西可对比；但不能喧宾夺主。 */
+  --wallpaper-v2:
+    radial-gradient(900px 560px at 8% -6%,  #ffffff 0%, rgba(255,255,255,0) 55%),
+    radial-gradient(760px 520px at 96% 2%,  #bfdcfb 0%, rgba(191,220,251,0) 58%),
+    radial-gradient(1000px 720px at 88% 104%, #1b56c9 0%, rgba(27,86,201,0) 60%),
+    radial-gradient(620px 460px at 22% 92%, #7fb3ea 0%, rgba(127,179,234,0) 60%),
+    linear-gradient(160deg, #eef3fa 0%, #d9e6f6 50%, #9dbfe6 100%);
+
+  /* 材质：两种 —— 凝（lens，通透，会折射）/ 霜（soft，柔和，磨砂） */
+  --glass-tint-lens: rgba(255,255,255,.06);
+  --glass-tint-soft: rgba(247,249,253,.60);
+  --glass-sat: 150%;
+
+  /* 厚度三档：模糊半径 + 折射强度 + 投影一起走 */
+  --glass-blur-thin: 10px;   --glass-lens-thin: 34;
+  --glass-blur-regular: 16px; --glass-lens-regular: 56;
+  --glass-blur-thick: 24px;  --glass-lens-thick: 84;
+  --glass-blur-soft: 30px;
+
+  /* 棱光（rim）：迎光左上最亮、右下内反射次亮、两侧腰线一丝 */
+  --glass-rim: linear-gradient(135deg,
+      rgba(255,255,255,.95) 0%, rgba(255,255,255,.72) 12%,
+      rgba(255,255,255,.16) 38%, rgba(255,255,255,.10) 56%,
+      rgba(255,255,255,.42) 80%, rgba(255,255,255,.90) 100%);
+  --glass-rim-inner: 0 0 0 .5px rgba(255,255,255,.55) inset;
+
+  /* 照明（illumination）：一块固定的顶光 + 一块随指针走的镜面高光 */
+  --glass-illum-static: linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 42%);
+  --glass-illum-spot: rgba(255,255,255,.34);
+
+  /* 投影：凝玻璃不铺底，边界全靠投影与接触环 */
+  --glass-shadow-thin:
+    0 6px 16px rgba(16,24,40,.12), 0 1px 3px rgba(16,24,40,.10), 0 0 0 .5px rgba(16,24,40,.16);
+  --glass-shadow-regular:
+    0 18px 44px rgba(16,24,40,.16), 0 8px 18px rgba(16,24,40,.12), 0 2px 5px rgba(16,24,40,.09),
+    0 0 14px rgba(16,24,40,.07), 0 0 0 .5px rgba(16,24,40,.18);
+  --glass-shadow-thick:
+    0 32px 72px rgba(16,24,40,.18), 0 12px 28px rgba(16,24,40,.14), 0 2px 6px rgba(16,24,40,.10),
+    0 0 20px rgba(16,24,40,.08), 0 0 0 .5px rgba(16,24,40,.20);
+
+  /* 环境感知：玻璃落在深色背景上时的反相文字与棱光 */
+  --glass-label-on-dark: #f5f5f7;
+  --glass-label2-on-dark: rgba(245,245,247,.72);
+}
+
+[data-appearance="dark"] {
+  --canvas: #161618; --surface: #1e1e22; --surface-2: #2a2a30;
+  --label: #f5f5f7; --label-2: #a8a8b3; --label-3: #6e6e78;
+  --separator: rgba(255,255,255,.10);
+  --blue: #409cff; --blue-press: #1f7fe0; --blue-soft: rgba(64,156,255,.16);
+  --mat-sidebar-bg: rgba(28,28,33,.62); --mat-toolbar-bg: rgba(34,34,40,.72);
+  --mat-popover-bg: rgba(40,40,46,.80); --mat-sheet-bg: rgba(40,40,46,.88);
+  --wallpaper-v2:
+    radial-gradient(900px 560px at 8% -6%,  #2a3140 0%, rgba(42,49,64,0) 55%),
+    radial-gradient(760px 520px at 96% 2%,  #1e3a66 0%, rgba(30,58,102,0) 58%),
+    radial-gradient(1000px 720px at 88% 104%, #1b56c9 0%, rgba(27,86,201,0) 60%),
+    radial-gradient(620px 460px at 22% 92%, #234a7d 0%, rgba(35,74,125,0) 60%),
+    linear-gradient(160deg, #17181c 0%, #171c26 50%, #142744 100%);
+  --wallpaper-v1: var(--wallpaper-v2);
+  --wallpaper-prod: linear-gradient(165deg, #1a1a1e 0%, #161618 100%);
+  --glass-tint-lens: rgba(20,22,28,.10);
+  --glass-tint-soft: rgba(34,36,42,.64);
+  --glass-rim: linear-gradient(135deg,
+      rgba(255,255,255,.55) 0%, rgba(255,255,255,.36) 12%,
+      rgba(255,255,255,.08) 38%, rgba(255,255,255,.05) 56%,
+      rgba(255,255,255,.20) 80%, rgba(255,255,255,.48) 100%);
+  --glass-rim-inner: 0 0 0 .5px rgba(255,255,255,.18) inset;
+  --glass-illum-static: linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 42%);
+  --glass-illum-spot: rgba(255,255,255,.16);
+  --glass-shadow-thin:
+    0 6px 16px rgba(0,0,0,.34), 0 1px 3px rgba(0,0,0,.30), 0 0 0 .5px rgba(255,255,255,.10);
+  --glass-shadow-regular:
+    0 18px 44px rgba(0,0,0,.42), 0 8px 18px rgba(0,0,0,.30), 0 2px 5px rgba(0,0,0,.24),
+    0 0 0 .5px rgba(255,255,255,.10);
+  --glass-shadow-thick:
+    0 32px 72px rgba(0,0,0,.50), 0 12px 28px rgba(0,0,0,.34), 0 2px 6px rgba(0,0,0,.26),
+    0 0 0 .5px rgba(255,255,255,.10);
+  color-scheme: dark;
+}
+
+/* ===========================================================================
+   凝玻璃 / 霜玻璃 —— 提案组件
+   结构固定四层（自下而上）：warp（折射/模糊）→ illum（照明）→ body（内容）→ rim（棱光）
+   .lens    凝：backdrop-filter: url(#lens-*)（Chromium）；其它引擎退成 blur。
+   .soft    霜：纯 blur + 底色，不折射，不做棱光只做 hairline。
+   厚度：data-thick="thin|regular|thick"
+   =========================================================================== */
+.glass {
+  position: relative;
+  border-radius: var(--r, var(--r-panel));
+  color: var(--label);
+  --_blur: var(--glass-blur-regular);
+  --_shadow: var(--glass-shadow-regular);
+  --_lens: url(#lens-regular);
+  box-shadow: var(--_shadow);
+  isolation: auto;                     /* 绝不 isolate：会切断 backdrop 取样 */
+}
+.glass[data-thick="thin"]    { --_blur: var(--glass-blur-thin);    --_shadow: var(--glass-shadow-thin);    --_lens: url(#lens-thin); }
+.glass[data-thick="thick"]   { --_blur: var(--glass-blur-thick);   --_shadow: var(--glass-shadow-thick);   --_lens: url(#lens-thick); }
+.glass > .g-warp {
+  position: absolute; inset: 0; border-radius: inherit; z-index: 0;
+  backdrop-filter: blur(var(--_blur)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--_blur)) saturate(var(--glass-sat));
+  background: var(--glass-tint-lens);
+}
+/* 只有 Chromium 走 SVG 位移；且需在同元素挂一条 no-op CSS filter（否则 feImage 不加载） */
+html[data-warp="1"][data-glass="clear"] .lens > .g-warp {
+  backdrop-filter: var(--_lens);
+  -webkit-backdrop-filter: var(--_lens);
+  filter: url(#lens-noop);
+}
+.glass > .g-illum {
+  position: absolute; inset: 0; border-radius: inherit; z-index: 1; pointer-events: none;
+  background: var(--glass-illum-static);
+}
+.glass > .g-illum::after {
+  /* 随指针走的镜面高光：--mx/--my 由脚本写入；关掉指针高光时不画 */
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: radial-gradient(180px 140px at var(--mx, 30%) var(--my, 0%), var(--glass-illum-spot), transparent 70%);
+  opacity: var(--spot, 0);
+  transition: opacity var(--t-float) var(--ease-std);
+}
+.glass:hover > .g-illum::after { opacity: var(--spot-hover, 1); }
+.glass:active > .g-illum::after { opacity: var(--spot-press, 1); filter: brightness(1.35); }
+.glass > .g-body { position: relative; z-index: 2; border-radius: inherit; }
+.glass > .g-rim {
+  position: absolute; inset: 0; border-radius: inherit; z-index: 3; pointer-events: none;
+  padding: 1.5px;
+  background: var(--glass-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  box-shadow: var(--glass-rim-inner);
+}
+/* 霜：柔和磨砂 */
+.soft > .g-warp {
+  background: var(--glass-tint-soft);
+  backdrop-filter: blur(var(--glass-blur-soft)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--glass-blur-soft)) saturate(var(--glass-sat));
+}
+.soft > .g-rim { background: none; box-shadow: 0 0 0 1px rgba(255,255,255,.45) inset; }
+[data-appearance="dark"] .soft > .g-rim { box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset; }
+.soft > .g-illum { background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,0) 30%); }
+[data-appearance="dark"] .soft > .g-illum { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 30%); }
+
+/* 全局「柔和」模式：所有凝玻璃退成霜（澎湃 OS 4 的双模式；reduce-transparency 自动落这里） */
+html[data-glass="soft"] .lens > .g-warp { background: var(--glass-tint-soft); }
+html[data-glass="soft"] .lens > .g-rim { background: none; box-shadow: 0 0 0 1px rgba(255,255,255,.45) inset; }
+html[data-glass="soft"][data-appearance="dark"] .lens > .g-rim { box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset; }
+@media (prefers-reduced-transparency: reduce) {
+  .glass > .g-warp { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; filter: none !important; background: rgba(250,251,253,.97) !important; }
+  [data-appearance="dark"] .glass > .g-warp { background: rgba(30,30,34,.97) !important; }
+}
+/* 指针高光总开关 */
+html[data-spot="0"] .glass > .g-illum::after { display: none; }
+
+/* 环境感知：落在深色背景上，文字与棱光翻转 */
+.glass[data-tone="dark"] { color: var(--glass-label-on-dark); }
+.glass[data-tone="dark"] .sub { color: var(--glass-label2-on-dark); }
+.glass[data-tone="dark"] > .g-warp { background: rgba(10,14,24,.14); }
+.glass[data-tone="dark"] > .g-illum { background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 42%); }
+
+/* ===========================================================================
+   页面骨架
+   =========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font: 400 15px/1.7 var(--font-ui);
+  letter-spacing: -.008em;
+  color: var(--label);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; color: inherit; }
+code, .mono { font-family: var(--font-mono); font-size: .86em; letter-spacing: 0; }
+
+.page { max-width: 1180px; margin: 0 auto; padding: 0 40px 120px; }
+section { margin-top: 104px; }
+section:first-of-type { margin-top: 56px; }
+h1 { font-size: 40px; font-weight: 700; letter-spacing: -.022em; line-height: 1.15; margin: 0 0 12px; }
+h2 { font-size: 26px; font-weight: 700; letter-spacing: -.022em; margin: 0 0 6px; }
+h3 { font-size: 17px; font-weight: 600; letter-spacing: -.012em; margin: 0 0 4px; }
+h4 { font-size: 14px; font-weight: 700; margin: 0 0 3px; }
+.kicker { font-size: 12px; font-weight: 600; letter-spacing: .08em; color: var(--label-3); text-transform: uppercase; margin-bottom: 8px; }
+.lead { font-size: 17px; color: var(--label-2); max-width: 66ch; margin: 0 0 24px; }
+.sub { font-size: 13px; color: var(--label-2); margin: 0; }
+.note { font-size: 13px; color: var(--label-3); max-width: 78ch; margin: 14px 0 0; }
+.note i { margin-right: 4px; }
+p { margin: 0 0 10px; }
+strong { font-weight: 600; }
+hr { border: 0; border-top: 1px solid var(--separator); margin: 32px 0; }
+
+/* 顶栏（本页自身用霜·厚，示范一次「chrome 走霜」） */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  height: 52px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 20px;
+  background: var(--mat-toolbar-bg);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border-bottom: 1px solid var(--separator);
+}
+.topbar .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; }
+.topbar .brand .mk { width: 22px; height: 22px; border-radius: 22.4%; background: linear-gradient(150deg, #5fb0ff, #1670ec 55%, #0a3fa8); box-shadow: var(--elev-1); }
+.topbar nav { display: flex; gap: 2px; margin-left: 8px; flex: 1; }
+.topbar nav a { padding: 5px 10px; border-radius: var(--r-control); font-size: 13px; color: var(--label-2); }
+.topbar nav a:hover { background: rgba(60,60,67,.08); color: var(--label); }
+.seg { display: inline-flex; padding: 2px; background: rgba(60,60,67,.08); border-radius: var(--r-field); }
+.seg button { height: 24px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; font-size: 12px; font-weight: 500; color: var(--label-2); transition: background var(--t-micro), color var(--t-micro); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--label); box-shadow: var(--elev-1); }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--label-3); }
+
+/* 卡片 & 网格 */
+.grid { display: grid; gap: 18px; }
+.g2 { grid-template-columns: repeat(2, 1fr); }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 900px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 20px 22px; }
+.card h3 { margin-bottom: 8px; }
+.card ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--label-2); }
+.card li { margin: 4px 0; }
+.card li strong { color: var(--label); }
+.tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--label-3); margin-bottom: 8px; }
+.tag i { font-size: 13px; }
+.tag.take { color: var(--green-text); }
+.tag.leave { color: var(--label-3); }
+
+/* 舞台：壁纸 + 内容 */
+.stage {
+  position: relative; border-radius: var(--r-panel); overflow: hidden;
+  background: var(--wallpaper-v2);
+  box-shadow: var(--elev-1);
+}
+.stage[data-wp="prod"] { background: var(--wallpaper-prod); }
+.stage[data-wp="v1"] { background: var(--wallpaper-v1); }
+.stage-label { position: absolute; left: 14px; top: 12px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--label-3); z-index: 5; }
+.stage[data-tone="dark"] .stage-label { color: rgba(255,255,255,.6); }
+
+/* 文档纸（对比用的实底内容） */
+.paper { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 14px 16px; font-size: 12.5px; color: var(--label-2); }
+.paper h5 { margin: 0 0 6px; font-size: 13px; color: var(--label); }
+.paper .ln { height: 6px; border-radius: 3px; background: var(--surface-2); margin: 7px 0; }
+.paper .ln.s { width: 60%; }
+
+/* 材质样本的通用内容 */
+.spec { padding: 14px 16px 12px; }
+.spec h4 { font-size: 14px; }
+.spec .mono { font-size: 10.5px; color: var(--label-2); line-height: 1.8; display: block; margin-top: 8px; }
+.glass[data-tone="dark"] .spec .mono { color: var(--glass-label2-on-dark); }
+
+/* 表格 */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--separator); vertical-align: top; }
+th { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--label-3); }
+td:first-child { font-weight: 600; white-space: nowrap; }
+td .mono { color: var(--label-2); }
+pre { margin: 0; padding: 16px 18px; background: var(--surface-2); border-radius: var(--r-card); font-family: var(--font-mono); font-size: 12px; line-height: 1.65; overflow-x: auto; color: var(--label-2); }
+pre b { color: var(--label); font-weight: 600; }
+pre .c { color: var(--label-3); }
+
+/* 状态点 */
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--label-3); margin-right: 6px; vertical-align: 1px; }
+.dot.blue { background: var(--blue); } .dot.green { background: var(--green); } .dot.orange { background: var(--orange); }
+
+/* ---- 1. 对照：同一块玻璃，三种背景 ---- */
+.cmp3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.cmp3 .stage { height: 220px; }
+.cmp3 .glass { position: absolute; left: 22px; right: 22px; top: 62px; --r: 16px; }
+.cmp3 .paper { position: absolute; right: 22px; bottom: 14px; width: 150px; transform: rotate(-4deg); }
+.cmp3 .blob { position: absolute; left: 30px; bottom: 48px; width: 90px; height: 54px; border-radius: 12px; background: var(--blue); opacity: .85; }
+
+/* ---- 2. 光学分层（分层条）---- */
+.layers { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.layers .stage { height: 150px; display: grid; place-items: center; }
+.layers .sw { position: relative; width: 150px; height: 88px; border-radius: 16px; }
+.layers .cap { margin-top: 8px; font-size: 12.5px; font-weight: 600; }
+.layers .cap small { display: block; font-weight: 400; color: var(--label-2); font-size: 11px; line-height: 1.5; }
+.layers .stage .paper { position: absolute; left: 10px; bottom: 8px; width: 84px; padding: 8px 9px; font-size: 9px; }
+.layers .stage .paper h5 { font-size: 9px; margin-bottom: 3px; }
+.layers .stage .paper .ln { height: 4px; margin: 4px 0; }
+.layers .stage .blob { position: absolute; right: 12px; top: 12px; width: 56px; height: 36px; border-radius: 10px; background: var(--blue); opacity: .75; }
+.sw-shadow { box-shadow: var(--glass-shadow-regular); }
+.sw-outline { box-shadow: 0 0 0 .5px rgba(16,24,40,.35); }
+.sw-warp { backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%); background: var(--glass-tint-lens); }
+html[data-warp="1"][data-glass="clear"] .sw-warp { backdrop-filter: url(#lens-regular); -webkit-backdrop-filter: url(#lens-regular); filter: url(#lens-noop); }
+.sw-illum { background: var(--glass-illum-static), radial-gradient(120px 90px at 30% 0%, var(--glass-illum-spot), transparent 70%); }
+.sw-body { display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.sw-rim { padding: 1.5px; background: var(--glass-rim); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; box-shadow: var(--glass-rim-inner); }
+
+/* ---- 3. 材质矩阵 ---- */
+.matrix { height: 420px; padding: 24px; display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; grid-template-rows: auto 1fr 1fr; gap: 14px 16px; }
+.matrix .hd { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--label-2); align-self: end; }
+.matrix .rh { display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.matrix .rh b { font-size: 15px; }
+.matrix .rh span { font-size: 12px; color: var(--label-2); }
+.matrix .glass { min-height: 0; }
+.matrix .paper { position: absolute; left: 330px; bottom: 26px; width: 150px; }
+.matrix .blob { position: absolute; right: 60px; top: 70px; width: 120px; height: 120px; border-radius: 40px; background: var(--blue); opacity: .55; }
+.matrix .blob2 { position: absolute; right: 320px; bottom: 40px; width: 160px; height: 70px; border-radius: 22px; background: var(--orange); opacity: .55; }
+
+/* ---- 4. 光即状态 ---- */
+.lightlab { height: 300px; display: flex; align-items: center; justify-content: center; gap: 22px; flex-wrap: wrap; padding: 30px; }
+.lightlab .paper { position: absolute; left: 34px; top: 30px; width: 180px; }
+.lightlab .blob { position: absolute; right: 90px; bottom: 34px; width: 150px; height: 84px; border-radius: 26px; background: var(--blue); opacity: .6; }
+.pill { --r: 999px; display: inline-flex; }
+.pill .g-body { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; font-size: 13px; font-weight: 600; }
+.pill .g-body i { font-size: 17px; color: var(--blue); }
+.pill.primary .g-body i { color: inherit; }
+.iconbtn { --r: 999px; width: 44px; height: 44px; }
+.iconbtn .g-body { display: grid; place-items: center; height: 100%; font-size: 19px; }
+.glass:active { transform: scale(.97); transition: transform var(--t-micro) var(--ease-std); }
+.pill:active .g-body, .iconbtn:active .g-body { transform: none; }
+/* 进行中：边框光束（沿用产线机制） */
+@property --beam { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.beam { position: absolute; inset: -1px; border-radius: inherit; z-index: 4; pointer-events: none; padding: 2px;
+  background: conic-gradient(from var(--beam), transparent 0 72%, rgba(0,100,225,.3) 80%, rgba(0,74,185,1) 92%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: beam 2.4s linear infinite; }
+[data-appearance="dark"] .beam { background: conic-gradient(from var(--beam), transparent 0 72%, rgba(64,156,255,.3) 80%, #fff 92%, transparent 100%); }
+@keyframes beam { to { --beam: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .beam { animation: none; } }
+
+/* ---- 5. 环境感知 ---- */
+.ambient { height: 260px; background: linear-gradient(90deg, #f2f6fc 0%, #dbe8f8 32%, #6aa0dc 58%, #123c86 100%); cursor: grab; touch-action: none; }
+[data-appearance="dark"] .ambient { background: linear-gradient(90deg, #dfe8f4 0%, #9fbfe4 30%, #2b4f8a 58%, #0b1a35 100%); }
+.ambient .probe { position: absolute; top: 74px; left: 40px; width: 300px; --r: 18px; cursor: grab; user-select: none; }
+.ambient .probe:active { cursor: grabbing; }
+.ambient .probe .g-body { padding: 14px 16px; }
+.ambient .probe .lum { font-family: var(--font-mono); font-size: 11px; opacity: .75; margin-top: 6px; }
+.ambient .hint { position: absolute; left: 40px; bottom: 16px; font-size: 12px; color: var(--label-2); }
+.ambient .hint b { color: var(--label); }
+
+/* ---- 6. 形态 ---- */
+.morphlab { height: 300px; }
+.morphlab .paper { position: absolute; right: 24px; bottom: 24px; width: 200px; }
+.morphlab .blob { position: absolute; left: 60px; bottom: 26px; width: 180px; height: 60px; border-radius: 20px; background: var(--blue); opacity: .55; }
+.morph { position: absolute; left: 30px; top: 30px; --r: 20px; width: 260px; height: 52px; overflow: hidden;
+  transition: width var(--t-panel) var(--ease-std), height var(--t-panel) var(--ease-std); cursor: pointer; }
+.morph[data-open="1"] { width: 380px; height: 236px; }
+.morph .g-body { height: 100%; padding: 10px 12px; }
+.morph .head { display: flex; align-items: center; gap: 10px; height: 32px; }
+.morph .bot { width: 32px; height: 32px; border-radius: 22.4%; background: linear-gradient(150deg, #5fb0ff, #1670ec 55%, #0a3fa8); box-shadow: 0 0 0 .5px rgba(255,255,255,.6) inset, 0 1px 2px rgba(0,0,0,.2); flex: none; }
+.morph .say { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.morph .rows { margin-top: 10px; opacity: 0; transition: opacity var(--t-float) var(--ease-std); font-size: 12.5px; color: var(--label-2); }
+.morph[data-open="1"] .rows { opacity: 1; transition-delay: 160ms; }
+.morph .rows div { display: flex; gap: 8px; padding: 5px 0; border-top: 1px solid rgba(60,60,67,.08); }
+.morph .rows i { color: var(--label-3); }
+.morph .rows .ok { color: var(--green-text); }
+/* 转场期降级为霜（位移滤镜逐帧重跑太贵） */
+.morph[data-tweening="1"] > .g-warp { backdrop-filter: blur(16px) saturate(150%) !important; -webkit-backdrop-filter: blur(16px) saturate(150%) !important; filter: none !important; background: var(--glass-tint-soft) !important; }
+
+.concentric { display: flex; gap: 30px; align-items: center; justify-content: center; height: 300px; }
+.cc-outer { width: 300px; height: 190px; border-radius: 20px; background: var(--surface); box-shadow: var(--elev-2); padding: 8px; position: relative; }
+.cc-inner { width: 100%; height: 100%; border-radius: 12px; background: var(--surface-2); display: grid; place-items: center; font-size: 12px; color: var(--label-2); }
+.cc-outer .mk { position: absolute; font-family: var(--font-mono); font-size: 11px; color: var(--blue); }
+.cc-outer.bad .cc-inner { border-radius: 20px; }
+.cc-outer.bad .mk { color: var(--red-text); }
+
+.scrolledge { height: 300px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; }
+.scrolledge .win { position: relative; background: var(--surface); border-radius: var(--r-window); box-shadow: var(--elev-2); overflow: hidden; }
+.scrolledge .list { position: absolute; inset: 0; overflow-y: auto; padding: 56px 16px 16px; font-size: 12.5px; }
+.scrolledge .list div { padding: 9px 4px; border-bottom: 1px solid var(--separator); color: var(--label-2); display: flex; justify-content: space-between; }
+.scrolledge .bar { position: absolute; left: 0; right: 0; top: 0; height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 14px; font-size: 13px; font-weight: 600; z-index: 2; }
+.scrolledge .bar.old { background: rgba(245,246,248,.8); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); border-bottom: 1px solid var(--separator); }
+[data-appearance="dark"] .scrolledge .bar.old { background: rgba(34,34,40,.8); }
+.scrolledge .bar.new { background: transparent; }
+.scrolledge .bar.new::before {
+  /* scroll-edge：渐进模糊 + 渐隐底色，没有那条 1px 线 */
+  content: ""; position: absolute; inset: 0 0 -22px 0; z-index: -1;
+  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 70%, transparent) 55%, transparent 100%);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  -webkit-mask: linear-gradient(#000 45%, transparent); mask: linear-gradient(#000 45%, transparent);
+}
+.scrolledge .cap { position: absolute; right: 12px; top: 14px; font-size: 11px; color: var(--label-3); font-weight: 400; }
+
+/* ---- 7. 工作台 mock ---- */
+.ws-wrap { overflow-x: auto; border-radius: var(--r-panel); box-shadow: var(--elev-2); }
+.ws { position: relative; width: 1100px; height: 640px; background: var(--wallpaper-prod); overflow: hidden; font-size: 12px; }
+.ws[data-v="2"] { background: var(--wallpaper-v2); }
+.ws .dots { position: absolute; inset: 52px 0 0 56px; background-image: radial-gradient(circle, rgba(60,60,67,.18) 1px, transparent 1.5px); background-size: 22px 22px; }
+.ws[data-v="2"] .dots { opacity: .45; }
+.ws .top { position: absolute; left: 0; right: 0; top: 0; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 16px; font-weight: 600; font-size: 13px;
+  background: rgba(255,255,255,.62); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); border-bottom: 1px solid rgba(60,60,67,.10); z-index: 6; }
+[data-appearance="dark"] .ws .top { background: rgba(34,34,40,.72); border-bottom-color: rgba(255,255,255,.1); }
+.ws[data-v="2"] .top { background: var(--glass-tint-soft); border-bottom: 0; box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 .5px 0 rgba(16,24,40,.12); }
+[data-appearance="dark"] .ws[data-v="2"] .top { box-shadow: 0 1px 0 rgba(255,255,255,.08) inset, 0 .5px 0 rgba(0,0,0,.4); }
+.ws .top .mk { width: 20px; height: 20px; border-radius: 22.4%; background: linear-gradient(150deg, #5fb0ff, #1670ec 55%, #0a3fa8); }
+.ws .top .crumb { color: var(--label-2); font-weight: 400; }
+.ws .top .sp { flex: 1; }
+.ws .top .st { font-weight: 500; color: var(--label-2); }
+.ws .rail { position: absolute; left: 0; top: 52px; bottom: 0; width: 56px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 12px; z-index: 6;
+  background: rgba(255,255,255,.55); backdrop-filter: blur(60px) saturate(180%); -webkit-backdrop-filter: blur(60px) saturate(180%); border-right: 1px solid rgba(60,60,67,.10); }
+[data-appearance="dark"] .ws .rail { background: rgba(28,28,33,.62); border-right-color: rgba(255,255,255,.1); }
+.ws[data-v="2"] .rail { background: var(--glass-tint-soft); border-right: 0; box-shadow: .5px 0 0 rgba(16,24,40,.12); }
+.ws .rail i { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; font-size: 18px; color: var(--label-2); }
+.ws .rail i.on { background: var(--blue-soft); color: var(--blue); }
+/* 实底制品卡 —— 两版都实底，永远 */
+.ws .mcard { position: absolute; width: 236px; height: 118px; background: var(--surface); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 12px 14px; }
+.ws[data-v="2"] .mcard { box-shadow: var(--elev-2); }
+.ws .mcard .t { font-size: 12px; font-weight: 600; }
+.ws .mcard .n { font-size: 27px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; margin-top: 4px; }
+.ws .mcard .n small { font-size: 12px; font-weight: 400; color: var(--label-3); margin-left: 4px; }
+.ws .mcard .bar { height: 4px; border-radius: 2px; margin-top: 10px; background: linear-gradient(90deg, #55555e 0 46%, #8e8e98 46% 72%, #c5c5cc 72% 90%, #e2e2e7 90%); }
+.ws .mcard .sig { margin-top: 8px; font-size: 11.5px; color: var(--label-2); }
+.ws .mcard .sig b { color: var(--orange-text); font-weight: 600; }
+/* 消息窗 v1（毛玻璃）/ v2（凝·厚） */
+.ws .msg { position: absolute; left: 330px; top: 66px; width: 404px; height: 300px; border-radius: 20px; }
+.ws .msg.v1 { background: rgba(247,249,253,.56); backdrop-filter: blur(30px) saturate(180%); -webkit-backdrop-filter: blur(30px) saturate(180%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.55), inset 0 1px 0 rgba(255,255,255,.75), 0 24px 60px rgba(16,24,40,.16), 0 6px 18px rgba(16,24,40,.10), 0 0 0 .5px rgba(16,24,40,.13); padding: 10px; }
+[data-appearance="dark"] .ws .msg.v1 { background: rgba(34,36,42,.62); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 20px 54px rgba(0,0,0,.46), 0 0 0 .5px rgba(255,255,255,.08); }
+.ws .msg.v2 { --r: 20px; }
+.ws .msg .g-body { padding: 10px; height: 100%; }
+.ws .msg .head { display: flex; align-items: center; gap: 11px; }
+.ws .msg .bot { width: 36px; height: 36px; border-radius: 22.4%; background: linear-gradient(150deg, #5fb0ff, #1670ec 55%, #0a3fa8); box-shadow: 0 0 0 .5px rgba(255,255,255,.6) inset, 0 1px 2px rgba(0,0,0,.2); flex: none; }
+.ws .msg .say { font-size: 13px; font-weight: 500; }
+.ws .msg .say small { display: block; font-weight: 400; color: var(--label-2); font-size: 11.5px; }
+.ws .msg .line { display: flex; gap: 8px; padding: 7px 4px; font-size: 12px; color: var(--label-2); border-top: 1px solid rgba(60,60,67,.08); }
+.ws .msg .line i { color: var(--label-3); font-size: 14px; }
+.ws .msg .line .ok { color: var(--green-text); }
+.ws .msg .line .run { color: var(--blue); }
+.ws .msg .lines { margin-top: 10px; }
+/* 输入坞：Composer 实底 + 快捷条玻璃 */
+.ws .dock { position: absolute; left: 330px; bottom: 18px; width: 440px; z-index: 5; }
+.ws .dock .chips { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+.ws .dock .chip { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.ws .dock .chip i { color: var(--blue); font-size: 14px; }
+.ws .dock .chip.v1 { border-radius: 9px; background: rgba(255,255,255,.78); border: 1px solid var(--separator); box-shadow: var(--elev-1); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); }
+[data-appearance="dark"] .ws .dock .chip.v1 { background: rgba(40,40,46,.8); }
+.ws .dock .chip.v2 { --r: 999px; padding: 0; }
+.ws .dock .chip.v2 .g-body { height: 30px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; }
+.ws .dock .comp { background: var(--surface); border-radius: 16px; box-shadow: var(--elev-2); padding: 12px 14px; min-height: 92px; display: flex; flex-direction: column; justify-content: space-between; }
+.ws .dock .comp .phold { color: var(--label-3); font-size: 13px; }
+.ws .dock .comp .row { display: flex; justify-content: space-between; align-items: center; }
+.ws .dock .comp .row span { font-size: 11.5px; color: var(--label-3); }
+.ws .dock .comp .send { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(180deg, #1979f2, var(--blue)); color: #fff; display: grid; place-items: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.35); }
+/* 右侧抽屉（霜·厚） */
+.ws .drawer { position: absolute; right: 0; top: 52px; bottom: 0; width: 320px; z-index: 7; padding: 16px; }
+.ws .drawer.v1 { background: rgba(255,255,255,.92); border-left: 1px solid var(--separator); box-shadow: -8px 0 24px rgba(16,24,40,.08); }
+[data-appearance="dark"] .ws .drawer.v1 { background: rgba(30,30,34,.94); }
+.ws .drawer.v2 { --r: 0; border-radius: 0; }
+.ws .drawer.v2 > .g-warp, .ws .drawer.v2 > .g-rim, .ws .drawer.v2 > .g-illum { border-radius: 0; }
+.ws .drawer.v2 .g-body { padding: 16px; height: 100%; }
+.ws .drawer .dh { font-size: 14px; font-weight: 700; }
+.ws .drawer .ds { font-size: 11.5px; color: var(--label-2); margin-top: 2px; }
+.ws .drawer .it { padding: 9px 0; border-top: 1px solid var(--separator); font-size: 12px; display: flex; gap: 8px; }
+.ws .drawer .it:first-of-type { margin-top: 12px; }
+.ws .drawer .it .no { font-family: var(--font-mono); color: var(--label-3); font-size: 11px; }
+.ws .drawer .it .star { color: var(--orange-text); }
+.ws-ctl { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.ws-ctl .sub { flex: 1; }
+
+/* ---- 路线图 ---- */
+.phase { display: grid; grid-template-columns: 90px 1fr; gap: 12px 18px; }
+.phase .p { font-size: 13px; font-weight: 700; padding-top: 2px; }
+.phase .p small { display: block; font-weight: 400; color: var(--label-3); font-size: 11px; }
+.phase ul { margin: 0 0 14px; padding-left: 18px; font-size: 13.5px; color: var(--label-2); }
+.phase li { margin: 3px 0; }
+.phase li b { color: var(--label); font-weight: 600; }
+
+.src { font-size: 12.5px; color: var(--label-3); }
+.src li { margin: 3px 0; }
+.src a { color: var(--label-2); border-bottom: 1px solid var(--separator); }
+</style>
+</head>
+<body>
+
+<!-- 共享 SVG 滤镜：三档折射强度共用一张位移贴图（产线 liquidGlassMaps.standard，原样取用） -->
+<svg aria-hidden="true" style="position:absolute;width:0;height:0">
+  <defs>
+    <filter id="lens-noop"><feOffset dx="0" dy="0"/></filter>
+    <!-- 模板：script 会按 thin/regular/thick 克隆三份，替换 blur 与 scale -->
+    <filter id="lens-regular" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="FROSTED"/>
+      <feColorMatrix in="FROSTED" type="saturate" values="1.5" result="SRC"/>
+      <feImage x="0" y="0" width="100%" height="100%" result="MAP" href="data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAZABkAAD/2wCEAAQDAwMDAwQDAwQGBAMEBgcFBAQFBwgHBwcHBwgLCAkJCQkICwsMDAwMDAsNDQ4ODQ0SEhISEhQUFBQUFBQUFBQBBQUFCAgIEAsLEBQODg4UFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFP/CABEIAQABAAMBEQACEQEDEQH/xAAxAAEBAQEBAQAAAAAAAAAAAAADAgQIAQYBAQEBAQEBAQAAAAAAAAAAAAMCBAEACAf/2gAMAwEAAhADEAAAAPjPor6kOgOiKhKgKhKgOhKhOhKxKgKhOgKhKhKgKxOhKhOgKhKhKgKwKhKgKgKwG841nns9J/nn2KVCdCdCVAVCVCVAdCVCdiVAVidCVAVCVAdiVCVCdAVCVCVAVCVAVAViVZxsBrPPY6R/NvsY6E6ErEqAqE6ErAqE6E7E7ErA0ErArAqAqEuiVAXRLol0S6J0JUBWBUI0BXnG88djpH81+xjoToSoSoCoTsSoYQTsTsTQSsCsCsCsCsCoC6A0JeAuiXSLwn0SoioCoCoBsBrPFH0j+a/Yx0J0JUJUJ2BUMIR2MIRoBoJIBXnJAK840BUA0BdAegXhLpF4S8R+IuiVgVANAV546fSH5r9jHRHQFQlYxYnZQgnYwhQokgEgEmckzjecazlYD3OPQHoD0S8JcI/EXiPxF0SoSvONBFF0j+a/YxdI7EqA6KLGEKEKEGFI0AlA0AUzimYbzjecazjWce5w6BdEeCXhPhFwz8R+MuiVgVAdF0j+a/Yp0RUJ0MWUIUWUIUKUIJqBoArnJM4pmBMw3nCsw1mCs4+AegPBLxHwi4Z8KPGXSPojYH0ukfzX7FOiKhiyiylDiylDhBNRNQJAJcwpnBMopmC84XlCswdzj3OPQHwlwS8R8M+HHDPxl0ioDoukfzT7GOhOyiimzmzhDlShBNBNBJc4rmFMwJlBMwXlC82esoVmHucOgXgHxH4j4Zyccg/GfiOiKh6R/NPsY6GLOKObOUObOUI0KEAlEkzimYFygmUEyheXPeULzZ6yhWce5x8BeEuGfCj0HyI5EdM/EdD0h+a/Yx0U0cUflxNnNnCHCCdgSiSZgTMK5c6ZQvLnTLnvJnvKFZgrMHc5dAeiXijhn445E8g/RHTPpdI/mn2KdlFR5RzcTUTZxZwglYGgCmcEzAuUEyZ0y57yZ0yZ7yheUKzh3OPc5dEvEfij0RyI9E+iPGfT6T/NPsQ6OKiKmajy4ijmyOyKwNAFM4JlBMudMmdMue8mdMme8me8wVmGsw0A9A+kfjjxx6J9EememfT6W/MvsMqOamKiamKmKOKM7ErErAUzAmYLyZ0y50yZ0yZkyZ7yBeULzBeYazl0T6R9KPRPYj0T2J9B9Ppj8x+wjo4qY7M9iKmKg6MrIrErALzBeYEyZ0y50yZkyZ7x50yheXPeUbzjWcqA6I+lHYnsT6J7E9iOx0z+YfYBUc1MdmexHZjsHRlRBRDYBecEzZ7yAmXNeTOmTOmPOmXOmULyjeYbzlYnQxRx057E9mexPYij6a/L/r86OOzPpjsR6Y7B9MqIaILDPYZ7zZ0y57y50yZ0x5kyAmXPeUEyjeYUznQnYnRTUTUT2JqJ7EUfTn5d9fFRx2Z9EdmPTHjLsF0h6I2OegzXmzJmzplz3lzJjzpkBMudMoplBM5JnOwOyiimzmomomonsHRdO/l318VFHYj0x6I9McgumXiHpDQ56DPebMmbNebMmXMmQEy50yguQEzCmYkA7GLGEKaObibiaOKOKPp38s+vCsj7EeiPTHIP0Hwx6ReMKDP0M95895syZ815cy5c6ZQTKCZRXMKZiQDQYQYsps5uJs5qIsjounvyz68KyLpx4z9Mcg+GXoLxl4g6IUGes+a8+e82ZM2dMuZMoJmBcwrlJM5IBoMKMoUWc2c3E0cWRUXT/wCV/XQ2R0RdiPQfDPkFwy9BeIOiHQz0Ges+e82dM2ZM2dMwLmBcwpmJc5qBoMIUIUoU2c2cWZ0R0PT/AOV/XQ2RUJdM+wfDL0Hwy5A+EfEHQz0AUGe8+dM2e82dcwJnFcwrnJc5IEKUIMIUoUWc2cWRUJ0PT/5V9dFYjZFRF0z8ZeM+QPDLxD4Q6OfoBQhefPeYEz50ziucUzCoEuclCEKFGUKEKLOLI7E6EqHqD8o+uhsRsisSoi6ZeM+QPiHhj0R8IUIdALALzgmcEzimcVAlzioGomgyhQgwhRZHZFQHQlQ9Qfk/10NiVkNiNiVGXiPxj4x8Q9IfCFCPRCwC84oA3nFQFM5KBKJIMKEIUWRoUUJWJUJ0BUPUH5L9dDZFYigjYjZHRF0x8Q9IvEHRHojQjQhecUAUAkEkziomgGgkoxZGgxZFQFQlYnQHRdPfj/10KCSCKESCNiVkViPSLpD0h6I0Q0I0A2IoBWBIJIBKBIJoJIJ2R2J0JWBUJ0JUB0XTv479dFZDYiglYigkhEgjZFQjRFQjRFQjQigFYigHYigmgEgmglYlYnQlQlYlQHQlQnQ9P/kf1yVkNiNCNkNiVENiNiViNEViNkVCVgKCViViViSCViSCVgdCViVCViVCdgVCVCdD1D+U/XBWQ2I0I2Q2JUQ2I0JWQ0I2JUQ2JUI2JUI2J0JWJWJWA2R0BWJ0I2JUJ2BUJUJ0P//EABkQAQEBAQEBAAAAAAAAAAAAAAECABEDEP/aAAgBAQABAgB1atWrVq1atWrVq1atWrVq1atWrVq1atWrVq+OrVq1atWrVq1atWrVq1atWrVq1atWrVq1atXxVppppppdWrVq1atWrVq1NNNNNNNNNNNPVWmmmmms6tWrVq1atWpppppppppppppp6q0000uc51atWrVq1ammmmmmmmmmmmmt1Vpppc5znVq1atWrVqaaaaaaaaaaaaaeqtNLnOc51atWrVq1ammmmmmmmmmmmmnqrS5znOc6tWrVq16222mmmmmmlVppp6tKuc5znOrVq1a9TbbbbTTTTTSq000qtLnOc5zq1atWrW0222200000qqqtKqrnOc5zq1atTbbbbbbbbTTTSqqqqqq5znOc6tTTTbbbbbbbbTTTSqqqqrlVznOctNNNtttttttttNNNNKqqqrqznKqrTTTTbbbbbbbbbTTTSqqqqrqznOc5aaaabbbbbbbbbaaaaVVVVVdWc5znVq1NNttttttttttNNKqqqqudWc5znVq16tbbbbbbbbbbTTSqqqq5XVnOc6tWrVrb1tttttttttNNKqqqqrWrK5VWmmm2230bbbbbbaaaXOc5zlVa1KuVVppptttt9G22222mmlzlVznK6tWVVWmmmm2222222222mlznOc5znLWppVVWmmm22222229bTWrOc5znOcq1qaaVpWmm222222229erVqznOc5znKtatStK0rTbTTbbbberXr1as5znOc5aVpppppWlabaabbbb1ta9WrVnOc5znU0rTTTTTTTTTbTTbbbTWvVq1as5znOdTTStNNNNNNNNNtNNtttN6tWvVq1ZznOrU00rTTTTTTTTTTTTTbTWvVq1atWrOc6tTTTStNNNNNNNNNNtNNtNa9WrVq1Z1Z1NNNNNK1q1NNNNNNNNNNNtNatWrVq1atWrU00000rWrVq1atWrVq1alaaa1atWrVq1NNNammmmla1atWrVq1aterVq16tWrVnVqa1NK1qaaaVX/xAAWEAADAAAAAAAAAAAAAAAAAAAhgJD/2gAIAQEAAz8AaExf/8QAGhEBAQEBAQEBAAAAAAAAAAAAAQISEQADEP/aAAgBAgEBAgDx48ePHjx48ePHjx48ePHjx48ePHjx48ePHj86IiIiIiInjx48ePHjx48IiIiIj0oooooooooRERER73ve60UUUUUUVrWiiiiiihERERER73ve97ooooorRWiiiiihKERERER73ve973RRRRWtFFFFFFCIiIiIiPe973ve60UUVrRRRRRRQiIlCIiI973ve973pRRWiiiiiiiiiiiiiiihEe973ve973RRWtFFFFFFFFFFFFFFFFFFa13ve973WitaKKKKKKKKKKKKKKKKKK1rWtd1rutFa1oooooooooooosssooorWta1rWta1rRRRRRRRRRRZZZZZZZZZWta1rWta1rRRRRRRRRZZZZZZZZZZZZe9a1rWta1rWitaKLLLLLLLLLLLLLLLLL3rWta1rWtFbLLLLLLLLLLLLLLLLLLLL3vWta1rWita1ssssssss+hZZZZZZZZe961rWta0Vre97LLLLLLLLLLLPoWWWWWXrWta1oorWta3ssss+hZZZZ9Cyyyyyyyyiita1orWta1ve9llllllllllllllllFFa0VorWta1ve9llllllllllllllllllFFFaK1rWta1rWiyyyyyyyyyyyyiiiiiiitFFa1rWta1oosoosssssoooosoooorRRRWta1rWta0UUUUUWUUUUUUUUUUUVoooorWta1rWtaKKKKKKmiiiiiiiiiiiiiiitd73ve61oSiiipoqaKKKKKKKKKK0UUUVrve973vREREZoSihEooooorRRRRWtd73ve9EREREREoSiiiiitFllllla73ve9ERERERESiiiiiitH0PoWWWWVrXe96IiIiMoiJRRRRRRWjwlFFllllFFd6IiIiIlCUUUUUUUUUePHjx48ePCIiIiIiIiUUUUUUUUUUUePHjx48ePHjx48ePHjx48IiUUUUUUJRRRX//xAAWEQADAAAAAAAAAAAAAAAAAAABYJD/2gAIAQIBAz8AtEV7/8QAFxEBAQEBAAAAAAAAAAAAAAAAAAECEP/aAAgBAwEBAgCtNNNNNNNNNNNNNNNNNNNNNNNNNNNNNcrTTTTTTTTTTTTTTTTTTTTTTTTTTTTTXKrTTTTTTTU000000000000000000001FVpppppqampqaaaaaaaaaaaaaaaaaaaa5Vaaaaampqampqammmmmmmmmmmlaaaaaaiq0001NTU1NTU1NTTTTTTTTTTSqqtNNNcqtNNSyzU1LNTU1NTTTTTTTTTSqqq001ytNLLLLNTU1NTU1NTbbbTTTTTSqqq001ytNLLLLLNTU1NTU3NttttNNNNNKqq001KrSyyyyyzU1NTU3Nzc02220000qqqqrSqqyyyyyzU1NTU3Nzc3NttttNNNKqqqqqqssssss1NTU3Nzc3NzbbbbTTTSqqqqqqrLLLLLNTU1Nzc3Nzc22220000qqqqqqqqssss1NTU3Nzc3NzbbbbbTTSqqqqqqqqqqzU1NTc3Nzc3Nzbc22000qqqqqqqqqqqtTU3Nzc3Nzc3NtzbTTSqqqqrKqqqqqtNNzc23Nzc3Nzc3NTU1KqqqrKqqqqqtNNNNttzc3Nzc3NzU1NLLLLLKqqqqqqqq0022223Nzc3NzU1NSyyyyyyqqqqqqqrTTbbbbc3Nzc3NTU1LLLLLLKsqqqqqqrTTTTbbbc3Nzc1NTUsssssssqqqqqqrTTTTTbbbTc3NTU1NTUsssssqqqqqqqq0000222023NTU1NTUsssssqqqqqqqq000000003NTU1NTU1LLLLLNKrTSqqqqtNNNNNNtNNTU1NSzUssss00qq0qqqqrTTTTTTTTTU1NTUs1LLLNNNKrTTTSqqq00000000001NTU1LNTU0000qtNNNKqqqtNNNNNNNNTU1NTUs1NNNNNKss1NNNK00qtK0000001NNTU0s000000qq000001NKrStNNNNK1NNNNStNNNNNKqtNNNNNNNK0000000rU0000rTTTTTSq00000rTTTTTTTTTTTTTTTTStNNNNKr/xAAUEQEAAAAAAAAAAAAAAAAAAACg/9oACAEDAQM/AAAf/9k=" preserveAspectRatio="xMidYMid slice"/>
+      <feColorMatrix in="MAP" type="matrix" values="0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0.3 0.3 0.3 0 0  0 0 0 1 0" result="EDGE_I"/>
+      <feComponentTransfer in="EDGE_I" result="EDGE_MASK"><feFuncA type="discrete" tableValues="0 0.1 1"/></feComponentTransfer>
+      <feOffset in="SRC" dx="0" dy="0" result="CENTER"/>
+      <feDisplacementMap in="SRC" in2="MAP" scale="-56" xChannelSelector="R" yChannelSelector="B" result="RD"/>
+      <feColorMatrix in="RD" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="R"/>
+      <feDisplacementMap in="SRC" in2="MAP" scale="-61.6" xChannelSelector="R" yChannelSelector="B" result="GD"/>
+      <feColorMatrix in="GD" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="G"/>
+      <feDisplacementMap in="SRC" in2="MAP" scale="-67.2" xChannelSelector="R" yChannelSelector="B" result="BD"/>
+      <feColorMatrix in="BD" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="B"/>
+      <feBlend in="G" in2="B" mode="screen" result="GB"/>
+      <feBlend in="R" in2="GB" mode="screen" result="RGB"/>
+      <feGaussianBlur in="RGB" stdDeviation="0.3" result="ABR"/>
+      <feComposite in="ABR" in2="EDGE_MASK" operator="in" result="EDGE_AB"/>
+      <feComponentTransfer in="EDGE_MASK" result="INV"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
+      <feComposite in="CENTER" in2="INV" operator="in" result="CENTER_CLEAN"/>
+      <feComposite in="EDGE_AB" in2="CENTER_CLEAN" operator="over"/>
+    </filter>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="brand"><span class="mk"></span>Prose · Frost 2「凝光」</div>
+  <nav>
+    <a href="#research">调研</a><a href="#diag">诊断</a><a href="#material">材质</a><a href="#light">光</a><a href="#ambient">环境</a><a href="#form">形态</a><a href="#workspace">工作台</a><a href="#tokens">Tokens</a><a href="#roadmap">路线</a>
+  </nav>
+  <div class="ctl">外观
+    <div class="seg" data-key="appearance"><button aria-pressed="true" data-v="light">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+  <div class="ctl">玻璃
+    <div class="seg" data-key="glass"><button aria-pressed="true" data-v="clear">通透</button><button data-v="soft">柔和</button></div>
+  </div>
+  <div class="ctl">指针高光
+    <div class="seg" data-key="spot"><button aria-pressed="true" data-v="1">开</button><button data-v="0">关</button></div>
+  </div>
+</header>
+
+<main class="page">
+
+<!-- ================================================================ 封面 -->
+<section>
+  <div class="kicker">设计升级提案 · 2026-08 · 供评审</div>
+  <h1>Frost 2 · 凝光<br><span style="color:var(--label-2);font-weight:500">霜怎么升级成会折光的玻璃</span></h1>
+  <p class="lead">Frost 1 的立场是「材质即层级」：玻璃靠厚薄区分前后。iOS 26 与澎湃 OS 4 之后，玻璃多了两个维度——<strong>光</strong>（棱、照明、折射，随交互走）与<strong>环境</strong>（玻璃知道自己压在什么上面并自调）。本方案把这两个维度接进 Frost，同时守住 Prose 作为招投标生产力工具的底线：<strong>内容永远实底，蓝只归可交互与进行中，可读性不让位于质感</strong>。</p>
+  <div class="grid g3">
+    <div class="card"><div class="tag"><i class="ph ph-stack"></i>立场 1</div><h3>材质即层级</h3><p class="sub">保留。两种材质（凝 / 霜）× 三档厚度，取代原来靠白度硬分的四档。</p></div>
+    <div class="card"><div class="tag"><i class="ph ph-sun"></i>立场 2 · 新</div><h3>光即状态</h3><p class="sub">棱光与照明说「这是一块可以按的东西」，高光跟指针、按下更亮、运行中光束绕框——光是白的，不占蓝。</p></div>
+    <div class="card"><div class="tag"><i class="ph ph-drop"></i>立场 3 · 新</div><h3>环境即上下文</h3><p class="sub">玻璃取样背后的画面：落在深色上文字反相、棱光收敛；画布壁纸回归，让玻璃有东西可折。</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ 调研 -->
+<section id="research">
+  <div class="kicker">01 · 调研</div>
+  <h2>两家在做同一件事，但答案不同</h2>
+  <p class="lead">Apple 把玻璃做成一种「元材料」：实时折射、镜面高光、随内容自适应、控件合并与形变。小米一年后跟进（HyperOS 3 液态玻璃 → 2026-08-13 澎湃 OS 4「柔光玻璃」），但立场偏向可读性：环境色感知自动调透明度、按压有光感、全局给「通透 / 柔和」两个模式让用户选。两家共同承认的教训：Apple 三个 beta 里把磨砂一路加厚，iOS 26.1 加了「着色」模式——<strong>纯通透的玻璃在生产力场景里是可读性负债</strong>。</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3>iOS 26 · Liquid Glass</h3>
+      <ul>
+        <li><strong>三层模型</strong>：highlight（光的投射与移动）/ shadow（前后分离）/ illumination（材质对环境的响应）。</li>
+        <li><strong>折射不是模糊</strong>：毛玻璃散射光，Liquid Glass 弯曲光——边缘可以看见背后内容被拉伸、色散。</li>
+        <li><strong>玻璃只做导航与控制层</strong>，浮在内容之上；永远不施于内容本身（列表、表格、媒体）。</li>
+        <li><strong>玻璃不叠玻璃</strong>：玻璃取样不到另一块玻璃，多块相邻玻璃放进一个容器共享取样，靠近时合并（morph）。</li>
+        <li><strong>两种变体</strong>：Regular（默认，全场景自适应）/ Clear（只在照片、地图之类富媒体上，且前景要粗要亮）。</li>
+        <li><strong>同心圆角</strong>：内圆角 = 外圆角 − 内边距，控件与窗口/硬件圆角同心。</li>
+        <li><strong>scroll edge</strong>：工具栏与内容交界处不画线，用渐进模糊与渐隐让内容「滑到玻璃下面去」。</li>
+        <li><strong>自适应着色</strong>：文字按背景调色、亮度、饱和；深色不是翻转，大面积玻璃不翻只调。</li>
+        <li><strong>无障碍</strong>：降低透明度 → 加厚磨砂；增强对比 → 描边实线；减少动态 → 关闭高光跟随。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>澎湃 OS 4 · 柔光玻璃（2026-08-13）</h3>
+      <ul>
+        <li><strong>环境感知</strong>：分析壁纸、小组件与环境光，自动提取配色；强调色、字体、图标轮廓动态调对比。</li>
+        <li><strong>按内容调透明度</strong>：玻璃根据当前内容属性自动改通透度——质感与可读性并举，这是它对 Apple 最明确的修正。</li>
+        <li><strong>光感交互</strong>：感知用户操作，按控制中心图标有真实光影反馈；灵动光效随操作走。</li>
+        <li><strong>通透 / 柔和双模式</strong>：前者强调透明与折射，后者偏磨砂，全局可切。</li>
+        <li><strong>2.5D 图标</strong>：从扁平转成带微妙边缘高光的「精致实体薄片」；状态栏图标线条加粗。</li>
+        <li><strong>边缘柔化</strong>：所有系统控件边缘精细柔化，图层关系与动态层次更细腻。</li>
+        <li><strong>落点</strong>：锁屏时钟、系统控件、弹窗通知、控制中心——都是控制层，不是内容层。</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card">
+      <div class="tag take"><i class="ph ph-check-circle"></i>借进来</div>
+      <ul>
+        <li><strong>三层光学模型</strong>与折射——Frost 目前的玻璃只有「模糊 + 白底 + 顶部一条高光」，没有棱、没有照明。</li>
+        <li><strong>玻璃只做控制层 / 不叠玻璃 / 同心圆角 / scroll edge</strong>——这四条与 Frost「深度代替描边」天然同源。</li>
+        <li><strong>环境感知 + 按内容调透明度</strong>（澎湃）——Web 上可以用取样实现，比 Apple 的"全靠系统"更适合我们自己掌控。</li>
+        <li><strong>通透 / 柔和双模式</strong>（澎湃）——直接对应 <code>prefers-reduced-transparency</code> 与一个用户设置。</li>
+        <li><strong>光感交互</strong>——高光随指针、按下照明增强，取代目前「按下缩 3%」这一种反馈。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="tag leave"><i class="ph ph-prohibit"></i>不借</div>
+      <ul>
+        <li><strong>Clear 变体</strong>——它的前提是照片/地图背景，Prose 背后是标书和矩阵卡，没有这种场景。</li>
+        <li><strong>随设备运动的镜面高光</strong>——桌面没有陀螺仪；指针就是我们的「光源」。</li>
+        <li><strong>壁纸驱动的全局配色</strong>（澎湃）——Frost 只有一种强调色，这条不动。</li>
+        <li><strong>2.5D 图标全面化</strong>——Phosphor regular 线性图标不动；只给 Bot 与 app icon 加薄片棱光。</li>
+        <li><strong>随处可见的玻璃</strong>——矩阵卡、文档纸面、Composer、抽屉条目列表永远实底。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ 诊断 -->
+<section id="diag">
+  <div class="kicker">02 · 诊断</div>
+  <h2>Frost 1 的玻璃缺三样：光、环境、行为</h2>
+  <p class="lead">产线里已经有一块真正会折光的玻璃（消息窗与智能体看板，本地移植的 <code>LiquidGlass</code>），但它是孤岛：没进 token 体系，其余十几处玻璃还是 Frost 1 的毛玻璃；而且 <code>/workspace</code> 的底色几乎无色——玻璃背后没有东西，折射与不折射看不出差别。下面同一块凝玻璃放在三种背景上：</p>
+  <div class="cmp3">
+    <div class="stage" data-wp="prod">
+      <div class="stage-label">产线现状 · 近白底</div>
+      <div class="paper"><h5>第三章 技术需求</h5><div class="ln"></div><div class="ln s"></div><div class="ln"></div></div>
+      <div class="blob"></div>
+      <div class="glass lens" data-thick="regular"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>凝玻璃 · 常</h4><p class="sub">背后无物，折射无从谈起</p></div><span class="g-rim"></span></div>
+    </div>
+    <div class="stage" data-wp="v1">
+      <div class="stage-label">品牌板壁纸 v1 · 极光</div>
+      <div class="paper"><h5>第三章 技术需求</h5><div class="ln"></div><div class="ln s"></div><div class="ln"></div></div>
+      <div class="blob"></div>
+      <div class="glass lens" data-thick="regular"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>凝玻璃 · 常</h4><p class="sub">有东西可折，但太响，压不住内容</p></div><span class="g-rim"></span></div>
+    </div>
+    <div class="stage" data-wp="v2">
+      <div class="stage-label">提案壁纸 v2 · 低频冷蓝</div>
+      <div class="paper"><h5>第三章 技术需求</h5><div class="ln"></div><div class="ln s"></div><div class="ln"></div></div>
+      <div class="blob"></div>
+      <div class="glass lens" data-thick="regular"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>凝玻璃 · 常</h4><p class="sub">以浅为主，一角沉深蓝；卡片仍是最亮的</p></div><span class="g-rim"></span></div>
+    </div>
+  </div>
+  <p class="note"><i class="ph ph-info"></i>把鼠标移到玻璃上看照明；把玻璃边缘对着纸片与色块看折射与色散。Safari / Firefox 不支持 <code>backdrop-filter: url()</code>，会退成纯毛玻璃——这与产线 <code>LiquidGlass</code> 的退化路径一致。</p>
+  <div class="grid g3" style="margin-top:22px">
+    <div class="card"><h3>缺光</h3><p class="sub">四档材质只有 <code>--highlight-top</code> 一条 1px 顶光。没有棱（边缘迎光 / 内反射），没有照明（材质内部的亮度分布），没有折射。它是磨砂亚克力，不是玻璃。</p></div>
+    <div class="card"><h3>缺环境</h3><p class="sub">壁纸只存在于品牌板；产线底色是近白渐变 + 点阵。玻璃不知道背后是深是浅，文字色写死，落到深色区域就不可读。</p></div>
+    <div class="card"><h3>缺行为</h3><p class="sub">玻璃是静态材质：hover 换底色，按下缩 3%，没有光的响应；消息窗 min→open 是尺寸插值不是合并；工具栏与滚动内容之间还是一条 1px 线。</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ 材质 -->
+<section id="material">
+  <div class="kicker">03 · 材质体系 v2</div>
+  <h2>两种材质 × 三档厚度，五层光学结构</h2>
+  <p class="lead">Frost 1 按「用在哪」分四档（侧栏 / 工具栏 / 浮层 / 模态），靠白度硬分。v2 改成按「是什么」分：<strong>凝</strong>（lens）会折射、有棱光，给需要被看见、被按的控制层；<strong>霜</strong>（soft）是磨砂，给大面积的 chrome。厚度决定模糊半径、折射强度与投影三件事，一起走。</p>
+
+  <h3>光学结构 · 五层各自单独渲染，最右为合成</h3>
+  <div class="layers">
+    <div><div class="stage"><div class="paper"><h5>3.2 性能</h5><div class="ln"></div><div class="ln s"></div></div><div class="blob"></div><div class="sw sw-shadow"></div></div><div class="cap">⑤ 投影<small>环境影 + 中层影 + 近影 + 全向晕 + .5px 接触环</small></div></div>
+    <div><div class="stage"><div class="paper"><h5>3.2 性能</h5><div class="ln"></div><div class="ln s"></div></div><div class="blob"></div><div class="sw sw-warp sw-outline"></div></div><div class="cap">① 底色 + 折射<small>tint 6% · backdrop-filter: url(#lens)</small></div></div>
+    <div><div class="stage"><div class="paper"><h5>3.2 性能</h5><div class="ln"></div><div class="ln s"></div></div><div class="blob"></div><div class="sw sw-illum sw-outline"></div></div><div class="cap">② 照明<small>固定顶光 28% + 指针镜面高光 34%</small></div></div>
+    <div><div class="stage"><div class="paper"><h5>3.2 性能</h5><div class="ln"></div><div class="ln s"></div></div><div class="blob"></div><div class="sw sw-body sw-outline">项目概要</div></div><div class="cap">③ 内容<small>文字与控件，Frost 原色</small></div></div>
+    <div><div class="stage"><div class="paper"><h5>3.2 性能</h5><div class="ln"></div><div class="ln s"></div></div><div class="blob"></div><div class="sw sw-rim"></div></div><div class="cap">④ 棱光<small>1.5px 环，135° 两端亮中段暗 + .5px 内线</small></div></div>
+    <div><div class="stage"><div class="paper"><h5>3.2 性能</h5><div class="ln"></div><div class="ln s"></div></div><div class="blob"></div><div class="glass lens sw" data-thick="regular" style="--r:16px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body" style="display:grid;place-items:center;height:100%;font-size:12px;font-weight:600">项目概要</div><span class="g-rim"></span></div></div><div class="cap">合成 · 凝 · 常<small>五层叠加，悬停看照明</small></div></div>
+  </div>
+
+  <h3 style="margin-top:28px">材质矩阵</h3>
+  <div class="stage matrix">
+    <div class="paper"><h5>3.2 性能要求</h5><div class="ln"></div><div class="ln s"></div><div class="ln"></div><div class="ln s"></div></div>
+    <div class="blob"></div><div class="blob2"></div>
+    <div></div><div class="hd">薄 thin · 芯片 / 药丸</div><div class="hd">常 regular · 浮层 / 菜单</div><div class="hd">厚 thick · 面板 / 窗</div>
+    <div class="rh"><b>凝 · lens</b><span>折射 + 棱光 + 照明<br>控制层：消息窗、看板、活动条、快捷指令、菜单、toast</span></div>
+    <div class="glass lens" data-thick="thin" style="--r:14px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>凝 · 薄</h4><code class="mono">blur 10 · lens 34<br>shadow thin</code></div><span class="g-rim"></span></div>
+    <div class="glass lens" data-thick="regular" style="--r:16px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>凝 · 常</h4><code class="mono">blur 16 · lens 56<br>shadow regular</code></div><span class="g-rim"></span></div>
+    <div class="glass lens" data-thick="thick" style="--r:20px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>凝 · 厚</h4><code class="mono">blur 24 · lens 84<br>shadow thick</code></div><span class="g-rim"></span></div>
+    <div class="rh"><b>霜 · soft</b><span>磨砂 + hairline<br>chrome：顶栏、侧栏、抽屉面、sheet、遮罩</span></div>
+    <div class="glass soft" data-thick="thin" style="--r:14px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>霜 · 薄</h4><code class="mono">blur 30 · tint 60%<br>shadow thin</code></div><span class="g-rim"></span></div>
+    <div class="glass soft" data-thick="regular" style="--r:16px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>霜 · 常</h4><code class="mono">blur 30 · tint 60%<br>shadow regular</code></div><span class="g-rim"></span></div>
+    <div class="glass soft" data-thick="thick" style="--r:20px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body spec"><h4>霜 · 厚</h4><code class="mono">blur 30 · tint 60%<br>shadow thick</code></div><span class="g-rim"></span></div>
+  </div>
+
+  <h3 style="margin-top:28px">落点：每个面用哪种</h3>
+  <table>
+    <thead><tr><th>面</th><th>Frost 1</th><th>Frost 2</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>顶栏 · 活动栏 · 侧栏</td><td><span class="mono">toolbar / sidebar 毛玻璃</span></td><td>霜 · 厚</td><td>大面积、常驻、承载导航文字——可读性第一，不折射（一屏折射面有上限）。</td></tr>
+      <tr><td>画布工具栏 · artifact-header</td><td><span class="mono">toolbar 毛玻璃 + 1px 底线</span></td><td>霜 · 常 + scroll edge</td><td>去掉那条线，内容滑到玻璃下面去。</td></tr>
+      <tr><td>Prose Bot 消息窗（open）· 智能体看板</td><td><span class="mono">LiquidGlass（孤岛）</span></td><td>凝 · 厚</td><td>已是折射玻璃；纳入 token，投影五段与棱光沿用现值。</td></tr>
+      <tr><td>活动条 · 快捷指令 · dock chip · 视口提示</td><td><span class="mono">rgba(255,255,255,.78) + blur 20</span></td><td>凝 · 薄（药丸）</td><td>「只报状态、做快捷入口」的地方本来就走玻璃；升成凝，光感交互落在这里最划算。</td></tr>
+      <tr><td>菜单 · popover · toast · tooltip</td><td><span class="mono">popover 毛玻璃</span></td><td>凝 · 常</td><td>短暂出现、需要被看见。浮在霜玻璃顶栏上时取样不到下层玻璃 → 自动加重底色（见规则 2）。</td></tr>
+      <tr><td>抽屉面 · 溯源预览遮罩 · sheet</td><td><span class="mono">rgba(255,255,255,.92) / scrim</span></td><td>霜 · 厚</td><td>面积大、内容密、要读几十条条目。</td></tr>
+      <tr><td>矩阵卡 · 文档纸面 · Composer · 条目列表</td><td>实底</td><td><strong>实底，永远</strong></td><td>内容层不施玻璃。消息窗「执行流落在玻璃上」的例外已备案，维持不扩散。</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:28px">规则（新增于非协商项之后）</h3>
+  <div class="grid g2">
+    <div class="card"><ul>
+      <li><strong>1 · 玻璃只做控制层。</strong>内容永远实底；凝玻璃里能打字的地方仍是实底（Composer）。</li>
+      <li><strong>2 · 玻璃不叠玻璃。</strong>浮在玻璃上的浮层取样不到下层玻璃，会塌成透明板——凝·常落在霜·厚之上时底色自动加重到 <code>tint-soft</code>；相邻玻璃药丸共用一个容器，靠近即合并。</li>
+      <li><strong>3 · 一屏至多三面凝玻璃。</strong>SVG 位移滤镜按像素计费，大面积一律霜；超出配额的凝按厚→薄顺序降级为霜。</li>
+      <li><strong>4 · 转场期一律霜。</strong>尺寸逐帧变化时位移滤镜逐帧重跑，沿用 <code>--lg-plain</code> 机制，到位后再换回凝。</li>
+    </ul></div>
+    <div class="card"><ul>
+      <li><strong>5 · 光是白的。</strong>棱光、照明、镜面高光只用白与环境色；蓝仍只归可交互与进行中。运行中的光束是唯一例外（它本来就是「进行中」）。</li>
+      <li><strong>6 · 同心圆角。</strong>内圆角 = 外圆角 − 内边距。凝·厚面板 20 / 内边距 8 → 内控件 12；药丸一律 999。</li>
+      <li><strong>7 · 可读性底线。</strong>玻璃上文字对比 ≥ 4.5:1；环境感知翻转文字色；<code>prefers-reduced-transparency</code> 与用户「柔和」设置 → 全站霜。</li>
+      <li><strong>8 · 不新增循环动效。</strong>高光随指针（事件驱动）、按下 120ms 照明增强、合并 320ms 标准曲线；减少动态时高光跟随关闭。</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ================================================================ 光 -->
+<section id="light">
+  <div class="kicker">04 · 光即状态</div>
+  <h2>把指针当光源</h2>
+  <p class="lead">Apple 的镜面高光随设备运动，桌面上没有陀螺仪——但有指针。悬停时镜面高光从指针方向照进玻璃，按下时照明增强 120ms 后回落，说的是「这是一块能按的东西」；配合现有的 <code>scale(.97)</code>，反馈从一维（缩）变成二维（缩 + 亮）。运行中的边框光束保留，它是 Frost 里唯一的循环，也是唯一允许带蓝的光。</p>
+  <div class="stage lightlab">
+    <div class="paper"><h5>2.1 资格要求</h5><div class="ln"></div><div class="ln s"></div><div class="ln"></div></div>
+    <div class="blob"></div>
+    <div class="glass lens pill" data-thick="thin"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><i class="ph ph-sparkle"></i>解析技术需求</div><span class="g-rim"></span></div>
+    <div class="glass lens pill" data-thick="thin"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><i class="ph ph-tree-structure"></i>生成投标大纲</div><span class="g-rim"></span></div>
+    <div class="glass lens iconbtn" data-thick="thin"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><i class="ph ph-magnifying-glass"></i></div><span class="g-rim"></span></div>
+    <div class="glass lens iconbtn" data-thick="thin"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><i class="ph ph-sidebar-simple"></i></div><span class="g-rim"></span></div>
+    <div class="glass lens pill" data-thick="thin" style="width:300px"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body" style="width:100%"><span class="dot blue"></span><span style="font-weight:500;color:var(--label-2)">正在提交矩阵条目 · 技术应答 · 4 次调用</span></div><span class="g-rim"></span><span class="beam"></span></div>
+  </div>
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card"><h3>悬停 · 镜面高光</h3><p class="sub"><code>radial-gradient</code> 以 <code>--mx/--my</code> 为圆心，脚本在 <code>pointermove</code> 写入；200ms 淡入。只动 opacity，不动 backdrop 层。</p></div>
+    <div class="card"><h3>按下 · 照明增强</h3><p class="sub">高光 <code>brightness(1.35)</code> + 壳 <code>scale(.97)</code>，120ms。澎湃 OS 4 控制中心按图标的那种「真实光影」。</p></div>
+    <div class="card"><h3>运行中 · 光束</h3><p class="sub">沿用产线 conic 光束（stroke / inner / bloom）。它挂在玻璃之外的壳上，不进 backdrop 子树。</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ 环境 -->
+<section id="ambient">
+  <div class="kicker">05 · 环境即上下文</div>
+  <h2>玻璃知道自己压在什么上面</h2>
+  <p class="lead">澎湃 OS 4 的「感知环境颜色」在 Web 上可以用取样做：把壁纸渐变离屏画一遍，按玻璃元素的位置读平均亮度，低于阈值即翻转文字色、收敛棱光、把底色从白雾改成暗雾。拖动下面这块玻璃试试——文字色不是按位置写死的，是取样出来的。</p>
+  <div class="stage ambient" id="ambient">
+    <div class="glass lens probe" data-thick="regular" id="probe"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><h4>项目概要</h4><p class="sub">投标截止还剩 <b>11</b> 天 · 预算 270 万</p><div class="lum">luminance —</div></div><span class="g-rim"></span></div>
+    <div class="hint">拖动玻璃 · 当前判定：<b id="toneLabel">浅色背景</b></div>
+  </div>
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card"><h3>取样而非猜测</h3><p class="sub">壁纸是 CSS 渐变，可在 canvas 上等比复现；元素移动或壁纸切换时重取样一次（rAF 合帧），成本可忽略。</p></div>
+    <div class="card"><h3>只翻文字与棱光</h3><p class="sub">深色背景上：文字 → <code>#f5f5f7</code>，二级 72%；棱光降到 55%；底色 → 暗雾 14%。强调蓝不变（深色下用 <code>#409cff</code>）。</p></div>
+    <div class="card"><h3>大面积不翻</h3><p class="sub">照 Apple：小元素（药丸、菜单）可以翻，大面板（消息窗、抽屉）只调不翻——翻转会让整块面跳。</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ 形态 -->
+<section id="form">
+  <div class="kicker">06 · 形态与行为</div>
+  <h2>合并、同心、滑到玻璃下面去</h2>
+  <p class="lead">三条行为规则，都是 Frost 1 里已有交互的升级，不新增交互模式。</p>
+  <div class="grid g2">
+    <div>
+      <h3>合并 · 药丸长成面板</h3>
+      <div class="stage morphlab">
+        <div class="paper"><h5>5.1 评分办法</h5><div class="ln"></div><div class="ln s"></div><div class="ln"></div></div>
+        <div class="blob"></div>
+        <div class="glass lens morph" data-thick="regular" data-open="0" id="morph"><span class="g-warp"></span><span class="g-illum"></span>
+          <div class="g-body">
+            <div class="head"><span class="bot"></span><span class="say">已提取 128 条技术需求，正在归类</span></div>
+            <div class="rows">
+              <div><i class="ph ph-check ok"></i>已读取招标文件第三章</div>
+              <div><i class="ph ph-check ok"></i>已提取技术需求 128 条</div>
+              <div><i class="ph ph-circle-notch"></i>正在按功能 / 性能 / 接口 / 安全归档</div>
+              <div><i class="ph ph-clock"></i>待生成技术偏差表</div>
+            </div>
+          </div><span class="g-rim"></span></div>
+      </div>
+      <p class="note"><i class="ph ph-cursor-click"></i>点击药丸。Bot 是锚点，坐标两档一致；转场期玻璃自动降级为霜（<code>data-tweening</code>），到位后再折射——这就是产线 <code>--lg-plain</code> 的机制，只是升成规则。</p>
+    </div>
+    <div>
+      <h3>同心圆角</h3>
+      <div class="stage concentric" style="background:var(--surface-2)">
+        <div class="cc-outer"><div class="cc-inner">20 − 8 = 12</div><span class="mk" style="left:10px;top:8px">R20</span><span class="mk" style="left:18px;top:26px">R12</span></div>
+        <div class="cc-outer bad"><div class="cc-inner">20 − 8 ≠ 20</div><span class="mk" style="left:10px;top:8px">R20</span><span class="mk" style="left:18px;top:26px">R20</span></div>
+      </div>
+      <p class="note"><i class="ph ph-ruler"></i>Frost 的圆角阶（7 / 9 / 12 / 14 / 18）保留；新增一条推导规则：嵌套时内圆角 = 外圆角 − 内边距，不再各自取阶。凝玻璃面板取 20（棱光需要空间转弯，18 会挤成尖角，产线已验证）。</p>
+    </div>
+  </div>
+  <h3 style="margin-top:28px">scroll edge · 玻璃工具栏与滚动内容的交界</h3>
+  <div class="stage scrolledge" style="background:var(--surface-2)">
+    <div class="win">
+      <div class="bar old"><i class="ph ph-file-text"></i>技术应答矩阵<span class="cap">Frost 1 · 1px 分割线</span></div>
+      <div class="list"><div><span>3.1.1 系统架构采用微服务</span><span>★</span></div><div><span>3.1.2 支持国产化数据库</span><span>★</span></div><div><span>3.2.1 并发用户数 ≥ 5000</span><span></span></div><div><span>3.2.2 响应时间 ≤ 2s</span><span></span></div><div><span>3.3.1 提供 RESTful 接口</span><span></span></div><div><span>3.3.2 支持 OAuth 2.0</span><span>★</span></div><div><span>3.4.1 等保三级</span><span>★</span></div><div><span>3.4.2 数据加密存储</span><span></span></div><div><span>3.5.1 7×24 运维</span><span></span></div><div><span>3.5.2 驻场服务</span><span></span></div></div>
+    </div>
+    <div class="win">
+      <div class="bar new"><i class="ph ph-file-text"></i>技术应答矩阵<span class="cap">Frost 2 · scroll edge</span></div>
+      <div class="list"><div><span>3.1.1 系统架构采用微服务</span><span>★</span></div><div><span>3.1.2 支持国产化数据库</span><span>★</span></div><div><span>3.2.1 并发用户数 ≥ 5000</span><span></span></div><div><span>3.2.2 响应时间 ≤ 2s</span><span></span></div><div><span>3.3.1 提供 RESTful 接口</span><span></span></div><div><span>3.3.2 支持 OAuth 2.0</span><span>★</span></div><div><span>3.4.1 等保三级</span><span>★</span></div><div><span>3.4.2 数据加密存储</span><span></span></div><div><span>3.5.1 7×24 运维</span><span></span></div><div><span>3.5.2 驻场服务</span><span></span></div></div>
+    </div>
+  </div>
+  <p class="note"><i class="ph ph-arrows-down-up"></i>滚动两个列表。右侧没有那条线：渐进模糊（mask 渐隐的 <code>backdrop-filter</code>）+ 底色渐隐，内容是「滑到玻璃下面去」而不是「被一条线切断」。落点：artifact-header、画布工具栏、抽屉吸顶头、溯源预览标题栏。</p>
+</section>
+
+<!-- ================================================================ 工作台 -->
+<section id="workspace">
+  <div class="kicker">07 · 工作台</div>
+  <h2>落到 /workspace 上</h2>
+  <div class="ws-ctl">
+    <p class="sub">同一布局、同一内容，只换材质与壁纸。矩阵卡、Composer、抽屉条目在两版里都是实底。</p>
+    <div class="seg" id="wsSeg"><button aria-pressed="true" data-v="1">Frost 1 · 现状</button><button data-v="2">Frost 2 · 凝光</button></div>
+  </div>
+  <div class="ws-wrap"><div class="ws" id="ws" data-v="1">
+    <div class="dots"></div>
+    <div class="top"><span class="mk"></span>Prose<span class="crumb">/ 某市政务云平台建设项目 · 招标文件</span><span class="sp"></span><span class="st"><span class="dot green"></span>已完成</span></div>
+    <div class="rail"><i class="ph ph-squares-four on"></i><i class="ph ph-files"></i><i class="ph ph-identification-card"></i><i class="ph ph-buildings"></i><i class="ph ph-clock-counter-clockwise"></i></div>
+
+    <!-- 停靠列：四张实底卡 -->
+    <div class="mcard" style="left:72px;top:70px"><div class="t">项目概要</div><div class="n">11<small>天后截止</small></div><div class="bar" style="background:linear-gradient(90deg,#55555e 0 62%,#e2e2e7 62%)"></div><div class="sig"><span class="dot"></span>预算 270 万 · 公开招标</div></div>
+    <div class="mcard" style="left:72px;top:200px"><div class="t">商务应答矩阵</div><div class="n">42<small>条要求</small></div><div class="bar"></div><div class="sig"><span class="dot orange"></span><b>6</b> 条实质性条款</div></div>
+    <div class="mcard" style="left:72px;top:330px"><div class="t">技术应答矩阵</div><div class="n">128<small>条要求</small></div><div class="bar"></div><div class="sig"><span class="dot orange"></span><b>19</b> 条实质性 · <b>4</b> 条高风险</div></div>
+    <div class="mcard" style="left:72px;top:460px"><div class="t">评分办法</div><div class="n">100<small>分</small></div><div class="bar" style="background:linear-gradient(90deg,#55555e 0 60%,#8e8e98 60% 85%,#c5c5cc 85%)"></div><div class="sig"><span class="dot"></span>技术 60 · 商务 25 · 价格 15</div></div>
+
+    <!-- 消息窗 -->
+    <div class="msg v1 only-v1">
+      <div class="head"><span class="bot"></span><div class="say">已生成四份应答矩阵<small>全部槽位到达终态 · 用时 3 分 12 秒</small></div></div>
+      <div class="lines">
+        <div class="line"><i class="ph ph-check ok"></i>已读取招标文件（412 KB，6 章）</div>
+        <div class="line"><i class="ph ph-check ok"></i>已提取技术需求 128 条，归入四类</div>
+        <div class="line"><i class="ph ph-check ok"></i>已标记实质性条款 25 条</div>
+        <div class="line"><i class="ph ph-check ok"></i>已提交矩阵条目 · 商务 / 技术 / 评分</div>
+      </div>
+    </div>
+    <div class="glass lens msg v2 only-v2" data-thick="thick"><span class="g-warp"></span><span class="g-illum"></span>
+      <div class="g-body">
+        <div class="head"><span class="bot"></span><div class="say">已生成四份应答矩阵<small>全部槽位到达终态 · 用时 3 分 12 秒</small></div></div>
+        <div class="lines">
+          <div class="line"><i class="ph ph-check ok"></i>已读取招标文件（412 KB，6 章）</div>
+          <div class="line"><i class="ph ph-check ok"></i>已提取技术需求 128 条，归入四类</div>
+          <div class="line"><i class="ph ph-check ok"></i>已标记实质性条款 25 条</div>
+          <div class="line"><i class="ph ph-check ok"></i>已提交矩阵条目 · 商务 / 技术 / 评分</div>
+        </div>
+      </div><span class="g-rim"></span></div>
+
+    <!-- 输入坞 -->
+    <div class="dock">
+      <div class="chips only-v1"><span class="chip v1"><i class="ph ph-sparkle"></i>生成投标大纲</span><span class="chip v1"><i class="ph ph-table"></i>技术偏差表</span><span class="chip v1"><i class="ph ph-identification-card"></i>匹配资质证照</span></div>
+      <div class="chips only-v2">
+        <div class="glass lens chip v2" data-thick="thin"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><i class="ph ph-sparkle"></i>生成投标大纲</div><span class="g-rim"></span></div>
+        <div class="glass lens chip v2" data-thick="thin"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><i class="ph ph-table"></i>技术偏差表</div><span class="g-rim"></span></div>
+        <div class="glass lens chip v2" data-thick="thin"><span class="g-warp"></span><span class="g-illum"></span><div class="g-body"><i class="ph ph-identification-card"></i>匹配资质证照</div><span class="g-rim"></span></div>
+      </div>
+      <div class="comp"><div class="phold">向 Prose 下达指令，或拖入招标文件…</div><div class="row"><span>⌘ ↵ 发送</span><span class="send"><i class="ph ph-paper-plane-tilt"></i></span></div></div>
+    </div>
+
+    <!-- 抽屉 -->
+    <div class="drawer v1 only-v1"><div class="dh">技术应答矩阵</div><div class="ds">128 条 · 实质性 19 · 高风险 4</div>
+      <div class="it"><span class="no">3.1.1</span><span><span class="star">★</span> 系统架构采用微服务，支持容器化部署</span></div>
+      <div class="it"><span class="no">3.1.2</span><span><span class="star">★</span> 数据库支持国产化替代</span></div>
+      <div class="it"><span class="no">3.2.1</span><span>并发用户数不低于 5000</span></div>
+      <div class="it"><span class="no">3.2.2</span><span>页面响应时间不超过 2 秒</span></div>
+      <div class="it"><span class="no">3.3.1</span><span>提供标准 RESTful 接口</span></div>
+    </div>
+    <div class="glass soft drawer v2 only-v2" data-thick="thick"><span class="g-warp"></span><span class="g-illum"></span>
+      <div class="g-body"><div class="dh">技术应答矩阵</div><div class="ds">128 条 · 实质性 19 · 高风险 4</div>
+        <div class="it"><span class="no">3.1.1</span><span><span class="star">★</span> 系统架构采用微服务，支持容器化部署</span></div>
+        <div class="it"><span class="no">3.1.2</span><span><span class="star">★</span> 数据库支持国产化替代</span></div>
+        <div class="it"><span class="no">3.2.1</span><span>并发用户数不低于 5000</span></div>
+        <div class="it"><span class="no">3.2.2</span><span>页面响应时间不超过 2 秒</span></div>
+        <div class="it"><span class="no">3.3.1</span><span>提供标准 RESTful 接口</span></div>
+      </div><span class="g-rim"></span></div>
+  </div></div>
+  <div class="grid g4" style="margin-top:18px">
+    <div class="card"><h3>壁纸</h3><p class="sub">近白底 → 低频冷蓝 v2；点阵网格保留但降到 45%。卡片因此成了画布上最亮的东西。</p></div>
+    <div class="card"><h3>顶栏 / 活动栏 / 抽屉</h3><p class="sub">毛玻璃 + 1px 线 → 霜·厚，边界改由 .5px 接触环与顶部内高光承担。</p></div>
+    <div class="card"><h3>消息窗 / 快捷指令</h3><p class="sub">消息窗保持凝·厚；快捷指令由 78% 白底方块升成凝·薄药丸，高光跟指针。</p></div>
+    <div class="card"><h3>不动的</h3><p class="sub">四张矩阵卡、Composer、抽屉条目、Bot 锚点、蓝的用法、字体、图标——全部原样。</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ Tokens -->
+<section id="tokens">
+  <div class="kicker">08 · Tokens</div>
+  <h2>新增 token 草案</h2>
+  <p class="lead">进 <code>tokens/materials.css</code>，Frost 1 的四档 <code>--mat-*</code> 保留一个版本作为迁移别名后删除。所有值与本页样本一致。</p>
+<pre><span class="c">/* ---- 材质 v2：两种材质 × 三档厚度 ---- */</span>
+<b>--glass-tint-lens</b>:     rgba(255,255,255,.06);   <span class="c">/* 凝：几乎不铺底，通透靠折射 */</span>
+<b>--glass-tint-soft</b>:     rgba(247,249,253,.60);   <span class="c">/* 霜：偏冷 2-3 点，白玻璃压冷灰不发黄 */</span>
+<b>--glass-sat</b>:           150%;
+
+<b>--glass-blur-thin</b>:     10px;  <b>--glass-lens-thin</b>:    34;   <span class="c">/* 芯片 / 药丸 */</span>
+<b>--glass-blur-regular</b>:  16px;  <b>--glass-lens-regular</b>: 56;   <span class="c">/* 浮层 / 菜单 */</span>
+<b>--glass-blur-thick</b>:    24px;  <b>--glass-lens-thick</b>:   84;   <span class="c">/* 面板 / 窗 */</span>
+<b>--glass-blur-soft</b>:     30px;                             <span class="c">/* 霜恒定 */</span>
+
+<span class="c">/* ---- 光学分层 ---- */</span>
+<b>--glass-rim</b>:           linear-gradient(135deg, #fff 95% → 72% → 16% → 10% → 42% → 90%);
+<b>--glass-rim-inner</b>:     0 0 0 .5px rgba(255,255,255,.55) inset;
+<b>--glass-illum-static</b>:  linear-gradient(180deg, rgba(255,255,255,.28), transparent 42%);
+<b>--glass-illum-spot</b>:    rgba(255,255,255,.34);   <span class="c">/* 指针镜面高光 */</span>
+
+<b>--glass-shadow-thin</b>:    0 6px 16px … , 0 0 0 .5px rgba(16,24,40,.16);
+<b>--glass-shadow-regular</b>: 0 18px 44px … , 0 0 14px … , 0 0 0 .5px rgba(16,24,40,.18);
+<b>--glass-shadow-thick</b>:   0 32px 72px … , 0 0 20px … , 0 0 0 .5px rgba(16,24,40,.20);
+
+<span class="c">/* ---- 环境 ---- */</span>
+<b>--wallpaper-v2</b>:        radial × 4 + linear(160deg, #eef3fa → #d9e6f6 → #9dbfe6);
+<b>--glass-label-on-dark</b>: #f5f5f7;   <b>--glass-label2-on-dark</b>: rgba(245,245,247,.72);
+
+<span class="c">/* ---- 模式开关 ---- */</span>
+html[<b>data-glass</b>="clear" | "soft"]      <span class="c">/* 用户设置；reduced-transparency 强制 soft */</span>
+html[<b>data-spot</b>="1" | "0"]             <span class="c">/* 指针高光；reduced-motion 强制 0 */</span>
+.glass[<b>data-tone</b>="light" | "dark"]    <span class="c">/* 取样写入，元素级 */</span>
+.glass[<b>data-thick</b>="thin|regular|thick"]
+
+<span class="c">/* ---- 组件（React）---- */</span>
+&lt;Glass material="lens" | "soft" thickness="thin" | "regular" | "thick" radius={20} interactive ambient&gt;
+  <span class="c">/* 结构固定：g-warp → g-illum → g-body → g-rim；LiquidGlass 收编为 material="lens" 的实现 */</span>
+&lt;/Glass&gt;</pre>
+</section>
+
+<!-- ================================================================ 路线 -->
+<section id="roadmap">
+  <div class="kicker">09 · 落地路线</div>
+  <h2>三步，每步可独立合入</h2>
+  <div class="phase">
+    <div class="p">P0<small>地基 · 1 周</small></div>
+    <ul>
+      <li><b>token 进 skill</b>：<code>tokens/materials.css</code> 加 v2 token，<code>guidelines/materials-glass.card.html</code> 换成材质矩阵；readme「Material」一段改写为两种材质 × 三档。</li>
+      <li><b>壁纸 v2 上画布</b>：<code>/workspace</code> body 底换 <code>--wallpaper-v2</code>，点阵降 45%。这一步单独就能让现有 LiquidGlass 从「看不出」变成「看得出」。</li>
+      <li><b>LiquidGlass 收编为 <code>&lt;Glass material="lens"&gt;</code></b>：位移滤镜三档共用一张贴图；rim / illum / shadow 改读 token；保留全部 backdrop-root 硬约束注释。</li>
+      <li><b>双模式开关</b>：<code>data-glass</code> 挂 html，reduced-transparency 自动 soft；先不做设置页，用 localStorage。</li>
+    </ul>
+    <div class="p">P1<small>控制层 · 2 周</small></div>
+    <ul>
+      <li><b>凝·薄</b>：活动条、快捷指令、dock chip、视口提示 → 药丸 + 指针高光 + 按下照明。</li>
+      <li><b>凝·常</b>：菜单、popover、toast、tooltip；实现规则 2（浮在霜上自动加重底色）。</li>
+      <li><b>霜·厚</b>：顶栏、活动栏、抽屉面、溯源预览遮罩——去掉 1px 边线，改接触环 + 顶部内高光。</li>
+      <li><b>scroll edge</b>：artifact-header、画布工具栏、抽屉吸顶头、溯源标题栏。</li>
+      <li><b>同心圆角</b>审一遍：消息窗 20 → 内 12；抽屉 0 → 内卡 14 不变。</li>
+    </ul>
+    <div class="p">P2<small>行为 · 2 周</small></div>
+    <ul>
+      <li><b>环境感知</b>：壁纸离屏取样，先只给凝·薄与凝·常（小元素可翻）；消息窗与抽屉只调不翻。</li>
+      <li><b>合并</b>：活动条 ↔ 消息窗 open 的转场改成同一块玻璃长大（现在是两个元素交接）；转场期霜化沿用。</li>
+      <li><b>Bot 与 app icon 薄片棱光</b>：借澎湃 2.5D 的边缘高光，只落在这两处。</li>
+      <li><b>设置项</b>：外观 / 玻璃模式 / 指针高光三个开关进用户设置。</li>
+    </ul>
+  </div>
+  <hr>
+  <div class="grid g3">
+    <div class="card"><h3>性能护栏</h3><ul><li>一屏 ≤ 3 面凝玻璃，超出降霜</li><li>转场期霜化（<code>data-tweening</code>）</li><li>取样 rAF 合帧，元素静止不取</li><li>backdrop 子树禁 <code>mix-blend</code> / opacity 动画 / <code>isolation</code></li></ul></div>
+    <div class="card"><h3>可读性护栏</h3><ul><li>玻璃上正文对比 ≥ 4.5:1，用 v2 壁纸的最深角实测</li><li>reduced-transparency → 全站霜 + 实底回退</li><li>increased-contrast → 棱光换成 1px 实线</li><li>深色不是翻转：大面板只调不翻</li></ul></div>
+    <div class="card"><h3>浏览器</h3><ul><li>Chromium：完整（折射 + 色散）</li><li>Safari / Firefox：无位移，退成霜；棱光与照明仍在，所以仍比 Frost 1 有光</li><li>无 backdrop-filter：实底 + 投影</li></ul></div>
+  </div>
+</section>
+
+<!-- ================================================================ 来源 -->
+<section>
+  <div class="kicker">来源</div>
+  <ul class="src">
+    <li><a href="https://www.apple.com/newsroom/2025/06/apple-introduces-a-delightful-and-elegant-new-software-design/">Apple Newsroom · Apple introduces a delightful and elegant new software design（2025-06）</a></li>
+    <li><a href="https://github.com/conorluddy/LiquidGlassReference">LiquidGlassReference · iOS 26 Liquid Glass 设计与 API 参考（Regular / Clear、容器、同心圆角、无障碍）</a></li>
+    <li><a href="https://css-tricks.com/getting-clarity-on-apples-liquid-glass/">CSS-Tricks · Getting Clarity on Apple's Liquid Glass（三层模型、可读性争议、beta 加厚）</a></li>
+    <li><a href="https://blog.logrocket.com/how-create-liquid-glass-effects-css-and-svg/">LogRocket · How to create Liquid Glass effects with CSS and SVG</a></li>
+    <li><a href="https://www.chinaz.com/2026/0813/1770769.shtml">站长之家 · 小米澎湃OS 4全新设计揭秘：柔光玻璃登场，可感知环境颜色（2026-08-13）</a></li>
+    <li><a href="https://finance.sina.com.cn/tech/roll/2026-08-13/doc-ininctay0148814.shtml">新浪科技 · 澎湃OS 4 柔光玻璃、通透 / 柔和双模式、2.5D 图标</a></li>
+    <li><a href="https://news.mydrivers.com/1/1143/1143779.htm">快科技 · 澎湃OS 4 抢先上手：柔光玻璃与光感交互</a></li>
+    <li><a href="https://www.gsmarena.com/xiaomi_unveils_hyperos_4_with_a_new_glass_look_ui_customizations_and_more_ai-news-74161.php">GSMArena · Xiaomi unveils HyperOS 4 with a new glass look</a></li>
+    <li><a href="https://www.gizmochina.com/2025/06/30/hyperos-3-leak-xiaomi-brings-liquid-glass-design-to-android/">Gizmochina · HyperOS 3 液态玻璃（前作，2025-06）</a></li>
+    <li>仓库内：<code>frontend/app/workspace/_components/LiquidGlass.tsx</code>、<code>frontend/CONTEXT.md</code>「液态玻璃」条、<code>.design/prototype/prose-bot-window.html</code>、<code>.claude/skills/frost-design/tokens/materials.css</code></li>
+  </ul>
+</section>
+
+</main>
+
+<script>
+(function () {
+  const html = document.documentElement;
+  // Chromium 才走 SVG 位移（backdrop-filter: url()）；其它引擎退成纯模糊。
+  html.dataset.warp = /(Chrome|Chromium|CriOS|Edg)\//.test(navigator.userAgent) ? '1' : '0';
+  html.dataset.spot = '1';
+  if (matchMedia('(prefers-reduced-transparency: reduce)').matches) html.dataset.glass = 'soft';
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) html.dataset.spot = '0';
+
+  // 三档折射滤镜：按模板克隆，改模糊与位移强度
+  const tpl = document.getElementById('lens-regular');
+  const make = (id, blur, scale, ab) => {
+    const f = tpl.cloneNode(true); f.id = id;
+    f.querySelector('feGaussianBlur').setAttribute('stdDeviation', blur);
+    const dm = f.querySelectorAll('feDisplacementMap');
+    dm[0].setAttribute('scale', -scale); dm[1].setAttribute('scale', -scale * ab[0]); dm[2].setAttribute('scale', -scale * ab[1]);
+    tpl.parentNode.appendChild(f);
+  };
+  // 薄玻璃（药丸 / 圆钮）关掉色散：小圆角上色散会读成一圈红边
+  make('lens-thin', 10, 24, [1, 1]); make('lens-thick', 24, 84, [1.1, 1.2]);
+
+  // 顶栏开关
+  document.querySelectorAll('.seg[data-key]').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      html.dataset[seg.dataset.key] = b.dataset.v;
+      if (seg.dataset.key === 'appearance') sample();
+    });
+  });
+
+  // 指针高光：把指针位置写进 --mx/--my（事件驱动，非循环）
+  document.addEventListener('pointermove', e => {
+    const g = e.target.closest('.glass'); if (!g) return;
+    const r = g.getBoundingClientRect();
+    g.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%');
+    g.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%');
+  }, { passive: true });
+
+  // 合并：药丸 ↔ 面板；转场期霜化
+  const morph = document.getElementById('morph');
+  morph.addEventListener('click', () => { morph.dataset.open = morph.dataset.open === '1' ? '0' : '1'; });
+  morph.addEventListener('transitionstart', e => { if (e.propertyName === 'width') morph.dataset.tweening = '1'; });
+  morph.addEventListener('transitionend', e => { if (e.propertyName === 'width') delete morph.dataset.tweening; });
+
+  // 环境感知：把舞台的 CSS 渐变离屏复现，按玻璃中心取平均亮度
+  const stage = document.getElementById('ambient'), probe = document.getElementById('probe');
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 8; const ctx = cv.getContext('2d', { willReadFrequently: true });
+  const stops = { light: [[0, '#f2f6fc'], [.32, '#dbe8f8'], [.58, '#6aa0dc'], [1, '#123c86']],
+                  dark:  [[0, '#dfe8f4'], [.30, '#9fbfe4'], [.58, '#2b4f8a'], [1, '#0b1a35']] };
+  function paint() {
+    const g = ctx.createLinearGradient(0, 0, 256, 0);
+    stops[html.dataset.appearance === 'dark' ? 'dark' : 'light'].forEach(([o, c]) => g.addColorStop(o, c));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 8);
+  }
+  function sample() {
+    paint();
+    const sr = stage.getBoundingClientRect(), pr = probe.getBoundingClientRect();
+    if (!sr.width || !pr.width) return;
+    const x0 = Math.max(0, (pr.left - sr.left) / sr.width), x1 = Math.min(1, (pr.right - sr.left) / sr.width);
+    const d = ctx.getImageData(Math.floor(x0 * 255), 4, Math.max(1, Math.floor((x1 - x0) * 255)), 1).data;
+    let L = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) { L += (.2126 * d[i] + .7152 * d[i + 1] + .0722 * d[i + 2]) / 255; n++; }
+    L /= n;
+    const dark = L < .5;
+    probe.dataset.tone = dark ? 'dark' : 'light';
+    probe.querySelector('.lum').textContent = 'luminance ' + L.toFixed(2) + ' → ' + (dark ? 'on-dark' : 'on-light');
+    document.getElementById('toneLabel').textContent = dark ? '深色背景 · 文字反相、棱光收敛' : '浅色背景 · Frost 原色';
+  }
+  let drag = null;
+  probe.addEventListener('pointerdown', e => { drag = { x: e.clientX, left: probe.offsetLeft }; probe.setPointerCapture(e.pointerId); });
+  probe.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const max = stage.clientWidth - probe.offsetWidth - 20;
+    probe.style.left = Math.min(max, Math.max(20, drag.left + e.clientX - drag.x)) + 'px';
+    requestAnimationFrame(sample);
+  });
+  probe.addEventListener('pointerup', () => { drag = null; });
+  probe.addEventListener('pointercancel', () => { drag = null; });
+  addEventListener('resize', sample);
+  sample();
+
+  // 工作台 mock：v1 / v2
+  const ws = document.getElementById('ws');
+  const applyWs = v => {
+    ws.dataset.v = v;
+    ws.querySelectorAll('.only-v1').forEach(el => el.style.display = v === '1' ? '' : 'none');
+    ws.querySelectorAll('.only-v2').forEach(el => el.style.display = v === '2' ? '' : 'none');
+  };
+  applyWs('1');
+  document.getElementById('wsSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#wsSeg button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    applyWs(b.dataset.v);
+  });
+})();
+</script>
+</body>
+</html>

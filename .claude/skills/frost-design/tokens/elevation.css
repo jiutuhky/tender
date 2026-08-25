@@ -1,7 +1,9 @@
 /* ===========================================================================
    Frost · Elevation
-   Depth replaces strokes. Three shadow steps carry the entire hierarchy; each
-   pairs a soft drop shadow with a hairline ambient ring (the .5px contact edge).
+   Depth replaces strokes. Three shadow steps carry the entire hierarchy of
+   SOLID surfaces; each pairs a soft drop shadow with a hairline ambient ring
+   (the .5px contact edge). Glass surfaces carry their own five-part stacks —
+   see --glass-shadow-* in materials.css.
    =========================================================================== */
 :root {
   /* Level 1 — controls & resting cards */
@@ -17,7 +19,4 @@
   --elev-3: 0 28px 80px rgba(12, 18, 32, .26),
             0 8px 24px rgba(12, 18, 32, .12),
             0 0 0 .5px rgba(12, 18, 32, .10);
-
-  /* Inset top highlight applied on top of glass / raised fills */
-  --highlight-top: inset 0 1px 0 rgba(255, 255, 255, .55); /* @kind shadow */
 }

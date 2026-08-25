@@ -1,6 +1,6 @@
 # Window
 
-macOS window chrome — glass toolbar with traffic-light dots, title + subtitle, trailing `actions`, 12px corners, floating level-3 shadow. The frame for any full app view; sit it on a `.frost-wallpaper`.
+macOS window chrome — soft-glass (霜) toolbar with traffic-light dots, title + subtitle, trailing `actions`, 12px corners, floating level-3 shadow. The frame for any full app view; sit it on a `.frost-wallpaper`.
 
 ```jsx
 <Window
@@ -16,4 +16,4 @@ macOS window chrome — glass toolbar with traffic-light dots, title + subtitle,
 </Window>
 ```
 
-Set an explicit height on the window; the body fills the rest below the 52px toolbar.
+Set an explicit height on the window; the body fills the rest below the 52px toolbar. The toolbar is embedded chrome (`frost-glass--flush`): no float, no rim, a .5px contact edge where it meets the body — never a 1px divider. Pass `toolbarClassName=""` for a solid toolbar.

@@ -1,8 +1,9 @@
 import React from "react";
 
-/* Frost Window — macOS window chrome. A glass toolbar with traffic-light dots,
-   title + subtitle, and a trailing actions slot; rounded window corners and a
-   level-3 floating shadow. Children render in the body below the toolbar. */
+/* Frost Window — macOS window chrome. A soft-glass (霜) toolbar with
+   traffic-light dots, title + subtitle, and a trailing actions slot; rounded
+   window corners and a level-3 floating shadow. The toolbar meets the body on
+   a .5px contact edge, not a 1px line. Children render in the body below. */
 
 let injected = false;
 function ensureStyles() {
@@ -19,7 +20,7 @@ function ensureStyles() {
 .frost-window__toolbar{
   height:var(--toolbar-h,52px);flex:none;
   display:flex;align-items:center;gap:14px;padding:0 16px;
-  border-bottom:1px solid var(--separator);
+  box-shadow:inset 0 -.5px 0 var(--separator);
 }
 .frost-window__traffic{display:flex;gap:8px;}
 .frost-window__traffic span{width:12px;height:12px;border-radius:50%;display:block;}
@@ -37,7 +38,7 @@ export function Window({
   subtitle,
   actions,
   traffic = true,
-  toolbarClassName = "frost-glass-toolbar",
+  toolbarClassName = "frost-glass frost-glass--soft frost-glass--flush",
   children,
   style,
   ...rest

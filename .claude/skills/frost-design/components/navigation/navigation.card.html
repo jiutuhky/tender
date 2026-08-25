@@ -9,7 +9,7 @@
 <style>
   body { background: var(--canvas); padding: 22px; }
   .stage { background: var(--wallpaper); border-radius: var(--r-panel); padding: 22px; display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; }
-  .sb { width: 220px; padding: 12px 10px; border-radius: var(--r-card); }
+  .sb { width: 220px; padding: 12px 10px; }
 </style>
 </head>
 <body>
@@ -18,12 +18,13 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="../../_ds_bundle.js"></script>
+<script src="../../assets/frost-lens.js"></script>
 <script type="text/babel">
   const { Menu, SidebarItem, SidebarGroup, Badge } = window.FrostDesignSystemProse_5680eb;
   function Demo() {
     return (
       <div className="stage">
-        <aside className="sb frost-glass-sidebar">
+        <aside className="sb frost-glass frost-glass--soft" data-thick="thick">
           <SidebarGroup>项目</SidebarGroup>
           <SidebarItem icon="folder-simple" label="仿真软件开发服务采购" active />
           <SidebarItem icon="folder-simple" label="智慧园区运维服务" />

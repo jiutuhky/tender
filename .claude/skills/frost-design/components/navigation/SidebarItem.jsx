@@ -1,6 +1,6 @@
 import React from "react";
 
-/* Frost SidebarItem — a row in the glass sidebar. Icon + label, optional
+/* Frost SidebarItem — a row in the soft-glass (霜) sidebar. Icon + label, optional
    trailing badge/count; the active row gets the soft-blue backing and a blue
    icon. Use `group` for a section header above a run of items. */
 
