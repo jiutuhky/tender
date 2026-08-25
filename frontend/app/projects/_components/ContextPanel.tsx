@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-
-const stroke = {
-  fill: "none" as const,
-  stroke: "currentColor" as const,
-};
+import {
+  ChatCircleIcon,
+  ClockIcon,
+  EyeIcon,
+  ListDashesIcon,
+  UsersIcon,
+} from "@/components/ui/icons";
 
 /** 视图 / 状态过滤项 —— 单选高亮，纯前端 mockup（迁移自原型 projects.html）。 */
 type FilterItem = {
@@ -17,50 +19,10 @@ type FilterItem = {
 };
 
 const VIEWS: FilterItem[] = [
-  {
-    key: "all",
-    label: "全部在投",
-    count: 12,
-    icon: (
-      <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.4}>
-        <rect x="2.5" y="2.5" width="11" height="3" rx="0.5" />
-        <rect x="2.5" y="6.5" width="11" height="3" rx="0.5" />
-        <rect x="2.5" y="10.5" width="11" height="3" rx="0.5" />
-      </svg>
-    ),
-  },
-  {
-    key: "mine",
-    label: "我负责的",
-    count: 9,
-    icon: (
-      <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.4}>
-        <path d="M2 4l6 4 6-4" />
-        <rect x="2" y="3.5" width="12" height="9" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    key: "week",
-    label: "本周到期",
-    count: 3,
-    icon: (
-      <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.4}>
-        <circle cx="8" cy="8" r="6" />
-        <path d="M8 5v3l2 1.5" />
-      </svg>
-    ),
-  },
-  {
-    key: "review",
-    label: "等我审阅",
-    count: 2,
-    icon: (
-      <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.4}>
-        <path d="M3 8h10M9 4l4 4-4 4" />
-      </svg>
-    ),
-  },
+  { key: "all", label: "全部在投", count: 12, icon: <ListDashesIcon /> },
+  { key: "mine", label: "我负责的", count: 9, icon: <UsersIcon /> },
+  { key: "week", label: "本周到期", count: 3, icon: <ClockIcon /> },
+  { key: "review", label: "等我审阅", count: 2, icon: <EyeIcon /> },
 ];
 
 const STATUSES: FilterItem[] = [
@@ -93,16 +55,17 @@ export function ContextPanel() {
   const [sysOpen, setSysOpen] = useState(false);
 
   return (
-    <aside className="nav-panel">
+    <aside
+      className="nav-panel frost-glass frost-glass--soft frost-glass--flush"
+      data-thick="thick"
+    >
       {/* 计数细目不再重复：视图行右侧已逐项带数，页头 deck 也有同信息 */}
       <h2 className="panel-head">
         工作台 <span className="pct">12 在投</span>
       </h2>
 
       <button className="panel-cta" type="button">
-        <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.6}>
-          <path d="M3 4.5h10v6H8.5L5.5 13v-2.5H3v-6z" />
-        </svg>
+        <ChatCircleIcon />
         <span>新对话</span>
         <span className="kbd">⌘K</span>
       </button>
@@ -187,7 +150,7 @@ export function ContextPanel() {
 
       <p className="nav-side-pin">
         在「
-        <a href="/knowledge" style={{ color: "var(--accent)" }}>
+        <a href="/knowledge" style={{ color: "var(--blue)" }}>
           知识库
         </a>
         」沉淀过的方案章节、技术架构图与人员资质，会自动进入新立项的应答框架。

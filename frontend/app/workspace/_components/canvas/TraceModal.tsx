@@ -6,10 +6,10 @@ import { gsap } from "gsap";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import { prettyLabel } from "@/lib/hagent/naming";
 import type { DocumentRecord } from "@/lib/hagent/documents";
-import { ItemActions, useItemAction } from "./matrixViews";
+import { ItemActions, MandatoryMark, RiskMark, useItemAction } from "./matrixViews";
 import { TracePanel } from "./TracePanel";
 import { useTrace, type TraceClaim } from "./traceContext";
-import { DUR_PANEL, TRACE_EASE_ENTER, prefersReducedMotion } from "./traceMotion";
+import { DUR_FLOAT, DUR_PANEL, TRACE_EASE_ENTER, prefersReducedMotion } from "./traceMotion";
 import { ChevronLeftIcon, ChevronRightIcon, FileIcon, XIcon } from "@/components/ui/icons";
 
 // 溯源预览层:点来源签后盖满画布的阅读层(取代早期「抽屉加宽对照双栏」)。
@@ -48,8 +48,8 @@ function ClaimBar({ claim }: { claim: TraceClaim }) {
     <div className="cv-trace-claim">
       <div className="cv-trace-claim-head">
         <span className="cv-trace-claim-label">核验条目 · {claim.label}</span>
-        {claim.mandatory && <span className="cv-face-badge is-mand">★ 实质性</span>}
-        {claim.highRisk && !claim.mandatory && <span className="cv-face-badge is-risk">高风险</span>}
+        {claim.mandatory && <MandatoryMark full />}
+        {claim.highRisk && !claim.mandatory && <RiskMark />}
         <span className="cv-trace-claim-title">{claim.title}</span>
       </div>
 
@@ -121,7 +121,7 @@ export function TraceModal({
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
-      gsap.from(".cv-trace-modal-scrim", { autoAlpha: 0, duration: 0.18, ease: "power2.out" });
+      gsap.from(".cv-trace-modal-scrim", { autoAlpha: 0, duration: DUR_FLOAT, ease: TRACE_EASE_ENTER });
       gsap.from(".cv-trace-modal-panel", {
         autoAlpha: 0,
         scale: 0.98,
@@ -165,12 +165,9 @@ export function TraceModal({
 
   return (
     <div ref={rootRef} className="cv-trace-modal">
-      {/* 背景模糊内联写:构建期 Lightning CSS 会剥掉样式表里的 backdrop-filter */}
-      <div
-        className="cv-trace-modal-scrim"
-        onPointerDown={onScrimDown}
-        style={{ backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)" }}
-      />
+      {/* 遮罩只做纯色调光:下方是玻璃浮件,scrim 再做 backdrop blur 即「玻璃叠玻璃」。
+          调光色走 CSS 的 token 派生(--label 24%),暗色下随外观换挡。 */}
+      <div className="cv-trace-modal-scrim" onPointerDown={onScrimDown} />
       <div
         className="cv-trace-modal-panel"
         role="dialog"

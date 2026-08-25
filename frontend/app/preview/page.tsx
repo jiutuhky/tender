@@ -1,14 +1,17 @@
 import { AppShell } from "@/components/shell/AppShell";
 import { TopBar } from "@/components/shell/TopBar";
-import { DownloadIcon, ShareIcon } from "@/components/ui/icons";
+import {
+  DownloadIcon,
+  FileTextIcon,
+  GridFourIcon,
+  MagnifyingGlassMinusIcon,
+  MagnifyingGlassPlusIcon,
+  PencilSimpleIcon,
+  ShareIcon,
+} from "@/components/ui/icons";
 import { Outline } from "./_components/Outline";
 import { CoolingDiagram } from "./_components/CoolingDiagram";
 import "./styles.css";
-
-const stroke = {
-  fill: "none" as const,
-  stroke: "currentColor" as const,
-};
 
 export default function PreviewPage() {
   return (
@@ -37,20 +40,14 @@ export default function PreviewPage() {
         <Outline />
 
         <section className="center">
-          <div className="doc-toolbar">
+          <div className="doc-toolbar frost-glass frost-glass--soft frost-scroll-edge" data-thick="regular">
             <div className="zoom-controls">
               <button className="icon-btn" title="缩小" type="button">
-                <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M21 21l-4.35-4.35M8 11h6" />
-                </svg>
+                <MagnifyingGlassMinusIcon />
               </button>
               <span style={{ minWidth: 40, textAlign: "center" }}>100%</span>
               <button className="icon-btn" title="放大" type="button">
-                <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
-                </svg>
+                <MagnifyingGlassPlusIcon />
               </button>
             </div>
 
@@ -58,7 +55,7 @@ export default function PreviewPage() {
               style={{
                 width: 1,
                 height: 20,
-                background: "var(--border)",
+                background: "var(--separator)",
               }}
             />
 
@@ -73,17 +70,14 @@ export default function PreviewPage() {
                 <button type="button">连续</button>
               </div>
               <button className="btn-ghost" type="button">
-                <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18 2l4 4-10 10H8v-4L18 2z" />
-                </svg>
+                <PencilSimpleIcon />
                 请求修改
               </button>
             </div>
           </div>
 
           <div className="pages-viewport centered">
-            {/* Page 42 */}
+            {/* 第 42 页 */}
             <article className="page" id="p42">
               <div className="page-running-head">
                 <span>华东数据中心绿色改造工程 · 投标书</span>
@@ -121,7 +115,7 @@ export default function PreviewPage() {
                   <tr>
                     <th style={{ width: "26%" }}>指标</th>
                     <th>招标要求</th>
-                    <th>张江二期 (实测)</th>
+                    <th>张江二期（实测）</th>
                     <th>本工程承诺</th>
                     <th style={{ width: "14%" }}>响应</th>
                   </tr>
@@ -132,35 +126,35 @@ export default function PreviewPage() {
                     <td>≤ 1.25</td>
                     <td>1.184</td>
                     <td style={{ fontWeight: 500 }}>≤ 1.18</td>
-                    <td style={{ color: "var(--success)" }}>优于</td>
+                    <td style={{ color: "var(--green-text)" }}>优于</td>
                   </tr>
                   <tr>
                     <td>WUE (L/kWh)</td>
                     <td>≤ 0.5</td>
                     <td>0.31</td>
                     <td style={{ fontWeight: 500 }}>≤ 0.32</td>
-                    <td style={{ color: "var(--success)" }}>优于</td>
+                    <td style={{ color: "var(--green-text)" }}>优于</td>
                   </tr>
                   <tr>
                     <td>可再生能源占比</td>
                     <td>≥ 30%</td>
                     <td>34.2%</td>
                     <td style={{ fontWeight: 500 }}>≥ 35%</td>
-                    <td style={{ color: "var(--success)" }}>优于</td>
+                    <td style={{ color: "var(--green-text)" }}>优于</td>
                   </tr>
                   <tr>
                     <td>余热回收率</td>
                     <td>—</td>
                     <td>62%</td>
                     <td style={{ fontWeight: 500 }}>≥ 60%</td>
-                    <td style={{ color: "var(--fg-2)" }}>增项</td>
+                    <td style={{ color: "var(--label-2)" }}>增项</td>
                   </tr>
                   <tr>
                     <td>制冷冗余等级</td>
                     <td>N+1</td>
                     <td>N+1</td>
                     <td style={{ fontWeight: 500 }}>N+1</td>
-                    <td style={{ color: "var(--fg-2)" }}>符合</td>
+                    <td style={{ color: "var(--label-2)" }}>符合</td>
                   </tr>
                 </tbody>
               </table>
@@ -182,7 +176,7 @@ export default function PreviewPage() {
               <div className="page-num">— 42 —</div>
             </article>
 
-            {/* Page 43 */}
+            {/* 第 43 页 */}
             <article className="page" id="p43">
               <div className="page-running-head">
                 <span>华东数据中心绿色改造工程 · 投标书</span>
@@ -233,7 +227,11 @@ export default function PreviewPage() {
           </div>
         </section>
 
-        <aside className="right-export">
+        {/* 右侧导出面板：霜玻璃 chrome（厚档、嵌入式），与中央内容以 .5px contact edge 相接（见 styles.css） */}
+        <aside
+          className="right-export frost-glass frost-glass--soft frost-glass--flush"
+          data-thick="thick"
+        >
           <div className="section">
             <h4>合规与校对</h4>
             <div className="check-summary">
@@ -287,28 +285,17 @@ export default function PreviewPage() {
             <div className="export-card">
               <div className="format-row">
                 <div className="format active">
-                  <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <path d="M14 2v6h6M9 15h6M9 11h2" />
-                  </svg>
-                  <div className="format-name">PDF / A</div>
+                  <FileTextIcon />
+                  <div className="format-name">PDF/A</div>
                   <div className="format-size">~ 14.2 MB</div>
                 </div>
                 <div className="format">
-                  <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <path d="M14 2v6h6M10 13l2 4 2-4" />
-                  </svg>
+                  <FileTextIcon />
                   <div className="format-name">Word</div>
                   <div className="format-size">.docx</div>
                 </div>
                 <div className="format">
-                  <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
-                  </svg>
+                  <GridFourIcon />
                   <div className="format-name">分册 ZIP</div>
                   <div className="format-size">6 册</div>
                 </div>
@@ -334,10 +321,8 @@ export default function PreviewPage() {
               </div>
 
               <button className="export-btn" type="button">
-                <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8}>
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                </svg>
-                生成 · PDF / A (78 页)
+                <DownloadIcon />
+                生成 · PDF/A（78 页）
               </button>
             </div>
           </div>

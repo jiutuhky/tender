@@ -6,9 +6,10 @@ import { gsap } from "gsap";
 import { IconTile, StatusBadge } from "./bits";
 import { CardDetail, type DetailType } from "./CardDetail";
 import { META, isMatrixCardType, type CardType } from "./cardMeta";
+import { useMatrixDetailSummary } from "./matrixViews";
 import { TraceContext, useTraceState } from "./traceContext";
 import { TraceModal } from "./TraceModal";
-import { TRACE_EASE_EXIT, prefersReducedMotion } from "./traceMotion";
+import { DUR_FLOAT, DUR_MICRO, DUR_PANEL, TRACE_EASE_ENTER, TRACE_EASE_EXIT, prefersReducedMotion } from "./traceMotion";
 import type { CardBadge } from "./ArtifactCard";
 import { DotsThreeIcon, DownloadIcon, RefreshIcon, XIcon } from "@/components/ui/icons";
 
@@ -34,6 +35,40 @@ interface CanvasDrawerProps {
   onClose: () => void;
   badge?: CardBadge;
   skipEntrance?: boolean;
+}
+
+/** 矩阵抽屉的标题栏:线性图标 + 标题 + 摘要,不发终态徽标。
+ *  摘要(共 26 条 · 实质性 11 项)由详情正文上提到头里 —— 正文再写一遍矩阵名与摘要
+ *  就是同一件事说两遍。非终态时副标题让位给状态文案。 */
+function MatrixDrawerHead({
+  type,
+  title,
+  titleId,
+  badge,
+}: {
+  type: ReturnType<typeof matrixTypeOf>;
+  title: string;
+  titleId: string;
+  badge?: CardBadge;
+}) {
+  const summary = useMatrixDetailSummary(type);
+  const m = META[type];
+  const Icon = m.icon;
+  const sub = badge && badge.tone !== "done" ? badge.label : summary;
+  return (
+    <>
+      <Icon width={17} height={17} style={{ color: "var(--label-3)", flex: "0 0 auto" }} />
+      <div className="cv-drawer-titlebox">
+        <div className="cv-drawer-title" id={titleId}>{title}</div>
+        {sub && <div className="cv-drawer-sub">{sub}</div>}
+      </div>
+    </>
+  );
+}
+
+/** 收窄 CardType → MatrixType 的类型出口(调用点已用 isMatrixCardType 守卫过) */
+function matrixTypeOf(t: CardType) {
+  return t as Extract<CardType, "basic_info" | "business" | "technical" | "scoring">;
 }
 
 export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntrance = false }: CanvasDrawerProps) {
@@ -66,8 +101,8 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
   useGSAP(
     () => {
       if (skipEntrance || prefersReducedMotion()) return;
-      gsap.from(".cv-drawer-scrim", { autoAlpha: 0, duration: 0.16, ease: "power2.out" });
-      gsap.from(".cv-drawer-panel", { xPercent: 100, duration: 0.26, ease: "power3.out" });
+      gsap.from(".cv-drawer-scrim", { autoAlpha: 0, duration: DUR_MICRO, ease: TRACE_EASE_ENTER });
+      gsap.from(".cv-drawer-panel", { xPercent: 100, duration: DUR_PANEL, ease: TRACE_EASE_ENTER });
     },
     { scope: rootRef, dependencies: [skipEntrance] },
   );
@@ -106,11 +141,11 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
       closeTraceRef.current();
       return;
     }
-    if (scrim) gsap.to(scrim, { autoAlpha: 0, duration: 0.14, ease: "power2.out" });
+    if (scrim) gsap.to(scrim, { autoAlpha: 0, duration: DUR_MICRO, ease: TRACE_EASE_EXIT });
     gsap.to(panel, {
       autoAlpha: 0,
       scale: 0.98,
-      duration: 0.18,
+      duration: DUR_FLOAT,
       ease: TRACE_EASE_EXIT,
       overwrite: "auto",
       onComplete: () => closeTraceRef.current(),
@@ -137,11 +172,11 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
       return;
     }
     closingRef.current = true;
-    gsap.to(scrim, { autoAlpha: 0, duration: 0.12, ease: "power2.out" });
+    gsap.to(scrim, { autoAlpha: 0, duration: DUR_MICRO, ease: TRACE_EASE_EXIT });
     gsap.to(panel, {
       xPercent: 100,
-      duration: 0.18,
-      ease: "power2.out",
+      duration: DUR_FLOAT,
+      ease: TRACE_EASE_EXIT,
       onComplete: () => onCloseRef.current(),
     });
   }, []);
@@ -189,12 +224,9 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
 
   return (
     <div ref={rootRef} className="cv-drawer">
-      {/* 背景模糊随原型走内联（构建期 Lightning CSS 会剥离样式表里的 backdrop-filter，内联可保留） */}
-      <div
-        className="cv-drawer-scrim"
-        onPointerDown={requestClose}
-        style={{ backdropFilter: "blur(2px)", WebkitBackdropFilter: "blur(2px)" }}
-      />
+      {/* 遮罩只做纯色调光:下方画布上浮着玻璃面(消息窗/看板/药丸),scrim 再上
+          backdrop blur 就是「玻璃叠玻璃」。调光色走 CSS 的 token 派生(--label 24%)。 */}
+      <div className="cv-drawer-scrim" onPointerDown={requestClose} />
       <TraceContext.Provider value={providedCtx}>
         <div
           className="cv-drawer-panel"
@@ -204,12 +236,18 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
         >
           <div className="cv-drawer-main">
             <div className="cv-drawer-head">
-              <IconTile icon={m.icon} />
-              <div className="cv-drawer-titlebox">
-                <div className="cv-drawer-title" id={titleId}>{title}</div>
-                <div className="cv-drawer-sub">{m.stage} · 产物</div>
-              </div>
-              <StatusBadge sc={badge?.sc ?? m.sc} label={badge?.label ?? m.status} />
+              {isMatrixCardType(cardType) ? (
+                <MatrixDrawerHead type={matrixTypeOf(cardType)} title={title} titleId={titleId} badge={badge} />
+              ) : (
+                <>
+                  <IconTile icon={m.icon} />
+                  <div className="cv-drawer-titlebox">
+                    <div className="cv-drawer-title" id={titleId}>{title}</div>
+                    <div className="cv-drawer-sub">{m.stage} · 产物</div>
+                  </div>
+                  <StatusBadge sc={badge?.sc ?? m.sc} label={badge?.label ?? m.status} />
+                </>
+              )}
               <button ref={closeRef} type="button" className="cv-drawer-close" aria-label="关闭" onClick={requestClose}>
                 <XIcon width={16} height={16} />
               </button>

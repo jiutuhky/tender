@@ -25,7 +25,7 @@ import { parseTenderMarkdown, type LineRange } from "@/lib/trace/pipeline";
 import { locateSpan, type SpanAnchor } from "@/lib/trace/refs";
 import { useTrace } from "./traceContext";
 import { DUR_MICRO, DUR_PANEL, TRACE_EASE_ENTER, prefersReducedMotion } from "./traceMotion";
-import { RefreshIcon } from "@/components/ui/icons";
+import { RefreshIcon, WarningIcon } from "@/components/ui/icons";
 
 // 溯源预览正文:招标文件原文的渲染态文档纸面(外壳与标题栏在 TraceModal)。
 // 排版对齐 .design/prototype/archive/preview.html(文档预览与导出)的层级密度,
@@ -184,7 +184,8 @@ function DocView({ projectId, doc }: { projectId: string; doc: DocumentRecord })
     <>
       {anchor?.status === "unlocatable" && (
         <div className="cv-trace-banner" role="status">
-          未能定位：来源行号缺失、越界或未指向正文内容，请在原文中人工查找
+          <WarningIcon width={14} height={14} />
+          <span>未能定位：来源行号缺失、越界或未指向正文内容，请在原文中人工查找</span>
         </div>
       )}
       <article ref={rootRef} className={`cv-trace-doc ${serifLatin.variable} ${serifCJK.variable}`}>
@@ -207,7 +208,9 @@ class DocErrorBoundary extends Component<
     if (!this.state.error) return this.props.children;
     return (
       <div className="cv-trace-error" role="alert">
-        <div>原文读取失败：{this.state.error.message}</div>
+        <p>
+          <b>原文读取失败</b> · {this.state.error.message}
+        </p>
         <button type="button" onClick={this.props.onRetry}>
           <RefreshIcon width={13} height={13} />
           重试

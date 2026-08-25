@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ArrowRightIcon, BellIcon, SearchIcon } from "@/components/ui/icons";
+import { AppearanceMenu } from "@/components/shell/AppearanceMenu";
 import { SidebarFrame } from "./_components/SidebarFrame";
 import { HAGENT_BASE, authHeaders } from "@/lib/server/upstream";
 import type { ProjectInfo } from "@/lib/hagent/api";
@@ -9,12 +11,7 @@ import "./styles.css";
 
 export const dynamic = "force-dynamic";
 
-const stroke = {
-  fill: "none" as const,
-  stroke: "currentColor" as const,
-};
-
-/** 项目状态 → 状态胶囊(沿用既有 s-* 配色语义:蓝=进行中,浅蓝=已完成评审位,灰=草稿) */
+/** 项目状态 → 状态胶囊(沿用既有 s-* 语义:蓝=进行中/评审中,灰=草稿) */
 function statusPill(status: string): { key: string; label: string } {
   switch (status) {
     case "parsed":
@@ -61,17 +58,12 @@ export default async function ProjectsPage() {
 
           <div className="topbar-actions">
             <button className="icon-btn" title="搜索 ⌘K" type="button">
-              <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
+              <SearchIcon />
             </button>
             <button className="icon-btn" title="通知" type="button">
-              <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
+              <BellIcon />
             </button>
+            <AppearanceMenu />
             <div className="avatar">LH</div>
           </div>
         </>
@@ -140,7 +132,8 @@ export default async function ProjectsPage() {
                 : "回到首页上传一份招标文件，即可创建项目并开始解析。"}
             </span>
             <Link href="/home" className="projects-empty-link">
-              去首页上传招标文件 →
+              去首页上传招标文件
+              <ArrowRightIcon />
             </Link>
           </div>
         </div>

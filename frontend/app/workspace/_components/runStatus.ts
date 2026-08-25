@@ -1,4 +1,4 @@
-import type { ChatMsg } from "@/lib/hagent/timeline";
+import type { ChatMsg, SubagentRun } from "@/lib/hagent/timeline";
 import { MATRIX_TYPES } from "@/lib/hagent/matrix";
 import type { MatrixSlots, RunPhase } from "@/lib/store/workspace";
 import { toolLabel } from "./toolLabel";
@@ -8,12 +8,12 @@ import { toolLabel } from "./toolLabel";
 
 export const PHASE_STATUS: Record<RunPhase, string> = {
   idle: "待命中",
-  creating: "创建项目与会话",
-  uploading: "上传招标文件",
-  running: "智能体解析中",
-  loading_results: "载入应答矩阵",
+  creating: "正在创建项目与会话",
+  uploading: "正在上传招标文件",
+  running: "正在解析招标文件",
+  loading_results: "正在载入应答矩阵",
   done: "解析完成",
-  error: "出错",
+  error: "解析失败",
 };
 
 export function isRunning(phase: RunPhase): boolean {
@@ -71,4 +71,69 @@ export function activityLine(timeline: ChatMsg[], phase: RunPhase): string {
 
   if (!head) return PHASE_STATUS[phase];
   return calls > 1 ? `${head} · ${calls} 次调用` : head;
+}
+
+// —— 子代理看板（画布右上角 AgentBoard 的数据源）——
+
+export interface SubagentBoardRow {
+  callId: string;
+  description: string;
+  subagentType: string;
+  status: "running" | "done";
+  /** 嵌套深度（顶层=0），看板按级缩进 */
+  depth: number;
+  /** 一行摘要：运行中=最近动作，完成=已完成 */
+  summary: string;
+}
+
+function collectFromLevel(msgs: ChatMsg[], depth: number, out: SubagentBoardRow[]): void {
+  for (const m of msgs) {
+    if (m.role !== "subagent") continue;
+    out.push({
+      callId: m.run.call.call_id,
+      description: m.run.description,
+      subagentType: m.run.subagentType,
+      status: m.run.status,
+      depth,
+      summary: subagentStatusText(m.run),
+    });
+    collectFromLevel(m.run.children, depth + 1, out);
+  }
+}
+
+/**
+ * 本轮派发的子代理列表（顶层 + 嵌套，按派发顺序）。
+ * 与 activityLine 同一回扫策略：从末尾回到最近一条 user 消息为止——看板只反映
+ * 当前这一轮，上一轮的子代理不残留。O(末段扫描)，可安全当每帧批处理的一部分跑。
+ */
+export function collectSubagentRuns(timeline: ChatMsg[]): SubagentBoardRow[] {
+  let start = timeline.length;
+  while (start > 0) {
+    const m = timeline[start - 1];
+    if (!m || m.role === "user") break;
+    start -= 1;
+  }
+  const out: SubagentBoardRow[] = [];
+  collectFromLevel(timeline.slice(start), 0, out);
+  return out;
+}
+
+/** 子任务的一行状态文字：运行中显示最近动作，完成显示「已完成」。 */
+export function subagentStatusText(run: SubagentRun): string {
+  if (run.status === "done") return "已完成";
+  const action = latestActionLabel(run.children);
+  return action ? `${action}……` : "运行中……";
+}
+
+/** 从子代理内部时间线里取「最近一次动作」的简短描述（倒序找第一条可读事件）。 */
+export function latestActionLabel(children: ChatMsg[]): string {
+  for (let i = children.length - 1; i >= 0; i -= 1) {
+    const m = children[i];
+    if (!m) continue;
+    if (m.role === "tool") return toolLabel(m.call);
+    if (m.role === "subagent") return `子任务 ${m.run.description}`.trim();
+    if (m.role === "thinking") return "思考中";
+    if (m.role === "assistant_text") return "正在整理输出";
+  }
+  return "";
 }

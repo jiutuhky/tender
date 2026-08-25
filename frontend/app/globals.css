@@ -1,56 +1,147 @@
+@import "./frost-materials.css";
+
 /* Migrated verbatim from prototype/archive/index.html (3 <style> blocks). */
 
-/* ===== Base layer ===== */
+/* ===== Frost token 层 =====
+   与 .claude/skills/frost-design/tokens/*（colors/radius/motion/typography/elevation）
+   逐值同步；材质 token 见 ./frost-materials.css（同步自 tokens/materials.css）。
+   历史变量名（--bg/--fg/--accent/--border…）保留为规范 token 的别名，仅作兼容。 */
 :root {
-    --bg:        #eef0f3;
-    --surface:   #ffffff;
-    --surface-2: #f5f6f8;
-    --fg:        #1d1d1f;
-    --fg-2:      #48484f;
-    --muted:     #55555e;
-    --faint:     #8e8e98;
-    --border:    rgba(60, 60, 67, .12);
-    --border-2:  rgba(60, 60, 67, .20);
-    --accent:    #0064e1;
-    --accent-soft: rgba(0, 100, 225, .10);
-    --success:   #1d8f45;
-    --running:   #0064e1;
-    --pending:   #b4b4be;
+    /* --- 中性阶（冷灰，light） --- */
+    --canvas:     #eef0f3;
+    --surface:    #ffffff;
+    --surface-2:  #f5f6f8;
+    --label:      #1d1d1f;
+    --label-2:    #55555e;
+    --label-3:    #6b6b76;
+    --separator:  rgba(60, 60, 67, .12);
 
-    /* Frost：系统字体栈，macOS 下即 SF Pro + 苹方，零 Web 字体加载 */
-    --font-sans: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
-    --font-text: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
-    /* Frost 不再使用衬线：历史 var(--font-serif) 引用统一落到系统栈 */
-    --font-serif: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
-    --font-mono: "SF Mono", ui-monospace, "Geist Mono", "JetBrains Mono", Menlo, monospace;
+    /* --- 唯一强调色：系统蓝 --- */
+    --blue:       #0064e1;
+    --blue-press: #0052bc;
+    --blue-soft:  rgba(0, 100, 225, .10);
 
-    /* Chat reading scale — 对标 Claude.ai / ChatGPT 的对话排版尺度 */
-    --fs-chat-meta:      11px;   /* 元信息 / 时间戳 — mono */
-    --fs-chat-user:      15px;   /* 用户气泡正文 — sans */
-    --fs-chat-body:      14px; /* 助手回答正文（标题/表格/inline code 等按 em 相对缩放） */
-    --fs-chat-reasoning: 12px;   /* 思考/工具摘要 + 推理段正文 — 过程区辅料字号，比 reply 小一档 */
-    --fs-chat-tool:      13px;   /* 工具调用 / 检索结果 — sans */
+    /* --- 语义色（graphic / text 成对） --- */
+    --green:  #34c759;  --green-text:  #1d8f45;
+    --orange: #ff9500;  --orange-text: #b25e00;
+    --red:    #ff3b30;  --red-text:    #d70015;
 
+    /* --- 暗色阶（由 [data-appearance="dark"] 引用） --- */
+    --d-canvas:    #161618;
+    --d-surface:   #1e1e22;
+    --d-surface-2: #2a2a30;
+    --d-label:     #f5f5f7;
+    --d-label-2:   #a8a8b3;
+    --d-label-3:   #6e6e78;
+    --d-separator: rgba(255, 255, 255, .10);
+    --d-blue:      #409cff;
+
+    /* macOS 红绿灯 */
+    --traffic-close: #ff5f57;
+    --traffic-min:   #febc2e;
+    --traffic-max:   #28c840;
+
+    /* --- 圆角坡道（连续圆角，固定顺序） --- */
+    --r-control: 7px;
+    --r-field:   9px;
+    --r-window:  12px;
+    --r-card:    14px;
+    --r-panel:   18px;
+    --r-icon:    22.4%;
+
+    /* --- 动效：120 / 200 / 320，标准曲线 --- */
+    --t-micro: 120ms;
+    --t-float: 200ms;
+    --t-panel: 320ms;
+    --ease-std: cubic-bezier(.32, .72, 0, 1);
+    --ease-out: cubic-bezier(.4, 0, 1, 1);
+    --enter-shift: 8px;
+
+    /* --- 字体：系统栈，零 webfont --- */
+    --font-ui:   "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+                 "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
+    --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+
+    /* --- 字阶（macOS 原生值；Web 下 CJK 正文按注可上浮 1–2px） --- */
+    --text-large-title: 700 26px/1.3 var(--font-ui);
+    --text-title-1:     600 22px/1.3 var(--font-ui);
+    --text-title-2:     600 17px/1.4 var(--font-ui);
+    --text-headline:    700 13px/1.5 var(--font-ui);
+    --text-body:        400 13px/1.7 var(--font-ui);
+    --text-callout:     400 12px/1.6 var(--font-ui);
+    --text-footnote:    400 10px/1.5 var(--font-ui);
+    --tracking-display: -.022em;
+    --tracking-title:   -.014em;
+    --tracking-ui:      -.008em;
+    --weight-regular:  400;
+    --weight-medium:   500;
+    --weight-semibold: 600;
+    --weight-bold:     700;
+
+    /* --- 投影阶（深度代替描边），逐字同步自 tokens/elevation.css --- */
+    --elev-1: 0 1px 2px rgba(18, 24, 38, .10), 0 0 0 .5px rgba(18, 24, 38, .07);
+    --elev-2: 0 10px 30px rgba(18, 24, 38, .12), 0 2px 8px rgba(18, 24, 38, .06), 0 0 0 .5px rgba(18, 24, 38, .05);
+    --elev-3: 0 28px 80px rgba(12, 18, 32, .26), 0 8px 24px rgba(12, 18, 32, .12), 0 0 0 .5px rgba(12, 18, 32, .10);
+
+    /* --- 对话阅读字阶（产品扩展：规范 Web note 允许 CJK 正文上浮 1–2px） --- */
+    --fs-chat-meta:      11px;
+    --fs-chat-user:      15px;
+    --fs-chat-body:      14px;
+    --fs-chat-reasoning: 12px;
+    --fs-chat-tool:      13px;
     --lh-chat-user:      1.6;
     --lh-chat-body:      1.6;
     --lh-chat-reasoning: 1.62;
 
-    --radius-sm: 7px;
-    --radius:    10px;
-    --radius-lg: 14px;
+    /* --- 兼容别名（历史命名 → 规范 token；新代码请直接用规范名） --- */
+    --bg:          var(--canvas);
+    --fg:          var(--label);
+    --fg-2:        var(--label-2);
+    --muted:       var(--label-2);
+    --faint:       var(--label-3);
+    --border:      var(--separator);
+    --border-2:    rgba(60, 60, 67, .20);  /* brand.html 强分隔档，仅焦点/轨道用 */
+    --accent:      var(--blue);
+    --accent-soft: var(--blue-soft);
+    --success:     var(--green-text);
+    --warn:        var(--orange-text);
+    --danger:      var(--red-text);
+    --running:     var(--blue);
+    --pending:     var(--label-3);
+    --surface-3:   var(--surface-2);
+    --font-sans:   var(--font-ui);
+    --font-text:   var(--font-ui);
+    --radius-sm:   var(--r-control);
+    --radius:      var(--r-window);
+    --radius-lg:   var(--r-card);
+    --ease-drawer: var(--ease-std);
+  }
 
-    /* 专业工作台的动效节奏：即时反馈、克制浮层、快速面板 */
-    --t-micro: 120ms;
-    --t-float: 180ms;
-    --t-panel: 260ms;
-    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* 暗色外观不是反色：近黑冷灰画布、深炭玻璃、强调色抬到 #409CFF。
+     组件、圆角、投影几何不变，只换色 token。 */
+  [data-appearance="dark"] {
+    --canvas:     var(--d-canvas);
+    --surface:    var(--d-surface);
+    --surface-2:  var(--d-surface-2);
+    --label:      var(--d-label);
+    --label-2:    var(--d-label-2);
+    --label-3:    var(--d-label-3);
+    --separator:  var(--d-separator);
+    --blue:       var(--d-blue);
+    --blue-press: #1f7fe0;
+    --blue-soft:  rgba(64, 156, 255, .16);
+    --border-2:   rgba(255, 255, 255, .18);
+    color-scheme: dark;
+  }
 
-    /* Frost 投影阶：深度代替描边 */
-    --elev-1: 0 1px 2px rgba(18, 24, 38, .10), 0 0 0 .5px rgba(18, 24, 38, .07);
-    --elev-2: 0 10px 30px rgba(18, 24, 38, .12), 0 2px 8px rgba(18, 24, 38, .06), 0 0 0 .5px rgba(18, 24, 38, .05);
-    --elev-3: 0 28px 80px rgba(12, 18, 32, .26), 0 8px 24px rgba(12, 18, 32, .12), 0 0 0 .5px rgba(12, 18, 32, .10);
+  /* 规范：reduced motion 下动效 token 归零，一切退化为瞬切 */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --t-micro: 0ms;
+      --t-float: 0ms;
+      --t-panel: 0ms;
+      --enter-shift: 0px;
+    }
   }
 
   * { box-sizing: border-box; }
@@ -61,12 +152,10 @@
     color: var(--fg);
     font-size: 14px;
     line-height: 1.5;
-    letter-spacing: -0.005em;
+    letter-spacing: var(--tracking-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Geist: ss01 单层 g, ss03 卷引号, cv11 点心零 */
-    font-feature-settings: "ss01", "ss03", "cv11";
     font-variant-numeric: lining-nums tabular-nums;
   }
   button { font-family: inherit; cursor: pointer; }
@@ -84,7 +173,7 @@
   .topbar {
     display: flex;
     align-items: center;
-    border-bottom: 1px solid var(--border);
+    /* 与内容交界的 .5px 接触边在 Frost 覆盖层给出；此处不画 1px 分区线 */
     background: var(--bg);
     padding: 0 20px;
     gap: 16px;
@@ -98,17 +187,6 @@
     font-weight: 600;
     letter-spacing: -0.01em;
     font-size: 15px;
-  }
-  .brand-mark {
-    width: 22px; height: 22px;
-    display: grid; place-items: center;
-    background: var(--fg);
-    color: var(--bg);
-    border-radius: 6px;
-    font-family: var(--font-serif);
-    font-size: 14px;
-    font-weight: 500;
-    font-style: italic;
   }
   .topbar-divider {
     width: 1px; height: 18px;
@@ -142,8 +220,8 @@
     padding: 6px 12px;
     font-size: 13px;
     color: var(--muted);
-    border-radius: 6px;
-    transition: background .15s;
+    border-radius: var(--r-control);   /* 控件档 */
+    transition: background var(--t-micro) var(--ease-std);
   }
   .nav-tabs a:hover { background: var(--surface-2); color: var(--fg); }
   .nav-tabs a.active { color: var(--fg); background: var(--surface-2); }
@@ -156,9 +234,9 @@
     display: grid; place-items: center;
     background: transparent;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--r-control);   /* 控件档 */
     color: var(--muted);
-    transition: background .15s, color .15s;
+    transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std);
   }
   .icon-btn:hover { background: var(--surface-2); color: var(--fg); }
   .icon-btn svg { width: 16px; height: 16px; }
@@ -168,11 +246,11 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    background: var(--fg);
-    color: var(--bg);
-    border: 1px solid oklch(0% 0 0 / 0.20);
+    background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%);
+    color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
+    border: 0;   /* 深度代替描边 */
     padding: 6px 12px;
-    border-radius: 8px;
+    border-radius: var(--r-control);
     font-size: 13px;
     font-weight: 500;
     line-height: 1.2;
@@ -184,11 +262,8 @@
     user-select: none;
     outline: none;
     position: relative;
-    box-shadow:
-      oklch(0% 0 0 / 0.22) 0 1px 3px,
-      oklch(0% 0 0 / 0.12) 0 2px 6px,
-      oklch(100% 0 0 / 0.16) 0 1px 0 inset;
-    transition: transform .14s ease, box-shadow .14s ease, background .14s ease, border-color .14s ease;
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
+    transition: transform var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), background var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std);
   }
   .btn-primary::before,
   .composer-send::before {
@@ -196,29 +271,22 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(to bottom, oklch(100% 0 0 / 0.16), oklch(100% 0 0 / 0) 46%);
+    background: linear-gradient(to bottom, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 46%);
     pointer-events: none;
   }
   .btn-primary:hover,
   .composer-send:hover {
     transform: translateY(-1px);
-    box-shadow:
-      oklch(0% 0 0 / 0.24) 0 2px 4px,
-      oklch(0% 0 0 / 0.14) 0 5px 12px,
-      oklch(100% 0 0 / 0.18) 0 1px 0 inset;
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
   }
   .btn-primary:active,
   .composer-send:active {
     transform: translateY(0);
-    box-shadow:
-      oklch(0% 0 0 / 0.20) 0 1px 2px,
-      oklch(0% 0 0 / 0.10) 0 1px 4px,
-      oklch(0% 0 0 / 0.18) 0 1px 2px inset,
-      oklch(100% 0 0 / 0.10) 0 1px 0 inset;
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
   }
   .btn-primary:focus-visible,
   .composer-send:focus-visible {
-    outline: 2px solid rgba(0, 100, 225, 0.35);
+    outline: 2px solid color-mix(in srgb, var(--blue) 35%, transparent);
     outline-offset: 2px;
   }
   .btn-primary svg { width: 14px; height: 14px; }
@@ -226,7 +294,7 @@
   .avatar {
     width: 26px; height: 26px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #5fb0ff, #0a4ecf);
+    background: linear-gradient(135deg, #5fb0ff 0%, #1670ec 55%, #0a3fa8 100%);   /* 品牌渐变三停，禁旋转/镜像 */
     color: white;
     display: grid; place-items: center;
     font-size: 11px;
@@ -263,7 +331,7 @@
     align-items: center;
     gap: 5px;
     padding: 3px 8px;
-    border-radius: 99px;
+    border-radius: 999px;
     font-size: 11px;
     background: var(--surface-2);
     color: var(--fg-2);
@@ -280,7 +348,7 @@
     width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    box-shadow: 0 0 0 3px var(--blue-soft);
   }
 
   /* 单列工作区：画布铺满整块工作面。消息流与输入区改为浮在画布上的两块 chrome
@@ -325,10 +393,10 @@
   }
   .run-dot.running {
     background: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-soft);
+    box-shadow: 0 0 0 3px var(--blue-soft);
   }
-  .run-dot.done { background: #34c759; }
-  .run-dot.error { background: #ff3b30; }
+  .run-dot.done { background: var(--green); }
+  .run-dot.error { background: var(--red); }
   .run-brief-name {
     flex: 1 1 auto;
     min-width: 0;
@@ -354,13 +422,13 @@
     gap: 5px;
     padding: 4px 9px;
     border: 0;
-    border-radius: var(--radius-sm);
+    border-radius: var(--r-control);
     background: transparent;
     color: var(--muted);
     font-size: 12px;
     white-space: nowrap;
     flex-shrink: 0;
-    transition: background .15s, color .15s, transform .12s;
+    transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
   }
   .run-brief-new:hover { background: var(--accent-soft); color: var(--accent); }
   .run-brief-new:active { transform: scale(.97); }
@@ -402,13 +470,12 @@
     margin: 8px 0 0;
     padding: 10px 12px;
     background: var(--surface-2);
-    border-radius: var(--radius-sm);
+    border-radius: var(--r-control);
     font-size: 12.5px;
     border: 1px solid var(--border);
   }
   .tool-call.running {
-    border-color: var(--accent-soft);
-    background: rgba(0, 100, 225, 0.05);
+    background: var(--blue-soft);   /* 进行中：蓝浅染（蓝=可交互/进行中） */
   }
   .tool-icon {
     width: 16px; height: 16px;
@@ -467,8 +534,7 @@
     display: inline-block;
     font-size: 10px;
     font-style: normal;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+      letter-spacing: 0.06em;
     color: var(--faint);
     margin-right: 8px;
     font-family: var(--font-sans);
@@ -486,10 +552,10 @@
     gap: 10px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--r-window);
     min-height: 104px;
     padding: 14px 14px 46px;
-    transition: border-color var(--t-micro) ease, box-shadow var(--t-micro) ease;
+    transition: border-color var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std);
     min-width: 0;
   }
   .composer-input:focus-within { border-color: var(--border-2); }
@@ -528,7 +594,7 @@
     font-size: 11px;
     font-family: inherit;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: var(--r-control);   /* 控件档 */
     cursor: default;
     user-select: none;
     display: inline-flex;
@@ -536,30 +602,28 @@
     justify-content: center;
     gap: 4px;
     outline: none;
-    border: 1px solid rgba(60, 60, 67, 0.14);
+    border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
     flex-shrink: 1;
-    background: rgb(255, 255, 255);
-    color: rgba(29, 29, 31, 0.92);
-    box-shadow: rgba(18, 24, 38, 0.04) 0 1px 2px;
+    background: var(--surface);
+    color: var(--label);
+    box-shadow: var(--elev-1);
     position: relative;
   }
   .composer-actions .icon-btn:hover {
-    background: rgb(255, 255, 255);
-    border-color: rgba(60, 60, 67, 0.24);
-    color: rgba(29, 29, 31, 0.92);
-    box-shadow:
-      rgba(18, 24, 38, 0.06) 0 1px 3px,
-      rgba(255, 255, 255, 0.65) 0 1px 0 inset;
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--label-3) 24%, transparent);
+    color: var(--label);
+    box-shadow: var(--elev-1);
   }
   .composer-actions .icon-btn:focus-visible {
-    outline: 2px solid rgba(0, 100, 225, 0.30);
+    outline: 2px solid color-mix(in srgb, var(--blue) 30%, transparent);
     outline-offset: 2px;
   }
-  .composer-actions .icon-btn:active { transform: scale(.97); }
+  .composer-actions .icon-btn:active { transform: scale(.92); }   /* 图标按钮 press 档（规范：常规控件 .97、图标钮 .92） */
   .composer-actions .icon-btn:disabled,
   .composer-send:disabled {
     cursor: not-allowed;
@@ -580,10 +644,10 @@
     justify-content: center;
     gap: 5px;
     padding: 6px 12px;
-    border: 1px solid oklch(0% 0 0 / 0.20);
-    background: var(--fg);
-    color: var(--bg);
-    border-radius: 8px;
+    border: 0;   /* 深度代替描边 */
+    background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%);
+    color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
+    border-radius: var(--r-control);
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
@@ -595,11 +659,8 @@
     user-select: none;
     outline: none;
     position: relative;
-    box-shadow:
-      oklch(0% 0 0 / 0.22) 0 1px 3px,
-      oklch(0% 0 0 / 0.12) 0 2px 6px,
-      oklch(100% 0 0 / 0.16) 0 1px 0 inset;
-    transition: transform var(--t-micro) var(--ease-out), box-shadow var(--t-micro) ease, background var(--t-micro) ease, border-color var(--t-micro) ease;
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
+    transition: transform var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), background var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std);
   }
   .composer-send svg,
   .composer-send span {
@@ -630,33 +691,31 @@
     display: flex;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--r-control);
     padding: 2px;
-    box-shadow: oklch(100% 0 0 / 0.55) 0 1px 0 inset;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface) 55%, transparent);
   }
   .doc-tab {
     padding: 4px 10px;
     font-size: 12px;
     color: var(--muted);
-    border-radius: 6px;
+    border-radius: var(--r-control);   /* 控件档 */
     border: 1px solid transparent;
     background: transparent;
     user-select: none;
     outline: none;
     position: relative;
-    transition: background .14s ease, color .14s ease, border-color .14s ease, box-shadow .14s ease;
+    transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std);
   }
   .doc-tab:hover { color: var(--fg-2); }
   .doc-tab.active {
     background: var(--surface);
     color: var(--fg);
-    border-color: oklch(0% 0 0 / 0.10);
-    box-shadow:
-      oklch(0% 0 0 / 0.08) 0 1px 2px,
-      oklch(100% 0 0 / 0.70) 0 1px 0 inset;
+    border-color: var(--separator);
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
   }
   .doc-tab:focus-visible {
-    outline: 2px solid rgba(0, 100, 225, 0.30);
+    outline: 2px solid color-mix(in srgb, var(--blue) 30%, transparent);
     outline-offset: 2px;
   }
   .doc-actions {
@@ -689,18 +748,8 @@
     min-height: 50px;
     margin: 0 -36px 18px;
     padding: 8px 36px;
-    border-bottom: 1px solid var(--border);
-    /* 玻璃工具栏：对照品牌板 .glass-toolbar（blur 40 / saturate 180） */
-    background: rgba(245, 246, 248, 0.80);
-    backdrop-filter: blur(40px) saturate(180%);
-    -webkit-backdrop-filter: blur(40px) saturate(180%);
-  }
-  @media (prefers-reduced-transparency: reduce) {
-    .artifact-header {
-      background: rgba(245, 246, 248, 0.98);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
+    /* 霜玻璃 regular + .frost-scroll-edge（类挂在 artifact.tsx）：
+       内容从条下滑过，用渐进模糊代替分区线。 */
   }
   .artifact-header-left {
     display: flex;
@@ -740,9 +789,9 @@
     border: 0;
     background: transparent;
     color: var(--muted);
-    border-radius: 6px;
+    border-radius: var(--r-control);   /* 坡道档位 */
     cursor: pointer;
-    transition: background .14s ease, color .14s ease, opacity .14s ease;
+    transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), opacity var(--t-micro) var(--ease-std);
   }
   .artifact-action:hover:not(:disabled) {
     background: var(--bg);
@@ -753,7 +802,7 @@
     cursor: not-allowed;
   }
   .artifact-action:focus-visible {
-    outline: 2px solid rgba(0, 100, 225, 0.30);
+    outline: 2px solid color-mix(in srgb, var(--blue) 30%, transparent);
     outline-offset: 2px;
   }
   /* 切换型 action 的按下态：浅蓝衬底（蓝只授予可交互/激活） */
@@ -765,7 +814,7 @@
   /* 内容浮窗：投影代替描边（品牌 elev-1），窗口级圆角 */
   .artifact-content {
     background: var(--surface);
-    border-radius: 12px;
+    border-radius: var(--r-window);
     padding: 28px 32px;
     min-height: 500px;
     box-shadow: var(--elev-1);
@@ -773,11 +822,11 @@
 
   .doc-page {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    /* 深度代替描边：--elev-1 自带 .5px 接触环，不叠 1px 实边 */
+    border-radius: var(--r-window);
     padding: 36px 44px;
-    font-family: var(--font-serif);
-    color: #1d1d1f;
+    font-family: var(--font-ui);
+    color: var(--label);
     min-height: 500px;
   }
   .doc-page h1 {
@@ -799,7 +848,7 @@
     font-size: 18px;
     margin: 26px 0 10px;
     font-weight: 600;
-    letter-spacing: -0.005em;
+    letter-spacing: var(--tracking-ui);
   }
   .doc-page h3 {
     font-size: 14px;
@@ -846,18 +895,19 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* 「已生成」标记块：中性衬底 + 发丝线，不立彩色左边线（蓝只表达可交互/进行中） */
   .gen-block {
-    background: #f4f6f9;
-    border-left: 2px solid var(--accent);
+    background: var(--surface-2);
+    box-shadow: inset .5px 0 0 var(--separator);
     padding: 6px 10px;
     margin: -6px -10px 10px;
-    border-radius: 2px;
+    border-radius: var(--r-control);
   }
 
   /* Scrollbars */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #b9bcc4 transparent;
+    scrollbar-color: var(--border-2) transparent;
   }
   *::-webkit-scrollbar { width: 5px; height: 5px; }
   *::-webkit-scrollbar-track { background: transparent; }
@@ -866,7 +916,7 @@
   *::-webkit-scrollbar-track-piece:start { margin-top: 12px; }
   *::-webkit-scrollbar-track-piece:end { margin-bottom: 12px; }
   *::-webkit-scrollbar-thumb {
-    background: #c2c5cd;
+    background: var(--border-2);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
@@ -889,7 +939,7 @@
     width: 10px;
     pointer-events: none;
     opacity: 0;
-    transition: opacity .16s ease;
+    transition: opacity var(--t-micro) var(--ease-std);
   }
   .short-scrollbar.is-visible { opacity: 1; }
   .short-scrollbar-track {
@@ -904,17 +954,15 @@
     width: 5px;
     min-height: 72px;
     border-radius: 999px;
-    background: rgba(140, 144, 154, 0.72);
-    box-shadow:
-      oklch(0% 0 0 / 0.10) 0 1px 2px,
-      oklch(100% 0 0 / 0.36) 0 1px 0 inset;
+    background: color-mix(in srgb, var(--label-3) 72%, transparent);
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
     pointer-events: auto;
     cursor: grab;
-    transition: background .15s ease, opacity .15s ease;
+    transition: background var(--t-micro) var(--ease-std), opacity var(--t-micro) var(--ease-std);
   }
   .short-scrollbar:hover .short-scrollbar-thumb,
   .short-scrollbar.is-dragging .short-scrollbar-thumb {
-    background: rgba(110, 114, 124, 0.88);
+    background: color-mix(in srgb, var(--label-3) 88%, transparent);
   }
   .short-scrollbar.is-dragging .short-scrollbar-thumb { cursor: grabbing; }
 
@@ -935,36 +983,7 @@
 /* ===== frost-theme overrides（Frost·霜：macOS 风格品牌层，uses !important）=====
    品牌事实来源：.design/prototype/frost/brand.html
    立场：冷灰中性 + 系统蓝唯一强调；半透明材质与投影代替细线；系统字体栈；连续大圆角。 */
-:root {
-  --bg: #eef0f3 !important;
-  --surface: #ffffff !important;
-  --surface-2: #f5f6f8 !important;
-  --surface-3: #ececf1 !important;
-  --fg: #1d1d1f !important;
-  --fg-2: #48484f !important;
-  --muted: #55555e !important;
-  --faint: #8e8e98 !important;
-  --border: rgba(60, 60, 67, .12) !important;
-  --border-2: rgba(60, 60, 67, .20) !important;
-  --accent: #0064e1 !important;
-  --accent-soft: rgba(0, 100, 225, .10) !important;
-  --success: #1d8f45 !important;
-  --warn: #b25e00 !important;
-  --running: #0064e1 !important;
-  --pending: #b4b4be !important;
-
-  /* Frost 不再使用衬线：历史 var(--font-serif) 引用统一落到系统栈 */
-  --font-serif: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif !important;
-  --font-sans: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif !important;
-  --font-text: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif !important;
-
-  --radius-sm: 7px !important;
-  --radius: 10px !important;
-  --radius-lg: 14px !important;
-
-  /* Frost 专属 token（新名字，无需 !important） */
-  --blue-press: #0052bc;
-}
+/* token 层已在文件顶部统一为 frost-design 规范值（含兼容别名），此处不再重复声明。 */
 
 /* 品牌字标：squircle 图标 + 系统字体 Semibold */
 .brand {
@@ -1013,19 +1032,22 @@
 .cite::before { content: ""; }
 .cite::after { content: ""; }
 
-/* 圆角阶：卡片 10px、输入区 14px、控件 7px、胶囊 999px */
+/* 圆角坡道：控件 7 < 输入域 9 < 窗口 12 < 卡片 14 < 面板 18；胶囊 999 */
 .doc-page, .case-card, .tpl-card, .table-card,
-.check-summary, .export-card, .ds-card, .insight-card, .kpi-strip, .figure,
-.search input, .tool-call, .stream-title, .gen-block, .nav-side .nav-item {
-  border-radius: var(--radius) !important;
+.check-summary, .export-card, .ds-card, .insight-card, .kpi-strip, .figure {
+  border-radius: var(--r-card) !important;      /* 卡片档 */
 }
-.composer-input { border-radius: var(--radius-lg) !important; }
+.search input { border-radius: var(--r-field) !important; }   /* 输入域档 */
+.tool-call, .stream-title, .gen-block, .nav-side .nav-item {
+  border-radius: var(--r-window) !important;    /* 窗口档：容器块而非卡片 */
+}
+.composer-input { border-radius: var(--r-card) !important; }
 .pill, .chip, .badge, .tag { border-radius: 999px !important; }
 .nav-tabs a, .doc-tab, .icon-btn, .btn-primary, .composer-send, .export-btn,
 .btn-ghost, .format, .view-toggle button {
-  border-radius: 7px !important;
+  border-radius: var(--r-control) !important;
 }
-.doc-tabs, .view-toggle { border-radius: 9px !important; }
+.doc-tabs, .view-toggle { border-radius: var(--r-field) !important; }
 .avatar { border-radius: 50% !important; }
 
 /* mono 白名单：Frost 中等宽字体只授予真代码（代码块/行内 code/JSON viewer 已在各自规则保留） */
@@ -1041,13 +1063,13 @@
   padding: 5px 12px !important;
   background: var(--surface) !important;
   color: var(--fg) !important;
-  border: 1px solid rgba(60, 60, 67, .16) !important;
+  border: 0 !important;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
   font-size: 12px !important;
   font-weight: 500 !important;
   line-height: 1.2 !important;
   white-space: nowrap !important;
-  box-shadow: 0 1px 2px rgba(18, 24, 38, .08) !important;
-  transition: background .14s ease, transform .14s ease !important;
+  box-shadow: var(--elev-1) !important;
+  transition: background var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std) !important;
 }
 .btn-ghost:hover { background: var(--surface-2) !important; }
 .btn-ghost:active { transform: scale(.97) !important; }
@@ -1055,11 +1077,11 @@
 
 /* 分段控件：macOS segmented control（灰槽 + 白片滑块）。
    统一收编 .doc-tabs（workspace 文档 tab）与 .view-toggle（preview 视图切换）。
-   规格对照品牌板 .segmented：槽 rgba(60,60,67,.09) / 圆角 9px / padding+gap 2px；
+   规格对照品牌板 .segmented：槽 color-mix(in srgb, var(--separator) 75%, transparent) / 圆角 9px / padding+gap 2px；
    选中片白底带投影、字重 600，未选中 500 次级灰。
    注意：不写 display，避免顶掉 projects V3 对 .view-toggle 的 display:none。 */
 .doc-tabs, .view-toggle {
-  background: rgba(60, 60, 67, .09) !important;
+  background: color-mix(in srgb, var(--separator) 75%, transparent) !important;
   border: none !important;
   box-shadow: none !important;
   padding: 2px !important;
@@ -1082,7 +1104,7 @@
   color: var(--fg) !important;
   font-weight: 600 !important;
   border-color: transparent !important;
-  box-shadow: 0 1px 3px rgba(18, 24, 38, .16), 0 0 0 .5px rgba(18, 24, 38, .05) !important;
+  box-shadow: var(--elev-1) !important;
 }
 
 /* doc page — macOS 阅读面（系统无衬线 + 浮起卡片） */
@@ -1120,22 +1142,23 @@
 .doc-page li { font-family: var(--font-text) !important; font-size: 14.5px !important; line-height: 1.75 !important; }
 .doc-page th, .doc-page td { font-family: var(--font-sans) !important; }
 
-/* annotation in margin — 蓝衬底批注条 */
+/* annotation in margin — 中性衬底批注条：
+   不做彩色填充块、不立彩色左边线，语义只落「智能体批注」标签文字。 */
 .annotation {
   font-family: var(--font-text) !important;
   font-style: normal !important;
-  background: var(--accent-soft) !important;
+  background: var(--surface-2) !important;
   border: 0 !important;
-  border-left: 2px solid var(--accent) !important;
+  box-shadow: inset .5px 0 0 var(--separator) !important;
   padding: 6px 12px !important;
-  border-radius: 0 8px 8px 0 !important;
-  color: var(--fg-2) !important;
+  border-radius: 0 var(--r-control) var(--r-control) 0 !important;
+  color: var(--label-2) !important;
 }
 .annotation::before {
-  font-family: var(--font-sans) !important;
+  font-family: var(--font-ui) !important;
   font-style: normal !important;
   letter-spacing: 0.12em !important;
-  color: var(--accent) !important;
+  color: var(--label-2) !important;   /* 静态批注署名：非交互非进行中 */
 }
 
 /* turn meta — 安静的次级灰；蓝色只留给「正在进行」 */
@@ -1162,42 +1185,34 @@
   font-size: 28px !important;
   letter-spacing: -0.022em !important;
 }
-.page-header .eyebrow { color: var(--accent) !important; letter-spacing: 0.12em !important; }
+/* 眉标是静态标识：中性三级灰（蓝只表达可交互与进行中） */
+.page-header .eyebrow { color: var(--label-3) !important; letter-spacing: 0.12em !important; }
 .case-title { font-family: var(--font-sans) !important; font-weight: 600 !important; font-style: normal !important; }
 .insight-card h3 { font-family: var(--font-sans) !important; font-weight: 600 !important; font-style: normal !important; }
 
 
 /* primary CTA: 发送 / 新建条目 / 导出 — Frost 系统蓝实心按钮（顶部高光 + 蓝晕投影） */
 .btn-primary, .composer-send, .export-btn {
-  background: linear-gradient(180deg, #1979f2 0%, #0064e1 100%) !important;
-  color: #ffffff !important;
+  background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%) !important;
+  color: #ffffff !important;   /* 蓝底之上的固定前景，不随外观切换 */
   padding: 6px 12px !important;
   font-size: 12px !important;
   font-weight: 600 !important;
-  border-radius: 7px !important;
+  border-radius: var(--r-control) !important;
   gap: 5px !important;
-  border: 1px solid rgba(0, 70, 160, 0.40) !important;
-  box-shadow:
-    0 1px 2px rgba(0, 80, 190, 0.35),
-    0 2px 6px rgba(0, 80, 190, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
-  transition: transform var(--t-micro) var(--ease-out), box-shadow var(--t-micro) ease, background var(--t-micro) ease, border-color var(--t-micro) ease !important;
+  border: 0 !important;   /* 深度代替描边 */
+  box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25) !important;
+  transition: transform var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), background var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std) !important;
 }
 .btn-primary:hover, .composer-send:hover, .export-btn:hover {
-  background: linear-gradient(180deg, #1571e4 0%, var(--blue-press) 100%) !important;
-  color: #ffffff !important;
+  background: linear-gradient(180deg, var(--blue-press) 0%, var(--blue-press) 100%) !important;
+  color: #ffffff !important;   /* 蓝底之上的固定前景，不随外观切换 */
   transform: none !important;
-  box-shadow:
-    0 2px 4px rgba(0, 80, 190, 0.40),
-    0 5px 12px rgba(0, 80, 190, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  box-shadow: var(--elev-2), inset 0 1px 0 rgba(255, 255, 255, .25) !important;
 }
 .btn-primary:active, .composer-send:active, .export-btn:active {
   transform: scale(.97) !important;
-  box-shadow:
-    0 1px 2px rgba(0, 80, 190, 0.35),
-    0 1px 4px rgba(0, 80, 190, 0.16),
-    inset 0 1px 2px rgba(0, 30, 80, 0.20) !important;
+  box-shadow: var(--elev-1), inset 0 1px 2px rgba(0, 0, 0, .18) !important;
 }
 .btn-primary svg, .composer-send svg, .export-btn svg { width: 13px !important; height: 13px !important; }
 
@@ -1220,17 +1235,17 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(28, 28, 32, 0.85);
-  color: #f5f5f7;
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  /* 落在暗区的返回药丸：实底深色面（规范：暗色 token，不手搓玻璃） */
+  background: var(--d-surface);
+  color: var(--d-label);
+  box-shadow: var(--elev-2);
   font-family: var(--font-sans);
   font-style: normal;
   font-size: 12.5px;
   padding: 7px 14px 7px 10px;
-  border-radius: 99px;
+  border-radius: 999px;
   text-decoration: none;
-  box-shadow: 0 8px 24px -8px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: var(--elev-2);
 }
 .ds-return:hover { background: var(--accent); }
 .ds-return .ds-tag {
@@ -1238,47 +1253,43 @@
   font-style: normal;
   font-size: 10px;
   letter-spacing: 0.14em;
-  text-transform: uppercase;
   background: var(--accent);
   color: var(--bg);
   padding: 2px 7px;
-  border-radius: 99px;
+  border-radius: 999px;
 }
 
 /* ===== Frost 桌面 chrome：壁纸 + 玻璃顶栏 + 内容浮窗 =====
    材质为 macOS Vibrancy 的 Web 近似（backdrop-filter），开启「降低透明度」时回退实底。 */
 body {
-  background:
-    radial-gradient(1000px 620px at 14% -8%, #ffffff 0%, rgba(255, 255, 255, 0) 60%),
-    radial-gradient(880px 560px at 88% 4%, #eef2f8 0%, rgba(238, 242, 248, 0) 55%),
-    radial-gradient(900px 700px at 80% 100%, #ccd5e2 0%, rgba(204, 213, 226, 0) 60%),
-    linear-gradient(165deg, #f4f6fa 0%, #e9edf4 48%, #dde3ec 100%) !important;
+  /* 规范壁纸：低频冷蓝、四 radial + 一 linear，角落一枚深蓝 lobe 供玻璃折射 */
+  background: var(--wallpaper) !important;
 }
 .app { background: transparent !important; }
+/* 顶栏：霜玻璃嵌入式 chrome，材质由 .frost-glass--soft.frost-glass--flush 承担
+   （类挂在 components/shell/TopBar.tsx）；与内容交界只留 .5px 接触边。
+   降低透明度的兜底由 frost-materials.css 的工具类统一提供。 */
 .topbar {
-  background: rgba(255, 255, 255, 0.62) !important;
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border-bottom: 1px solid rgba(60, 60, 67, 0.10) !important;
-}
-@media (prefers-reduced-transparency: reduce) {
-  .topbar { background: rgba(250, 251, 253, 0.98) !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  /* 不覆写 background：霜玻璃的 tint + illumination 由 .frost-glass 提供。
+     基础层的实底 var(--bg) 用 revert-layer 之外的最小手段撤销——这里直接置空。 */
+  background: none !important;
+  box-shadow: inset 0 -.5px 0 var(--separator);
 }
 .main { padding: 12px 14px 14px !important; }
 .center {
   background: var(--surface) !important;
-  border-radius: 12px !important;
+  border-radius: var(--r-window) !important;
   overflow: hidden !important;
-  box-shadow: 0 16px 44px rgba(20, 30, 50, .12), 0 4px 12px rgba(20, 30, 50, .06), 0 0 0 .5px rgba(20, 30, 50, .08) !important;
+  box-shadow: var(--elev-2) !important;
 }
 
 /* knowledge 等使用 .page-wrap 直挂 .app 的页面：同样窗口化 */
 .page-wrap {
   margin: 12px 14px 14px !important;
   background: var(--surface) !important;
-  border-radius: 12px !important;
+  border-radius: var(--r-window) !important;
   overflow: hidden !important;
-  box-shadow: 0 16px 44px rgba(20, 30, 50, .12), 0 4px 12px rgba(20, 30, 50, .06), 0 0 0 .5px rgba(20, 30, 50, .08) !important;
+  box-shadow: var(--elev-2) !important;
   min-height: 0;
 }
 .page-wrap > .content { overflow-y: auto !important; }
@@ -1289,46 +1300,46 @@ body {
 .nav-tabs {
   padding: 2px !important;
   gap: 2px !important;
-  background: rgba(60, 60, 67, .09) !important;
-  border-radius: 9px !important;
+  background: color-mix(in srgb, var(--separator) 75%, transparent) !important;
+  border-radius: var(--r-field) !important;
 }
 .nav-tabs a {
   display: inline-flex !important;
   align-items: center !important;
   height: 28px !important;
   padding: 0 18px !important;
-  border-radius: 7px !important;
+  border-radius: var(--r-control) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   color: var(--muted) !important;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, box-shadow var(--t-micro) ease, transform var(--t-micro) var(--ease-out) !important;
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std) !important;
 }
 .nav-tabs a:hover { background: transparent !important; color: var(--fg) !important; }
 .nav-tabs a.active {
   background: var(--surface) !important;
   color: var(--fg) !important;
   font-weight: 600 !important;
-  box-shadow: 0 1px 3px rgba(18, 24, 38, 0.16), 0 0 0 .5px rgba(18, 24, 38, 0.05) !important;
+  box-shadow: var(--elev-1) !important;
 }
-.icon-btn:hover { background: rgba(60, 60, 67, 0.08) !important; }
-.icon-btn { transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out) !important; }
-.icon-btn:active { transform: scale(.92); }
-.topbar-divider { background: rgba(60, 60, 67, 0.18) !important; }
+.icon-btn:hover { background: color-mix(in srgb, var(--separator) 67%, transparent) !important; }
+.icon-btn { transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std) !important; }
+.icon-btn:active { transform: scale(.92); }   /* 图标按钮 press 档（规范：常规控件 .97、图标钮 .92） */
+.topbar-divider { background: color-mix(in srgb, var(--label-3) 18%, transparent) !important; }
 
 /* ===== Frost 控件规范补全：选中态 / 焦点环 / 语义色 =====
    对照品牌板「控件」「应用全貌」两节；清掉 Archive 残留的墨黑实底与左缘指示条。 */
 
-/* 侧栏/列表选中：蓝衬底（brand .sb-item.active = rgba(0,100,225,.14) + 600 + 蓝图标），
+/* 侧栏/列表选中：蓝衬底（brand .sb-item.active = var(--blue-soft) + 600 + 蓝图标），
    替代灰底与 inset 左线（knowledge .nav-item / projects 二级面板与图标栏） */
 .nav-item.active {
-  background: rgba(0, 100, 225, .14) !important;
+  background: var(--blue-soft) !important;
   color: var(--fg) !important;
   font-weight: 600 !important;
   box-shadow: none !important;
 }
 .nav-item.active svg { color: var(--accent) !important; }
 .nav-item.active .count { color: var(--muted) !important; }
-.rail-item.active { background: rgba(0, 100, 225, .14) !important; }
+.rail-item.active { background: var(--blue-soft) !important; }
 .rail-item.active::before { display: none !important; }
 .rail-item.active .rail-label { font-weight: 600 !important; }
 
@@ -1344,7 +1355,7 @@ body {
 .chip.active {
   background: var(--accent) !important;
   border-color: transparent !important;
-  color: #fff !important;
+  color: #ffffff !important;   /* 蓝底之上的固定前景，不随外观切换 */
 }
 
 /* 导出格式选中：蓝描边 + 浅蓝衬底（brand 圆角阶示意的选中框语义），替代墨黑描边 */
@@ -1356,8 +1367,8 @@ body {
 /* 开关：开即系统蓝（brand .switch.on），替代墨黑 */
 .toggle.on { background: var(--accent) !important; }
 
-/* 时间线已完成节点：成功语义用绿（图形用饱和值 #34C759），替代墨黑 */
-.timeline-item.done .line::before { background: #34c759 !important; border-color: #34c759 !important; }
+/* 时间线已完成节点：成功语义用绿（图形用饱和值 var(--green)），替代墨黑 */
+.timeline-item.done .line::before { background: var(--green) !important; border-color: var(--green) !important; }
 
 /* 引用热度条填充：墨黑 → 系统蓝，与 projects 进度条同语义 */
 .citation-bar .fill { background: var(--accent) !important; }
@@ -1366,26 +1377,16 @@ body {
 .search input:focus,
 .app-shell .list-toolbar .search input:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(0, 100, 225, .18) !important;
+  box-shadow: 0 0 0 3px var(--blue-soft) !important;
 }
 .composer-input:focus-within {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(0, 100, 225, .18);
+  box-shadow: 0 0 0 3px var(--blue-soft);
 }
 
-/* 知识库分类 tag / 文件图标：只用品牌发放的语义对（蓝/绿/橙/红），
-   紫色与 oklch 自造蓝是越权装饰 */
-.tag.case { background: var(--surface-2) !important; color: var(--fg-2) !important; border-color: var(--border) !important; }
-.tag.template { background: rgba(52, 199, 89, .15) !important; color: var(--success) !important; }
-.tag.cred { background: rgba(255, 149, 0, .15) !important; color: var(--warn) !important; }
-.file-icon.pdf { color: #d70015 !important; }
-.file-icon.doc { color: var(--accent) !important; }
-.file-icon.xls { color: var(--success) !important; }
-.file-icon.zip { color: var(--warn) !important; }
-
-/* preview 校验行状态点：语义色成对发放（饱和衬底 + 加深文本色） */
-.check-row.pass .status-icon { background: rgba(52, 199, 89, .15) !important; color: var(--success) !important; }
-.check-row.warn .status-icon { background: rgba(255, 149, 0, .15) !important; color: var(--warn) !important; }
+/* 知识库分类 tag / 文件图标：分类不是状态语义，一律中性——
+   语义色只发给 success/warning/danger 三态，装饰不消耗彩色。
+   具体样式在各路由 styles.css，此处不再用 !important 压制。 */
 
 /* ===== Claude Messages overlay ===== */
 /* ============================================================
@@ -1422,9 +1423,9 @@ body {
   flex-direction: column;
   max-width: 86%;
   padding: 11px 16px;
-  border-radius: 16px 16px 4px 16px;
+  border-radius: var(--r-card);
   background: var(--accent);
-  color: #fff;
+  color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
   font-family: var(--font-sans);
   font-size: var(--fs-chat-user);
   font-weight: 450;
@@ -1436,7 +1437,7 @@ body {
   display: flex;
   gap: 2px;
   opacity: 0;
-  transition: opacity var(--t-micro) ease;
+  transition: opacity var(--t-micro) var(--ease-std);
 }
 .cm-message-turn:hover .cm-user-actions,
 .cm-message-turn:focus-within .cm-user-actions { opacity: 1; }
@@ -1445,18 +1446,18 @@ body {
   align-items: center;
   justify-content: center;
   width: 28px; height: 28px;
-  border-radius: 6px;
+  border-radius: var(--r-control);   /* 坡道档位 */
   border: 0;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cm-action-btn:hover {
   background: var(--surface-2);
   color: var(--fg);
 }
-.cm-action-btn:active { transform: scale(.92); }
+.cm-action-btn:active { transform: scale(.97); }
 .cm-action-btn svg { width: 14px; height: 14px; }
 
 /* ---------- Assistant response ---------- */
@@ -1492,15 +1493,14 @@ body {
 }
 .cm-response p { margin: 0 0 0.7em; }
 .cm-response p:last-child { margin-bottom: 0; }
-.cm-error-message { color: #d70015; }
+.cm-error-message { color: var(--red-text); }
 .cm-error-message p { display: flex; align-items: flex-start; gap: 8px; }
 .cm-error-mark {
   width: 7px;
   height: 7px;
   margin-top: .55em;
   border-radius: 50%;
-  background: #ff3b30;
-  box-shadow: 0 0 0 3px rgba(255, 59, 48, .12);
+  background: var(--red);   /* 语义状态点：不加彩色光晕 */
   flex: 0 0 auto;
 }
 .cm-response strong {
@@ -1512,12 +1512,13 @@ body {
   color: var(--fg-2);
 }
 .cm-response code:not(pre code) {
-  border: 1px solid var(--border-2);
-  background: rgba(116, 116, 128, 0.10);
+  /* 中性 code chip：语义红只归否决/废标，不用于排版装饰 */
+  border: 0;
+  background: var(--surface-2);
   font-size: 0.86em;
-  color: var(--oxide, #d70015);
+  color: var(--label);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-control);
   font-family: var(--font-mono);
   font-variant-ligatures: none;
   letter-spacing: 0;
@@ -1545,9 +1546,9 @@ body {
   color: inherit;
   text-decoration: underline;
   text-decoration-thickness: 1px;
-  text-decoration-color: color-mix(in oklch, var(--fg-2) 40%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--label-2) 40%, transparent);
   text-underline-offset: 3px;
-  transition: text-decoration-color 0.15s;
+  transition: text-decoration-color var(--t-micro) var(--ease-std);
 }
 .cm-response a:hover,
 .cm-markdown [data-streamdown="link"]:hover { text-decoration-color: var(--fg); }
@@ -1615,7 +1616,7 @@ body {
   position: relative;
   margin: 1em 0;
   border: 1px solid var(--border-2);
-  border-radius: 10px;
+  border-radius: var(--r-window);
   overflow: hidden;
   background: var(--surface);
   font-family: var(--font-mono);
@@ -1632,7 +1633,6 @@ body {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 11px;
-  text-transform: lowercase;
 }
 /* streamdown 用 Tailwind 的 sticky/-mt-10/justify-end 把操作区浮到右上；无 Tailwind 时
    该容器（header 与 body 之间、内含 code-block-actions 的那层）失去定位，靠 :has 把它
@@ -1657,8 +1657,8 @@ body {
   color: var(--muted);
   cursor: pointer;
   padding: 3px;
-  border-radius: 5px;
-  transition: color 0.15s, background-color 0.15s;
+  border-radius: var(--r-control);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
 }
 .cm-markdown [data-streamdown="code-block-copy-button"]:hover { color: var(--fg); background: var(--surface-3); }
 .cm-markdown [data-streamdown="code-block-copy-button"] svg { width: 14px; height: 14px; }
@@ -1716,10 +1716,10 @@ body {
   cursor: pointer;
   width: 100%;
   min-width: 0;
-  transition: color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cm-thinking-button:hover { color: var(--fg); }
-.cm-thinking-button:active { transform: scale(.99); }
+.cm-thinking-button:active { transform: scale(.97); }
 
 .cm-thinking-spark {
   width: 20px; height: 20px;
@@ -1740,29 +1740,14 @@ body {
   min-width: 0;
   color: var(--fg-2);
 }
+/* 等待态：静态主色文字（循环流光已撤——规范只授予 running 态 border beam 一条循环）。 */
 .cm-thinking-button .cm-summary-text.is-waiting {
-  color: var(--fg-2);
-  background-image: linear-gradient(
-    105deg,
-    var(--fg-2) 0%,
-    var(--fg-2) 35%,
-    var(--faint) 44%,
-    var(--fg) 50%,
-    var(--faint) 56%,
-    var(--fg-2) 65%,
-    var(--fg-2) 100%
-  );
-  background-position: 160% 50%;
-  background-size: 250% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  will-change: background-position;
+  color: var(--label);
 }
 .cm-thinking-button .cm-chevron {
   display: inline-block;
   transform: rotate(-90deg);
-  transition: transform var(--t-float) var(--ease-drawer);
+  transition: transform var(--t-float) var(--ease-std);
   color: var(--faint);
 }
 .cm-thinking-grid[aria-expanded="true"] .cm-chevron { transform: rotate(0deg); }
@@ -1774,7 +1759,7 @@ body {
   flex-direction: column;
   gap: 0;
   opacity: 0;
-  transition: opacity var(--t-micro) ease;
+  transition: opacity var(--t-micro) var(--ease-std);
 }
 .cm-thinking-body::before {
   content: "";
@@ -1888,7 +1873,7 @@ body {
 .cm-tool-section.is-running .cm-subagent-status { color: var(--fg-2); }
 .cm-tool-results {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm); /* Frost 圆角阶：控件 7px，3px 在阶外 */
+  border-radius: var(--r-control); /* Frost 圆角阶：控件 7px，3px 在阶外 */
   background: var(--surface);
   overflow: hidden;
   display: flex;
@@ -1902,14 +1887,14 @@ body {
   text-decoration: none;
   cursor: pointer;
   color: inherit;
-  transition: background-color .15s;
+  transition: background-color var(--t-micro) var(--ease-std);
 }
 .cm-result + .cm-result { border-top: 1px solid var(--border); }
 .cm-result:hover { background: var(--surface-2); }
 .cm-result-icon {
   width: 18px; height: 18px;
   flex-shrink: 0;
-  border-radius: 5px; /* 对齐 brand 18px 复选框的 5px */
+  border-radius: var(--r-control); /* 控件档 */
   background: var(--surface-2);
   display: grid;
   place-items: center;
@@ -1948,17 +1933,9 @@ body {
   width: 7px; height: 7px;
   border: 0;
   background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--blue-soft);
   border-radius: 50%;
   flex-shrink: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cm-thinking-button .cm-summary-text.is-waiting {
-    background-image: none;
-    -webkit-text-fill-color: var(--fg-2);
-    will-change: auto;
-  }
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -1980,20 +1957,10 @@ body {
   max-height: 320px;
   overflow-y: auto;
   padding: 5px;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(40px) saturate(190%);
-  -webkit-backdrop-filter: blur(40px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 9px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), var(--elev-2);
+  /* 凝玻璃 regular（瞬态浮层，本屏第 3 张 lens 面）：材质、rim、投影与降级
+     全部交给 .frost-glass--lens[data-thick="regular"]（类挂在 Composer.tsx）。 */
+  border-radius: var(--r-card);
   transform-origin: right bottom;
-}
-@media (prefers-reduced-transparency: reduce) {
-  .composer-sample-menu {
-    background: rgba(250, 251, 253, 0.98);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
 }
 .composer-sample-item {
   display: block;
@@ -2002,16 +1969,17 @@ body {
   padding: 9px 11px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--r-field);   /* 同心：外 14 − padding 5 */
   color: var(--fg);
   font-size: 13px;
   line-height: 1.4;
   cursor: pointer;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease;
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
 }
-.composer-sample-item:hover { background: var(--accent); color: #fff; }
+/* 菜单行 hover：整行蓝 + 固定白前景（规范：menu rows → full-width blue） */
+.composer-sample-item:hover { background: var(--blue); color: #ffffff; }
 .composer-sample-item:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .35);
+  outline: 2px solid color-mix(in srgb, var(--blue) 35%, transparent);
   outline-offset: -2px;
 }
 .composer-sample-heading {
@@ -2033,18 +2001,18 @@ body {
   min-width: 0;
   margin-bottom: 8px;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-window);
   background: var(--surface-2);
-  box-shadow: inset 0 0 0 .5px var(--border);
+  box-shadow: inset 0 0 0 .5px var(--separator);
 }
 .composer-selection-icon {
   display: grid;
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
-  color: var(--accent);
-  background: var(--accent-soft);
+  border-radius: var(--r-control);
+  color: var(--label-2);
+  background: var(--surface-2);   /* 静态图标砖，与 .cv-icon-tile 同构 */
   flex: 0 0 auto;
 }
 .composer-selection-copy {
@@ -2066,15 +2034,15 @@ body {
   flex: 0 0 auto;
   padding: 4px 7px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--muted);
   font-size: 11px;
   white-space: nowrap;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
-.composer-selection > button:hover { color: var(--fg); background: rgba(60, 60, 67, .08); }
-.composer-selection > button:active { transform: scale(.96); }
+.composer-selection > button:hover { color: var(--fg); background: color-mix(in srgb, var(--separator) 67%, transparent); }
+.composer-selection > button:active { transform: scale(.97); }
 .composer-hint {
   margin-top: 6px;
   padding: 0 2px;
@@ -2095,7 +2063,7 @@ body {
   margin: 0;
   padding: 16px 18px;
   background: var(--surface-2);
-  border-radius: var(--radius);
+  border-radius: var(--r-window);
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 12.5px;
   line-height: 1.6;
@@ -2183,7 +2151,7 @@ body {
   align-items: center;
   padding: 1px 8px;
   border-radius: 999px;
-  background: rgba(60, 60, 67, 0.07);
+  background: color-mix(in srgb, var(--separator) 58%, transparent);
   color: var(--muted);
   font-size: 11px;
   white-space: nowrap;
@@ -2201,8 +2169,9 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
 }
-.rv-nature.star { background: rgba(255, 59, 48, 0.12); color: #d70015; }
-.rv-nature.tri { background: rgba(255, 149, 0, 0.14); color: #b25e00; }
+/* 语义色只落文字与图标，不做彩色填充块（见 CONTEXT.md 提示语汇通则） */
+.rv-nature.star { background: var(--surface-2); color: var(--red-text); }
+.rv-nature.tri { background: var(--surface-2); color: var(--orange-text); }
 
 /* 评分：分值靠行尾；三块满分瓦片用浅灰衬底 */
 .rv-score {
@@ -2220,7 +2189,7 @@ body {
 }
 .rv-score-tile {
   background: var(--surface-2);
-  border-radius: var(--radius);
+  border-radius: var(--r-window);
   padding: 14px 16px 12px;
 }
 .rv-score-num {
@@ -2259,8 +2228,8 @@ body {
 .rv-note {
   margin: 0;
   padding: 12px 16px;
-  border-radius: var(--radius);
-  background: var(--accent-soft);
+  border-radius: var(--r-window);
+  background: var(--surface-2);   /* 说明块用中性衬底，不做蓝底 */
   color: var(--fg-2);
   font-size: 12.5px;
   line-height: 1.7;
@@ -2287,20 +2256,9 @@ body {
    事实来源：.design/prototype/frost/标书工作台画布.html。
    右侧画布以「投标文件大纲」为主轴，制品卡环绕并连线；卡片可拖拽，点击开右侧抽屉；
    底部浮动 dock 生成制品。平移/缩放=命令式 transform；进场/抽屉=gsap（不手写 keyframes）。
-   画布内沿用原型 token 命名，统一别名到 Frost 主题变量： */
+   画布内直接消费 :root 单源发放的规范 token（--label/--blue/--green 等），
+   不再另立别名层：别名与 :root 的兼容别名互指会形成循环，令 token 计算为 invalid。 */
 .canvas-pane {
-  --label: var(--fg);
-  --label-2: var(--fg-2);
-  --label-3: var(--faint);
-  --blue: var(--accent);
-  --blue-soft: var(--accent-soft);
-  --separator: var(--border);
-  --green: #34c759;
-  --green-text: var(--success);
-  --orange: #ff9500;
-  --orange-text: var(--warn);
-  --red: #ff3b30;
-  --red-text: #d70015;
 
   position: relative;
   min-width: 0;
@@ -2309,6 +2267,22 @@ body {
   flex-direction: column;
   background: var(--surface-2);
   overflow: hidden;
+}
+
+/* ---- 网格点背景 ----
+   画在视口上而非世界层上：世界层随 transform 缩放会让点阵在高倍下糊掉、低倍下密成一片。
+   改由 useCanvasViewport.apply() 把 tx/ty/scale 写入 --cv-grid-x/y/size，点阵用
+   background-position/size 跟随平移缩放，视觉上"钉"在世界坐标系里，同时点始终是 1.5px 清晰圆点。 */
+.canvas-viewport {
+  --cv-grid-gap: 24px;
+  --cv-grid-x: 0px;
+  --cv-grid-y: 0px;
+  --cv-grid-size: var(--cv-grid-gap);
+  --cv-grid-dot: color-mix(in srgb, var(--label-3) 16%, transparent);
+  background-color: var(--surface-2);
+  background-image: radial-gradient(circle, var(--cv-grid-dot) 1px, transparent 1.5px);
+  background-size: var(--cv-grid-size) var(--cv-grid-size);
+  background-position: var(--cv-grid-x) var(--cv-grid-y);
 }
 
 /* ---- 顶部工具栏（玻璃） ---- */
@@ -2320,10 +2294,8 @@ body {
   min-height: 52px;
   padding: 10px 16px;
   z-index: 4;
-  border-bottom: 1px solid var(--separator);
-  background: rgba(245, 246, 248, 0.80);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  /* 霜玻璃 regular + .frost-scroll-edge（类挂在 CanvasPane.tsx）：
+     内容从条下滑过，用渐进模糊代替分区线，不再画接触边。 */
 }
 .cv-toolbar-label {
   display: inline-flex;
@@ -2334,7 +2306,7 @@ body {
   color: var(--label);
   flex: 0 0 auto;
 }
-.cv-toolbar-label svg { color: var(--blue); }
+.cv-toolbar-label svg { color: var(--label-3); }   /* 静态标题图标：icons-at-rest */
 .cv-toolbar-sub {
   font-size: 12px;
   color: var(--label-3);
@@ -2348,8 +2320,8 @@ body {
   align-items: center;
   gap: 2px;
   background: var(--surface);
-  border: 1px solid var(--separator);
-  border-radius: 9px;
+  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
+  border-radius: var(--r-field);
   padding: 2px;
   box-shadow: var(--elev-1);
 }
@@ -2362,12 +2334,12 @@ body {
   border: 0;
   background: transparent;
   color: var(--label-2);
-  border-radius: 7px;
+  border-radius: var(--r-control);
   cursor: pointer;
-  transition: background-color var(--t-micro) ease, color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: background-color var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cv-zoom button:hover { background: var(--surface-2); color: var(--fg); }
-.cv-zoom button:active { transform: scale(.92); }
+.cv-zoom button:active { transform: scale(.97); }
 .cv-zoom-lvl {
   min-width: 42px;
   text-align: center;
@@ -2381,16 +2353,16 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--separator);
+  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
   background: var(--surface);
   color: var(--label-2);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   cursor: pointer;
   box-shadow: var(--elev-1);
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cv-tool-btn:hover { color: var(--fg); background: var(--surface-2); }
-.cv-tool-btn:active { transform: scale(0.96); }
+.cv-tool-btn:active { transform: scale(.92); }
 
 /* ---- 视口 + 世界 ---- */
 .canvas-viewport {
@@ -2408,12 +2380,9 @@ body {
   top: 16px;
   z-index: 6;
   padding: 5px 9px;
-  border-radius: 8px;
+  border-radius: 999px;   /* 放置矩阵同一格：活动条 / dock chips / 视口提示一律 pill */
   color: var(--label-3);
-  background: rgba(255, 255, 255, .72);
-  box-shadow: var(--elev-1);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  /* 霜玻璃 thin：材质与投影交给工具类（类挂在 CanvasPane.tsx） */
   font-size: 10.5px;
   line-height: 1.3;
   pointer-events: none;
@@ -2444,8 +2413,8 @@ body {
   align-items: center;
   gap: 9px;
   padding: 16px 26px;
-  border: 1.5px dashed rgba(60, 60, 67, 0.24);
-  border-radius: 14px;
+  border: 1.5px dashed color-mix(in srgb, var(--label-3) 24%, transparent);
+  border-radius: var(--r-card);
   color: var(--label-2);
   font-size: 13px;
   font-weight: 600;
@@ -2462,11 +2431,12 @@ body {
   flex: 0 0 auto;
 }
 .cv-chip {
+  /* 引用标签是静态标识，非交互也非进行中 → 中性（蓝只表达可交互/进行中） */
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
-  color: var(--blue);
-  background: var(--blue-soft);
+  color: var(--label-2);
+  background: var(--surface-2);
   padding: 2px 7px;
   border-radius: 999px;
   white-space: nowrap;
@@ -2487,9 +2457,10 @@ body {
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 7px;
-  background: var(--blue-soft);
-  color: var(--blue);
+  border-radius: var(--r-control);
+  /* 中性图标砖：蓝只表达可交互与进行中，卡头/抽屉头的图标是静态标识 */
+  background: var(--surface-2);
+  color: var(--label-2);
   flex: 0 0 auto;
 }
 .cv-bullet {
@@ -2497,7 +2468,7 @@ body {
   height: 6px;
   margin-top: 6px;
   border-radius: 999px;
-  border: 1.5px solid var(--blue);
+  border: 1.5px solid var(--label-3);   /* 静态项目符号：装饰不消耗彩色 */
   flex: 0 0 auto;
 }
 .cv-knol-icon {
@@ -2505,7 +2476,7 @@ body {
   place-items: center;
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   background: var(--surface-2);
   color: var(--label-2);
   flex: 0 0 auto;
@@ -2515,7 +2486,7 @@ body {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--green-text);
-  background: rgba(52, 199, 89, 0.15);
+  background: var(--surface-2);
   padding: 1px 8px;
   border-radius: 999px;
 }
@@ -2526,27 +2497,151 @@ body {
   font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   cursor: pointer;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
-.cv-cite-btn:active { transform: scale(.96); }
+.cv-cite-btn:active { transform: scale(.97); }
 
 /* ---- 制品卡 ---- */
 .cv-card {
   position: absolute;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   box-shadow: var(--elev-2);
   overflow: hidden;
   cursor: grab;
   user-select: none;
   outline: 2px solid transparent;
   outline-offset: 2px;
-  transition: box-shadow var(--t-float) ease, outline-color var(--t-micro) ease;
+  transition: box-shadow var(--t-float) var(--ease-std), outline-color var(--t-micro) var(--ease-std);
 }
-.cv-card:hover { box-shadow: var(--elev-2), 0 10px 28px rgba(12, 18, 32, .08); }
+.cv-card:hover { box-shadow: var(--elev-2); }
 .cv-card:focus-visible { outline-color: var(--blue); }
+
+/* 矩阵卡卡面(2026-08 重做):四行语法 —— 题名 / 主指标 / 结构条 / 信号行。
+   一张卡只回答一个问题(还剩多少天 / 多少条要求 / 几条会废标 / 分值去向),其余交给抽屉。
+   撤掉的三样都是重复劳动:卡脚状态徽标与画布工具栏的「项目名 · 已完成」说同一件事;
+   「展开 →」说的是整卡可点这件已知事实,可点性改由悬停抬升表达;阶段签的信息量
+   已由停靠列的上下顺序承载。蓝底图标砖同样撤除——蓝在 Frost 里只归可交互 / 进行中。
+   mock 卡(演示模式)不走这套,仍是头/身/脚三段式。 */
+.cv-card.is-face {
+  /* 卡面三级灰直接取 :root 的 --label-3（#6b6b76）——画布不再另立别名层 */
+  padding: 13px 14px 14px;
+  box-shadow: var(--elev-1);
+  transition: box-shadow var(--t-float) var(--ease-std), transform var(--t-float) var(--ease-std), outline-color var(--t-micro) var(--ease-std);
+}
+.cv-card.is-face:hover { box-shadow: var(--elev-2); transform: translateY(-1px); }
+/* 行 1 · 题名。右端 .cv-face-state 只在非终态时出现(解析中 / 等待 / 中断) */
+.cv-face-head { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; }
+.cv-face-head > svg { color: var(--label-3); flex: 0 0 auto; }
+.cv-face-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label);
+  letter-spacing: -.005em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-face-state { flex: 0 0 auto; font-size: 11px; color: var(--label-3); white-space: nowrap; }
+/* 行 2 · 主指标:全卡唯一的大字。数字扛信息,后缀退到三级灰 */
+.cv-face-hero { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+.cv-face-hero b {
+  /* 永不换行:大字一折行,四行语法就破了,卡高一涨停靠列整列重叠(编排按 META.h 定高) */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -.028em;
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+}
+.cv-face-hero span {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--label-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 临近截止:主指标整体翻警示色(全卡唯一着色的大字)。已截止不是警示而是事实,退中性 */
+.cv-face-hero.is-warn b { color: var(--orange-text); }
+.cv-face-hero.is-past b { color: var(--label-2); }
+/* 行 3 · 结构条:四行分类条形图压成一条 4px 堆叠条。段色走中性灰阶(深→浅 = 多→少),
+   段间 2px 白缝;没有结构可画时整条不渲染,不留空轨道 */
+.cv-face-stack { display: flex; gap: 2px; height: 4px; margin: 11px 0 9px; }
+.cv-face-stack i { display: block; height: 100%; min-width: 2px; border-radius: 999px; background: color-mix(in srgb, var(--label) 14%, transparent); }
+.cv-face-stack i.s1 { background: color-mix(in srgb, var(--label) 52%, transparent); }
+.cv-face-stack i.s2 { background: color-mix(in srgb, var(--label) 34%, transparent); }
+.cv-face-stack i.s3 { background: color-mix(in srgb, var(--label) 22%, transparent); }
+.cv-face-stack i.s4 { background: color-mix(in srgb, var(--label) 14%, transparent); }
+.cv-face-stack i.rest { background: color-mix(in srgb, var(--label) 8%, transparent); }
+/* 行 4 · 信号行:色点作扫描锚、数字扛语义色,句子本身保持中性——
+   一张卡只该有一个最响的元素(主指标),信号行是次响,不与它抢 */
+.cv-face-sig {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+.cv-face-sig > span {
+  --sig: var(--label-3);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.cv-face-sig > span::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--sig);
+  flex: 0 0 auto;
+  transform: translateY(-2px);
+}
+.cv-face-sig b { font-weight: 600; color: var(--sig); }
+.cv-face-sig .is-mand { --sig: var(--orange-text); }
+.cv-face-sig .is-fatal { --sig: var(--red-text); }
+/* 次级注解:无点、三级灰,挤不下时先截它 */
+.cv-face-sig .is-note { display: block; color: var(--label-3); overflow: hidden; text-overflow: ellipsis; }
+.cv-face-sig .is-note::before { display: none; }
+/* 进行中:卡顶一根发丝线(静态,Frost 禁无限循环动效) */
+.cv-face-thread {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue) 62%, var(--blue-soft) 62%);
+}
+/* 失败 / 中断:不发红药丸,左缘立一根色条 + 一句直陈 */
+/* 失败 / 中断:不立彩色边线、不铺色底 —— 一枚语义色图标 + 主色标题 + 一句直陈。
+   卡壳保持与其余三张完全一致,异常感来自那枚图标与文案本身。 */
+.cv-face-fail { font-size: 12px; line-height: 1.65; color: var(--label-2); }
+.cv-face-fail b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+  font-weight: 600;
+  color: var(--label);
+}
+.cv-face-fail b > svg { flex: 0 0 auto; color: var(--orange); }
+.cv-card.is-stalled .cv-face-fail b > svg { color: var(--label-3); }
 .cv-card-prog { height: 3px; background: linear-gradient(90deg, var(--blue) 71%, var(--surface-2) 71%); }
 .cv-card-head {
   display: flex;
@@ -2590,86 +2685,43 @@ body {
   gap: 3px;
 }
 
-/* ---- 卡面决策触发器(票3):截止倒计时 / 风险徽标 / 权重微条 / 骨架条 ---- */
-/* 概要卡截止行:全卡唯一的着色块 + 最重字重 = 最醒目;临近截止整块翻橙色警示 */
-.cv-face-deadline {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 7px 9px;
-  border-radius: 8px;
-  background: var(--surface-2);
-}
-.cv-face-deadline-top {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 10.5px;
-  color: var(--label-3);
-}
-.cv-face-deadline-count {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--label-2);
-  font-variant-numeric: tabular-nums;
-}
-.cv-face-deadline-date {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--label);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cv-face-deadline.is-warn { background: rgba(255, 149, 0, .14); }
-.cv-face-deadline.is-warn .cv-face-deadline-count,
-.cv-face-deadline.is-warn .cv-face-deadline-date { color: var(--orange-text); }
-.cv-face-deadline.is-past .cv-face-deadline-date { color: var(--label-2); }
-
-/* 商务/技术卡徽标行:★实质性橙色(漏一条即废标)、高风险红色;0 项时中性灰不误报 */
-.cv-face-badges { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.cv-face-badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: 10.5px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  background: rgba(60, 60, 67, .10);
-  color: var(--label-2);
-}
-.cv-face-badge.is-mand,
-.cv-face-badge.is-warn { background: rgba(255, 149, 0, .15); color: var(--orange-text); }
-.cv-face-badge.is-risk { background: rgba(255, 59, 48, .10); color: var(--red-text); }
-
-/* 评分卡三格下的权重占比微条(分值/总分) */
-.cv-face-weight {
-  height: 3px;
-  margin: 5px 8px 0;
-  border-radius: 999px;
-  background: rgba(60, 60, 67, .12);
-  overflow: hidden;
-}
-.cv-face-weight i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--blue);
-}
-
-/* 载入中卡面骨架条:静态(Frost 禁无限循环动效),进行感由卡顶进度条与「解析中」徽标承担 */
-.cv-skel { display: flex; flex-direction: column; gap: 10px; padding: 3px 0 2px; }
+/* ---- 卡面骨架条 + 详情共用的语义标记 ---- */
+/* 载入中卡面骨架:形状呼应就绪后的四行语法(主指标块 + 结构条 + 注释行),
+   静态呈现(Frost 禁无限循环动效),进行感由卡顶发丝线与题名行的「正在解析」承担 */
+.cv-skel { display: flex; flex-direction: column; gap: 9px; padding: 1px 0 3px; }
 .cv-skel i { display: block; height: 8px; border-radius: 999px; background: var(--surface-2); }
+.cv-skel i.hero { height: 16px; }
+
+/* 语义标记:一枚色点 + 一行字,替代此前的橙红药丸。
+   实质性条款沿用招标文件的原生记号 ★(.cv-star),不另造图形 */
+.cv-mark {
+  --sig: var(--label-3);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--label-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cv-mark::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--sig);
+  flex: 0 0 auto;
+  transform: translateY(-2px);
+}
+.cv-mark.is-risk { --sig: var(--red); }
+.cv-mark.is-warn { --sig: var(--orange); }
+.cv-star { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--orange-text); }
 
 /* ---- 主轴（投标大纲骨架卡） ---- */
 .cv-spine {
   position: absolute;
   background: var(--surface);
-  border-radius: 16px;
+  border-radius: var(--r-panel);
   box-shadow: var(--elev-2);
   overflow: hidden;
 }
@@ -2679,15 +2731,15 @@ body {
   gap: 8px;
   padding: 0 13px;
   border-bottom: 1px solid var(--separator);
-  background: rgba(0, 100, 225, 0.04);
+  background: var(--surface-2);
 }
 .cv-spine-title { font-size: 13px; font-weight: 700; color: var(--label); }
 .cv-spine-tag {
   margin-left: auto;
   font-size: 10.5px;
   font-weight: 600;
-  color: var(--blue);
-  background: var(--blue-soft);
+  color: var(--label-2);
+  background: var(--surface-2);   /* 静态标签：蓝只表达可交互/进行中 */
   padding: 1px 7px;
   border-radius: 999px;
 }
@@ -2701,22 +2753,22 @@ body {
   font-weight: 600;
   color: var(--label);
   background: transparent;
-  transition: background .12s ease;
+  transition: background var(--t-micro) var(--ease-std);
 }
 .cv-spine-row.is-sub { font-size: 11px; font-weight: 400; color: var(--label-2); }
 .cv-spine-row.is-active { background: var(--blue-soft); font-weight: 700; }
 .cv-spine-row:not(.is-active):hover { background: var(--surface-2); }
 .cv-spine-row:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
+  outline: 2px solid var(--blue);
   outline-offset: -2px;
 }
 .cv-spine-row-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ==== 画布浮层：左上消息浮窗 + 底部输入坞 ====
-   立场（Frost）：chrome 玻璃，内容实底。浮窗正文区恒为 var(--surface)——
-   .cm-thinking-item-icon 靠 var(--surface) 的 4px 不透明外环遮断思考块的时间线竖线，
-   正文一旦半透明这个遮断就露馅，竖线会从图标里穿出来。
-   新增玻璃面的 backdrop-filter 一律写 JSX 内联：构建期 Lightning CSS 会丢掉无前缀属性。 */
+/* ==== 画布浮层：左上 Prose Bot 消息窗 + 底部输入坞 ====
+   立场（Frost）：chrome 玻璃。2026-08 消息窗改版后，执行流正文**直接落在玻璃上**——
+   这是原型定稿时对「内容面恒为实底」的有意例外，理由与随之而来的三处修正都写在
+   下面「时间线落在玻璃上」一段，勿反复评审。
+   玻璃面的 backdrop-filter 一律写 JSX 内联：构建期 Lightning CSS 会丢掉无前缀属性。 */
 
 .canvas-viewport {
   /* 输入坞占用的底部带宽，供展开态浮窗让位。此处是首帧兜底值，
@@ -2726,43 +2778,371 @@ body {
   --cv-float-inset: 14px;
 }
 
-/* ---- 消息浮窗（normal / expanded 两个开启档）---- */
+/* ---- Prose Bot 消息窗 ----
+   一个壳、两档：min（Bot + 一行播报，无底）/ open（玻璃面板，完整执行流）。
+   事实来源：.design/prototype/prose-bot-window.html（设计取舍写在该文件的 CSS 注释里）。
+
+   Bot 是转场的锚点——两档里它的绝对坐标完全一致（left/top 恒为 --cv-msgwin-pad），
+   窗口从它右下方生长出来。合入时必须守住这一条：Bot 一动，整个交互的支点就没了。
+
+   min 档**不画玻璃**（用户定）：无底、无边、无影，Bot 与播报直接浮在画布上。
+   于是壳整块 pointer-events:none，只有 Bot / 玻璃面 / 面板三处按需要收回事件——
+   否则一个 332×56 的透明盒会静默吃掉画布左上角的拖拽。 */
 .cv-msgwin {
+  --cv-msgwin-pad: 10px;
+  --cv-msgwin-bot: 36px;
+  /* 播报与标题的起始 x：Bot 右缘再让 11px 呼吸 */
+  --cv-msgwin-lane: calc(var(--cv-msgwin-pad) + var(--cv-msgwin-bot) + 11px);
+  --cv-msgwin-max-h: calc(100% - var(--cv-float-inset) - var(--cv-dock-band));
+
+  /* 光束配色。备案：这套值随主题翻转才看得见——深色底上光弧的核是白的，浅色底上
+     白核直接消失在玻璃里，得反过来用饱和的深蓝去压白边。本项目当前只有浅色。 */
+  --cv-beam-far:  color-mix(in srgb, var(--blue) 26%, transparent);
+  --cv-beam-mid:  color-mix(in srgb, var(--blue) 72%, transparent);
+  --cv-beam-core: var(--blue);
+  --cv-beam-bloom-far:  var(--blue-soft);
+  --cv-beam-bloom-mid:  color-mix(in srgb, var(--blue) 42%, transparent);
+  --cv-beam-bloom-core: color-mix(in srgb, var(--blue) 85%, transparent);
+  --cv-beam-inner-glow: color-mix(in srgb, var(--blue) 34%, transparent);
+
   position: absolute;
   left: var(--cv-float-inset);
   top: var(--cv-float-inset);
   z-index: 9;                     /* > .cv-viewport-hint(6) 与 .cv-dock(8)，< .cv-drawer(30) */
+  contain: layout;                /* 逐帧改宽高的布局影响封在子树内。
+                                     **不能加 paint**：会把光束外扩的辉光整圈剪掉。 */
+  pointer-events: none;
+  touch-action: auto;             /* 抵消 .canvas-viewport 的 touch-action:none */
+}
+/* 刻意不写 width/height 的 CSS transition：改档由 gsap 驱动，
+   翻 data-state 后要能立刻量到真终值而非在途值。 */
+.cv-msgwin[data-state="min"] {
+  width: 332px;
+  height: calc(var(--cv-msgwin-bot) + var(--cv-msgwin-pad) * 2);   /* 56px */
+  border-radius: 20px;   /* lens 面板档（规范：凝玻璃面板取 20，鳞光需要转角余量） */
+}
+.cv-msgwin[data-state="open"] {
+  width: 404px;
+  height: min(552px, var(--cv-msgwin-max-h));
+  /* 比 Frost 的 panel 档（18px）略大一点：液态玻璃的高光棱与折射带都在贴着边的那一圈，
+     圆角太紧会把它们挤成一个尖角。改这里必须同步 MessageWindow 的 GLASS.cornerRadius。 */
+  border-radius: 20px;
+}
+
+/* ---- 玻璃面：LiquidGlass（本地移植自 liquid-glass-react，见 MessageWindow/LiquidGlass.tsx）----
+   这一层只做定位盒与淡入把手。玻璃**不铺底色**：位移滤镜弯的是玻璃后面的画面，
+   垫任何一层白都会把折射糊没——上游 demo 那张卡的通透感全靠"没有底"。
+   可读性由 20px 模糊 + Frost 深色文字对浅色画布的对比保证，标题栏另加一层极淡的
+   顶部渐变压住卡片边线（.cv-msgwin-head 上）。
+
+   注意 backdrop root：backdrop-filter 只能"看见"到最近 backdrop root 为止的画面。
+   **别**在 .cv-msgwin 或 .cv-msgwin-glass 上加 filter / mask / opacity / isolation /
+   mix-blend-mode / will-change:opacity 之类的属性（连转场动画也不行——所以改档时淡的是
+   面板内容，不是玻璃），否则玻璃塌成一块透明板。 */
+.cv-msgwin-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* 投影比 Frost 浮层阶（--elev-3）重一档：玻璃没有底色，浅色画布上它与背景的分界只剩
+   投影与接触环两样东西。四层各管一件事——
+     · 环境影（0 32px 72px）：浮起的高度
+     · 中层影（0 12px 28px）：边缘正下方那一圈明显的暗带，浅色模式下"看得见边"靠它
+     · 近影（0 2px 6px）：贴边 1-2px 的一道深线，压住玻璃与卡片边线糊在一起
+     · 全向晕（0 0 20px，无偏移）：上边与左边也要有一圈暗，否则只有下缘"看得见边"
+     · 接触环（.5px）：这里有一条边
+   上游是纯黑 25% 的一坨，那是照片背景的配方。 */
+.cv-msgwin-lg > .lg-glass {
+  box-shadow: var(--glass-shadow-thick);
+}
+/* 过渡期换成纯毛玻璃（LiquidGlass 把 blur/saturate 版写在 --lg-plain 上）：
+   壳每帧换尺寸 = 位移滤镜图每帧重跑一遍（论证见 MessageWindow）。 */
+.cv-msgwin[data-tweening="1"] .lg-warp,
+.cv-agentboard[data-tweening="1"] .lg-warp {
+  backdrop-filter: var(--lg-plain) !important;
+  -webkit-backdrop-filter: var(--lg-plain) !important;
+}
+
+/* 运行中不再给玻璃染蓝环/蓝雾（用户定：边缘不要蓝线）——「活着」由旋转的边框光束、
+   Bot 光晕与扫描眼交代，玻璃本身在静息与运行中长得一样。 */
+
+/* ---- 边框光束（运行中，仅 open 档）----
+   照 Jakub Antalik 的 border-beam 重做（github.com/Jakubantalik/Libraries）。
+   机制不是「一个光点沿路径跑」，而是**一整圈 conic 渐变在转**：@property 注册的
+   --cv-beam-angle 让 conic 的起始角可动画，一段亮弧于是绕着边框扫。
+   三层叠出厚度，缺一层就只剩一条细亮线：
+     · stroke —— 环形，弧本体，压在 2px 边上
+     · inner  —— 整面，inset 阴影从边缘往内渗，被同相位的弧裁出「光照到的那一段」
+     · bloom  —— 环形 + 高斯模糊，外扩的辉光，负责「亮」
+   放在 .cv-msgwin 下而非玻璃里：玻璃层自带 overflow:hidden，会把 bloom 外侧一半剪掉。 */
+@property --cv-beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: true;
+}
+.cv-msgwin-beam {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-float) var(--ease-std);
+}
+.cv-msgwin[data-state="open"][data-busy="1"] .cv-msgwin-beam {
+  opacity: 1;
+  animation: cv-beam-spin 2.6s linear infinite;
+}
+@keyframes cv-beam-spin { to { --cv-beam-angle: 360deg; } }
+
+.cv-msgwin-beam i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+/* 环形挖法：外框减内容框。只写标准属性——追加 -webkit-mask 简写会把标准
+   mask-composite 重置回 add，环就没了，整块光斑直接糊在窗面上。
+   （Lightning CSS 会自行补 -webkit-mask-* 前缀。） */
+.cv-msgwin-beam-stroke,
+.cv-msgwin-beam-bloom {
+  padding: 2px;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+/* 1 · 弧本体。背景是一圈「深蓝核 → 亮蓝 → 透明」的 conic，
+   再被第二层同相位、更宽的 conic 以 intersect 裁出可见段。 */
+.cv-msgwin-beam-stroke {
+  background: conic-gradient(from var(--cv-beam-angle),
+    transparent 0% 47%,
+    var(--cv-beam-far) 53%,
+    var(--cv-beam-mid) 60%,
+    var(--cv-beam-core) 66%,
+    var(--cv-beam-core) 68%,
+    var(--cv-beam-mid) 74%,
+    var(--cv-beam-far) 80%,
+    transparent 86% 100%);
+  mask:
+    conic-gradient(from var(--cv-beam-angle),
+      transparent 0% 30%,
+      rgba(0, 0, 0, .10) 36%, rgba(0, 0, 0, .35) 44%,
+      #000 52%, #000 80%,
+      rgba(0, 0, 0, .35) 86%, rgba(0, 0, 0, .10) 92%,
+      transparent 95% 100%),
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: intersect, exclude;
+}
+/* 2 · 内渗。inset 阴影本来沿整圈均匀，两条线性 mask 把它压回边缘 26px 内，
+   再和弧求交——于是只有「光正扫过的那一段边」在往里发亮。 */
+.cv-msgwin-beam-inner {
+  box-shadow: inset 0 0 11px 1px var(--cv-beam-inner-glow);
+  mask-image:
+    conic-gradient(from var(--cv-beam-angle),
+      transparent 0% 30%,
+      rgba(0, 0, 0, .10) 36%, rgba(0, 0, 0, .35) 44%,
+      #000 52%, #000 80%,
+      rgba(0, 0, 0, .35) 86%, rgba(0, 0, 0, .10) 92%,
+      transparent 95% 100%),
+    linear-gradient(#000, transparent 26px, transparent calc(100% - 26px), #000),
+    linear-gradient(to right, #000, transparent 26px, transparent calc(100% - 26px), #000);
+  mask-composite: intersect, add;
+}
+/* 3 · 辉光。同一条弧，收窄成一根更亮的核，然后整层高斯模糊外扩。 */
+.cv-msgwin-beam-bloom {
+  background: conic-gradient(from var(--cv-beam-angle),
+    transparent 0% 58%,
+    var(--cv-beam-bloom-far) 62%,
+    var(--cv-beam-bloom-mid) 66%,
+    var(--cv-beam-bloom-core) 69%,
+    var(--cv-beam-bloom-core) 71%,
+    var(--cv-beam-bloom-mid) 74%,
+    var(--cv-beam-bloom-far) 78%,
+    transparent 82% 100%);
+  filter: blur(9px) saturate(1.5);
+}
+/* 不支持 @property 的浏览器里角度不可插值，弧会停在原地。
+   退化成整层的明暗呼吸：仍然读作「在跑」，只是不转。 */
+@supports not (background: conic-gradient(from var(--cv-beam-angle), #000, #fff)) {
+  .cv-msgwin[data-state="open"][data-busy="1"] .cv-msgwin-beam {
+    animation: cv-beam-breathe 2.6s var(--ease-std) infinite;
+  }
+  @keyframes cv-beam-breathe { 50% { opacity: .45; } }
+}
+
+/* ---- Bot：两档共用的锚点，绝对坐标恒定 ---- */
+.cv-msgwin-bot {
+  position: absolute;
+  left: var(--cv-msgwin-pad);
+  top: var(--cv-msgwin-pad);
+  z-index: 7;
+  width: var(--cv-msgwin-bot);
+  height: var(--cv-msgwin-bot);
+  padding: 0;
+  border: 0;
+  border-radius: 22.4%;           /* 品牌超椭圆——Bot 是 app icon 的拟人化身 */
+  background: transparent;
+  pointer-events: auto;
+  touch-action: auto;
+  transition: transform var(--t-micro) var(--ease-std);
+}
+.cv-msgwin-bot svg { display: block; width: 100%; height: 100%; }
+.cv-msgwin-bot:hover { transform: scale(1.04); }
+.cv-msgwin-bot:active { transform: scale(.92); }
+.cv-msgwin-bot:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+/* 运行中：一圈静态蓝环。规范只授予 running 态 border beam 一条循环动画
+   （见 .cv-msgwin-beam），Bot 侧不再另起第二条脉动——蓝色本身即「进行中」。 */
+.cv-msgwin-bot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--blue) 0%, transparent);
+  pointer-events: none;
+  transition: box-shadow var(--t-float) var(--ease-std);
+}
+.cv-msgwin[data-busy="1"] .cv-msgwin-bot::after {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);   /* 光是白的：蓝色的光只授予 border beam */
+}
+/* 眼睛：待命静止（规范：循环动画只授予进行中状态），hover 眨一次，
+   运行中收成一条扫描缝并左右巡视。 */
+.cv-bot-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--t-micro) var(--ease-std);
+}
+.cv-msgwin-bot:hover .cv-bot-eye { animation: cv-bot-blink var(--t-panel) var(--ease-std); }
+@keyframes cv-bot-blink { 40%, 60% { transform: scaleY(.18); } }
+/* 运行中的眼神：收成一条静态扫描缝——状态由形态表达，不靠循环。
+   规范：无限循环仅授予 running 态 border beam，其余一律事件驱动。 */
+.cv-msgwin[data-busy="1"] .cv-bot-eye {
+  transform: scaleY(.4);
+}
+
+/* ---- min 档：一行滚动播报 ----
+   整条不可点（用户定）：只有 Bot 是开合控件，caret 仅作提示。
+   文字直接压在画布上，给一道极淡的白色底光——制品卡从下面滑过时不至于糊掉。 */
+.cv-msgwin-min {
+  position: absolute;
+  left: var(--cv-msgwin-lane);
+  right: 12px;
+  top: 0;
+  z-index: 2;
+  height: calc(var(--cv-msgwin-bot) + var(--cv-msgwin-pad) * 2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+/* 收缩取齐而非撑满：没有药丸底了，caret 必须贴着文字走。若让播报占满 332px，
+   短句（「待命中」）会把 caret 甩到二百多像素之外，读成一个孤零零的按钮。 */
+.cv-msgwin-ticker {
+  position: relative;
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: 19px;
+  overflow: hidden;
+}
+/* 在场那条在流内，宽度由它决定；出场那条脱流叠在上面，不参与定宽。 */
+.cv-msgwin-tick.is-in { position: relative; }
+.cv-msgwin-tick.is-out { position: absolute; inset: 0; }
+.cv-msgwin-tick {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 19px;
+  color: var(--fg);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--surface) 55%, transparent);
+}
+/* 推进是一次性动画，不是循环——由「新活动行到达」驱动（见 MinTicker） */
+.cv-msgwin-tick.is-in  { animation: cv-tick-in  var(--t-panel) var(--ease-std) both; }
+.cv-msgwin-tick.is-out { animation: cv-tick-out var(--t-panel) var(--ease-std) both; }
+@keyframes cv-tick-in  { from { opacity: 0; transform: translateY(var(--enter-shift)); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cv-tick-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(calc(var(--enter-shift) * -1)); } }
+.cv-msgwin-caret {
+  flex: 0 0 auto;
+  color: var(--faint);
+  transform: rotate(180deg);      /* ChevronIcon 默认朝下，这里要「向上展开」 */
+}
+
+/* ---- open 档：面板 ----
+   自带 overflow:hidden 与继承圆角：改档 tween 期间时间线被钉在目标像素宽上，
+   靠这里裁开/让出，读作「窗框生长，内容原地不动」。 */
+.cv-msgwin-panel {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;               /* 改档时把钉宽的内容裁掉，靠外壳生长「揭开」 */
-  background: var(--surface);
-  border-radius: 18px;            /* panel 档：比它浮于其上的制品卡（14px / elev-2）高一阶 */
-  box-shadow: var(--elev-3);
-  contain: layout paint;          /* 逐帧改宽高的布局影响封在子树内 */
-  touch-action: auto;             /* 抵消 .canvas-viewport 的 touch-action:none */
-  --cv-msgwin-max-h: calc(100% - var(--cv-float-inset) - var(--cv-dock-band));
-}
-/* 刻意不写 width/height 的 CSS transition：改档由 gsap 驱动，
-   翻 data-size 后要能立刻量到真终值而非在途值。 */
-.cv-msgwin[data-size="normal"] {
-  width: 380px;
-  height: min(560px, var(--cv-msgwin-max-h));
-}
-.cv-msgwin[data-size="expanded"] {
-  width: min(48vw, 760px);
-  height: var(--cv-msgwin-max-h);
+  border-radius: inherit;
+  overflow: hidden;
+  padding: var(--cv-msgwin-pad);
+  padding-left: var(--cv-msgwin-lane);
+  pointer-events: auto;
+  touch-action: auto;
 }
 
 .cv-msgwin-head {
   flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 11px 12px 11px 14px;
-  border-bottom: 1px solid var(--border);
+  align-items: flex-start;
+  gap: 8px;
+  min-height: var(--cv-msgwin-bot);
+  padding-bottom: 2px;
   min-width: 0;
 }
+.cv-msgwin-title { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.cv-msgwin-name {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -.012em;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-msgwin-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
+.cv-msgwin-sub > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 状态点语义对照品牌：待命灰 / 进行蓝 / 完成绿 / 出错红。
+   刻意不挂 .run-dot 的涟漪：open 档的循环动效名额已被光束与 Bot 光晕占满
+   （规范：同屏最多两处）。 */
+.cv-msgwin-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pending);
+}
+.cv-msgwin-dot.running { background: var(--accent); }
+.cv-msgwin-dot.done { background: var(--green); }
+.cv-msgwin-dot.error { background: var(--red); }
+
 .cv-msgwin-tools {
   display: inline-flex;
   align-items: center;
@@ -2775,56 +3155,32 @@ body {
   width: 26px;
   height: 26px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease,
-              transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
-.cv-msgwin-btn:hover { background: rgba(60, 60, 67, .08); color: var(--fg); }
-.cv-msgwin-btn:active { transform: scale(.92); }
+.cv-msgwin-btn:hover { background: color-mix(in srgb, var(--separator) 75%, transparent); color: var(--fg); }
+.cv-msgwin-btn:active { transform: scale(.97); }
+.cv-msgwin-btn:disabled { opacity: .45; pointer-events: none; }
 .cv-msgwin-btn:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .30);
+  outline: 2px solid color-mix(in srgb, var(--blue) 30%, transparent);
   outline-offset: 1px;
 }
 
-/* ---- 胶囊态：只报状态，走玻璃 ---- */
-.cv-capsule {
-  position: absolute;
-  left: var(--cv-float-inset);
-  top: var(--cv-float-inset);
-  z-index: 9;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  max-width: 300px;
-  padding: 0 11px;
-  border: 1px solid rgba(255, 255, 255, .45);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .75);
-  color: var(--fg);
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-  touch-action: auto;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), var(--elev-2);
-  transition: background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+/* 正文直接落在玻璃上——没有第二个面。窗里再套一张卡，玻璃就只剩一圈边框，
+   整扇窗读成「白卡加了个壳」。内容与玻璃的关系靠两件事交代：上下边缘的渐隐遮罩
+   （内容从玻璃里浮出、沉回去），以及滚动条压到最细（.short-scrollbar 本就是浮层）。
+   备案：Frost 规范写「内容面恒为实底」，此处是原型定稿时的有意例外，勿反复评审。 */
+.cv-msgwin-panel .stream-scroll {
+  margin-left: calc(-1 * (var(--cv-msgwin-bot) + 11px));
+  margin-right: -4px;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 14px, #000 calc(100% - 16px), transparent 100%);
 }
-.cv-capsule:hover { background: rgba(255, 255, 255, .92); }
-.cv-capsule:active { transform: scale(.97); }
-.cv-capsule-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cv-capsule-chevron {
-  color: var(--faint);
-  transform: rotate(-90deg);
-  flex: 0 0 auto;
-}
+.cv-msgwin .stream-inner { padding: 12px 16px 20px; }
 
 /* ---- 底部输入坞 ----
    不用 translateX(-50%) 居中：那会让坞成为绝对定位子元素的包含块（样本弹层要
@@ -2856,28 +3212,20 @@ body {
 
 /* 活动条：运行期顶替 chips 的槽位（同一行，不新增一层） */
 .cv-actbar {
-  /* position 是必需的，不是装饰：.cv-sheen 是 absolute，没有定位祖先就会上溯到
-     .cv-dock（通栏、约 160px 高），配上 border-radius:inherit 的 999px，
-     会在画布底部画出一个横跨全宽的巨型圆角流光环。 */
-  position: relative;
-  isolation: isolate;
+  position: relative;   /* 不加 isolation：它会切断玻璃 backdrop */
   display: inline-flex;
   align-items: center;
   gap: 8px;
   max-width: 100%;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, .45);
   border-radius: 999px;
-  background: rgba(255, 255, 255, .78);
-  color: var(--fg-2);
+  color: var(--label-2);
   font-size: 12.5px;
-  cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), var(--elev-1);
-  transition: background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  /* 材质、rim、投影、hover 指针高光与 press 全部交给
+     .frost-glass--soft.frost-glass--interactive（类挂在 ActivityBar.tsx）；
+     此处不写 background / border / box-shadow，否则会压掉工具类的光学栈。 */
 }
-.cv-actbar:hover { background: rgba(255, 255, 255, .95); }
-.cv-actbar:active { transform: scale(.98); }
 .cv-actbar-text {
   min-width: 0;
   overflow: hidden;
@@ -2891,101 +3239,17 @@ body {
 }
 
 /* ==== 「运行中」动效语汇 ====
-   三层：状态点涟漪（原子）+ 边框流光（容器）+ 文字流光（内容）。
-   三个周期互不整除（2.2 / 2.4 / 3.3s），避免同拍打成机械节拍器。
+   规范唯一豁免的循环是消息窗的 border beam（见 .cv-msgwin-beam）：它限定在
+   [data-state="open"][data-busy="1"]，状态一结束立即停止。
+   活动条与子代理看板的运行态改由静态形态与状态文案表达，不再另起循环。 */
 
-   品牌立场备注（勿反复评审）：brand.html 写「无限循环禁止」，但那条规范服务的是
-   「发生了什么 / 从哪来 / 到哪去」三问；「这件事仍在进行」是第四种语义，离散动画
-   表达不了，而解析要跑数分钟且用户在盯着看。故此处按「无限循环仅授予进行中状态、
-   同屏最多两处、状态一结束立即停止」执行。既有例外见思考块等待流光。
+/* 活动条的运行态：边由 .frost-glass--soft 的规范 rim 承担（--glass-rim / --glass-rim-inner），
+   不再叠第二套自造光带——光学栈固定五层，rim 的唯一来源是材质 token。 */
 
-   调参入口：.cv-capsule / .cv-actbar 上的 --sheen-* 三个变量。 */
-.cv-capsule,
-.cv-actbar {
-  --sheen-dur: 3s;        /* 一次「扫过 + 静息」的完整周期 */
-  --sheen-core: .6;       /* 白热核心不透明度，0 = 纯蓝无高光 */
-  --sheen-glow: 1;        /* 辉光层不透明度。1 即封顶——opacity 不接受 >1，
-                             调参时选的 1.5 与 1 视觉完全相同。若日后还要更强，
-                             得换机制（加宽 blur 半径或叠第二层），不是调这个值。 */
-}
-
-/* 静息态也微微泛蓝：两次扫掠之间仍要读作「活着」，而不是熄灭 */
-.cv-capsule.is-running,
-.cv-actbar.is-running {
-  border-color: rgba(0, 100, 225, .30);
-}
-
-/* 光带载体。需要一个真实子元素而非伪元素：遮罩要固定成环，而光带要位移——
-   若把两者放在同一元素上，遮罩会跟着光带一起走。 */
-.cv-sheen {
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  overflow: hidden;
-  pointer-events: none;
-  /* 挖成 1px 的环：外框减内容框。Lightning CSS 会自动补 -webkit-mask-* 前缀 */
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-/* ::before = 硬光带（亮核），::after = 辉光（同一条带子做高斯模糊）。
-   位移用 transform 而非 background-position：后者在 Chrome 不可合成、跑主线程，
-   而这个动效恰好只在 SSE 逐帧压满主线程时出现。 */
-.cv-sheen::before,
-.cv-sheen::after {
-  content: "";
-  position: absolute;
-  top: -60%;
-  bottom: -60%;
-  left: 0;
-  width: 46%;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 100, 225, 0) 0%,
-    rgba(0, 100, 225, .50) 40%,
-    rgba(140, 200, 255, .95) 48%,
-    rgba(255, 255, 255, var(--sheen-core)) 51%,
-    rgba(140, 200, 255, .95) 54%,
-    rgba(0, 100, 225, .50) 62%,
-    rgba(0, 100, 225, 0) 100%
-  );
-  animation: cv-sheen-travel var(--sheen-dur) cubic-bezier(.42, 0, .58, 1) infinite;
-}
-.cv-sheen::after {
-  filter: blur(6px);
-  opacity: var(--sheen-glow);
-}
-/* 55% 处扫完，余下 45% 静息一拍——扫一次比连续爬行好认得多，也更省。 */
-@keyframes cv-sheen-travel {
-  0%   { transform: translateX(-130%); }
-  55%  { transform: translateX(340%); }
-  100% { transform: translateX(340%); }
-}
-
-/* 文字流光。沿用思考块 .cm-summary-text.is-waiting 的既有渐变语汇，
-   只是改由 CSS 驱动（那处是 GSAP 驱动的，将来可一并收编）。 */
 .cv-shimmer {
-  background-image: linear-gradient(
-    105deg,
-    var(--fg-2) 0%,
-    var(--fg-2) 35%,
-    var(--faint) 44%,
-    var(--fg) 50%,
-    var(--faint) 56%,
-    var(--fg-2) 65%,
-    var(--fg-2) 100%
-  );
-  background-size: 260% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: cv-shimmer 3.3s linear infinite;
+  /* 等待态：静态主色文字（循环流光已撤，同上）。 */
+  color: var(--label);
 }
-@keyframes cv-shimmer {
-  from { background-position: 160% 0; }
-  to   { background-position: -60% 0; }
-}
-
 /* 状态点涟漪：一圈蓝环外扩淡出，70% 处收尾留一拍静息（避免读成频闪）。
    只授予 .running —— 待命/完成/出错三态不得循环。 */
 .run-dot.running { position: relative; }
@@ -2996,36 +3260,203 @@ body {
   border-radius: 50%;
   border: 1px solid var(--accent);
   pointer-events: none;
-  animation: cv-run-ripple 2.2s var(--ease-out) infinite;
+  /* 循环涟漪已撤：运行态由 border beam 唯一承担。 */
 }
-@keyframes cv-run-ripple {
-  0%   { transform: scale(1);   opacity: .5; }
-  70%  { transform: scale(2.6); opacity: 0; }
-  100% { transform: scale(2.6); opacity: 0; }
+/* ---- 子代理状态看板（右上角）----
+   主智能体派发的每个子代理一行：Bot 头像（与消息窗同形象，色相按 callId 哈希错开、
+   明暗立体模型不变）+ 任务描述 + 最近动作摘要。摘要的「进行中」直接沿用 .cv-shimmer
+   文字流光（多行错拍见上方品牌立场备注）。
+   玻璃壳约束与 .cv-msgwin 相同：壳/玻璃上禁 opacity 动画（会塌 backdrop root），
+   进场拆成壳 transform 缩放 + 面板内容 opacity 两半，@starting-style 供进场起步。
+   没有退场：本轮结束后看板留在终态，下一轮 user 消息才卸载。 */
+.cv-agentboard {
+  position: absolute;
+  top: var(--cv-float-inset);
+  right: var(--cv-float-inset);
+  z-index: 9;                     /* 同 .cv-msgwin 档：< .cv-drawer(30)，抽屉能盖住 */
+  width: 300px;
+  max-height: calc(100% - var(--cv-float-inset) - var(--cv-dock-band));
+  /* 纵向 flex：面板是正常流子元素，壳高随内容长；列表在 max-height 内自行滚动 */
+  display: flex;
+  flex-direction: column;
+  contain: layout;
+  border-radius: 20px;   /* lens 面板档，与 AgentBoard 的 GLASS.cornerRadius 同步 */
+  transform-origin: top right;
+  transform: scale(.96);
+  transition: transform var(--t-float) var(--ease-std);
+  touch-action: auto;             /* 抵消 .canvas-viewport 的 touch-action:none */
+}
+.cv-agentboard[data-state="live"] {
+  transform: none;
+  transition: transform var(--t-float) var(--ease-std);
+}
+@starting-style {
+  .cv-agentboard[data-state="live"] { transform: scale(.96); }
+}
+/* 终态（data-state="done"）：看板不退场，停在原位供回看；只是行内动效全部停下。 */
+
+.cv-agentboard-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+/* 投影沿用消息窗配方按面积缩一档（小卡浮得低些） */
+.cv-agentboard-lg > .lg-glass {
+  box-shadow: var(--glass-shadow-thick);   /* 凝 thick 面：厚度与深度成套 */
 }
 
-/* 减弱动态：全部退化为静态。文字必须先把 text-fill-color 还回来，否则会变成透明。 */
+.cv-agentboard-panel {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;                  /* 让列表能收到壳的 max-height 内滚动 */
+  display: flex;
+  flex-direction: column;
+  padding: 11px 11px 10px;
+  opacity: 1;
+  transition: opacity var(--t-float) var(--ease-std);
+}
+.cv-agentboard[data-state="live"] .cv-agentboard-panel {
+  transition: opacity var(--t-float) var(--ease-std);
+}
+@starting-style {
+  .cv-agentboard[data-state="live"] .cv-agentboard-panel { opacity: 0; }
+}
+
+.cv-agentboard-head {
+  flex: 0 0 auto;
+  padding: 0 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cv-agentboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cv-agentboard-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  /* 嵌套缩进叠在基础内边距上（--depth 由组件给，0/1/2）；头像永远在行边之内 */
+  padding-left: calc(9px + var(--depth, 0) * 12px);
+  border-radius: var(--r-window);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+  box-shadow: inset 0 0 0 .5px var(--separator);
+  animation: cv-agentboard-row-in var(--t-float) var(--ease-std) both;
+  animation-delay: calc(var(--i) * var(--t-micro) / 3);
+}
+@keyframes cv-agentboard-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+/* 终态行退到次级：看板的主角永远是还在跑的 */
+.cv-agentboard-row:not(.is-running) { opacity: .72; }
+
+.cv-agentboard-avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+.cv-agentboard-avatar svg { display: block; transform-origin: 50% 62%; }
+/* 运行中的子代理：身体做「呼吸式」挤压（横宽纵扁再回弹，像在使劲），眼睛沿用主 Bot
+   的张望+眨眼。每行用 --i 给负延迟把相位错开——四个一起点头会像节拍器。
+   动效只在 .is-running 行：终态行头像静止（规范：循环动画只授予进行中状态）。 */
+.cv-agentboard-row.is-running .cv-agentboard-avatar svg {
+  /* 循环呼吸已撤：子代理行运行态由静态蓝点/文字表达。 */
+}
+.cv-agentboard-row.is-running .cv-bot-eye {
+  transform: scaleY(.4);   /* 运行态静态扫描缝，与主 Bot 同构 */
+}
+/* 完成：眼睛眯成一道弯——「满意地合上」，只播一次，停在终态。 */
+.cv-agentboard-row.is-done .cv-bot-eye {
+  animation: cv-bot-content var(--t-panel) var(--ease-std) both;
+}
+@keyframes cv-bot-content {
+  to { transform: scaleY(.42) translateY(-1px); }
+}
+
+.cv-agentboard-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cv-agentboard-line1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cv-agentboard-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -.005em;
+}
+.cv-agentboard-state {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+/* 状态点比全局 run-dot（7px）小一档：对照 matrix 卡原型的 5px 信号点 */
+.cv-agentboard-state .run-dot { width: 5px; height: 5px; }
+
+/* 摘要行的「滚动」：文本一变 keyed 重挂载，走上滑淡入。动画挂外层——内层若与
+   .cv-shimmer 同元素会互抢 animation 属性，且外层 delay 会连进场一起推迟。 */
+.cv-agentboard-sumline {
+  overflow: hidden;
+  animation: cv-agentboard-sum-in var(--t-float) var(--ease-std);
+}
+@keyframes cv-agentboard-sum-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+.cv-agentboard-sum {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: -.002em;
+}
+
+/* 减弱动态：全部退化为静态。文字流光与状态涟漪已在常态下即静态，此处只撤光带与光束。 */
 @media (prefers-reduced-motion: reduce) {
-  .cv-sheen { display: none; }
-  .run-dot.running::after { display: none; }
-  .cv-shimmer {
-    background-image: none;
-    -webkit-text-fill-color: var(--fg-2);
-    animation: none;
-  }
-  .cv-capsule.is-running,
-  .cv-actbar.is-running { border-color: rgba(0, 100, 225, .45); }
+  /* 光束整层撤掉：全局那条 iteration-count:1 只会让它跑完一圈定格，
+     留下一段静止的亮弧——那比不画更奇怪。Bot 的光晕/扫描眼同理。 */
+  .cv-msgwin-beam { display: none; }
+  .cv-msgwin-bot::after { display: none; }
+  .cv-bot-eye { animation: none !important; }
+  .cv-msgwin-bot svg,
+  .cv-agentboard-avatar svg { animation: none !important; }
 }
 
 /* Composer 在坞里的外壳：浮起卡片，不是侧栏页脚 */
 .cv-dock .composer-input {
-  border-radius: 16px !important;   /* 压过品牌层圆角阶里的 !important */
+  border-radius: var(--r-panel) !important;   /* 压过品牌层圆角阶里的 !important */
   min-height: 88px;
   padding: 12px 12px 44px;
-  box-shadow: 0 12px 30px rgba(12, 18, 32, .16), 0 0 0 .5px rgba(12, 18, 32, .06);
+  box-shadow: var(--elev-2);
 }
 .cv-dock .composer-input:focus-within {
-  box-shadow: 0 0 0 3px rgba(0, 100, 225, .18), 0 12px 30px rgba(12, 18, 32, .16);
+  box-shadow: 0 0 0 3px var(--blue-soft), var(--elev-2);
 }
 .cv-dock .composer-hint { text-align: center; }
 .cv-dock .composer-selection { background: var(--surface); box-shadow: var(--elev-1); }
@@ -3033,60 +3464,82 @@ body {
 /* 视口提示挪到左下角：左上让给浮窗，底部中路让给坞 */
 .cv-viewport-hint { top: auto; bottom: 14px; }
 
-/* ---- 窄幅浮窗（normal 档 ≈ 380px）下的 .cm-* 变体 ----
+/* ---- 窄幅面板（open 档 ≈ 404px）下的 .cm-* 变体 ----
    整套 .cm-* 是按 420-560px 面板写的（padding 22/34、表格 width:100%、摘要不截断）。
-   分档用 data-size 属性而非容器查询：容器查询会在改宽 tween 的**每一帧**重新求值，
-   而钉死内容宽（--cv-msgwin-cw）的全部意义就是让时间线在整个过渡里只重排一次；
-   且 container-type:inline-size 会把壳变成绝对定位子元素的包含块并锁住内联尺寸，
-   与逐帧写 width 的 tween 直接打架。另外三档是**产品状态**不是宽度事实——
-   expanded 在 1200px 视口是 576px、在 2560px 是 1229px，容器查询会给这两者不同的
-   消息排版，毫无产品理由。
-   ≤860px 时浮窗变通栏薄片、宽度又够了，故整段限定在 min-width:861px。 */
+   不用容器查询：它会在改宽 tween 的**每一帧**重新求值，而钉死内容宽（--cv-msgwin-cw）
+   的全部意义就是让时间线在整个过渡里只重排一次；且 container-type:inline-size 会把壳
+   变成绝对定位子元素的包含块并锁住内联尺寸，与逐帧写 width 的 tween 直接打架。
+   ≤860px 时面板变通栏薄片、宽度又够了，故整段限定在 min-width:861px。 */
 @media (min-width: 861px) {
-  .cv-msgwin[data-size="normal"] .stream-inner { padding: 16px 18px 20px; }
-  .cv-msgwin[data-size="normal"] .cm-message-turn { margin: 18px 0 4px; }
-  .cv-msgwin[data-size="normal"] .cm-user-bubble { max-width: 92%; padding: 10px 13px; }
+  .cv-msgwin .cm-message-turn { margin: 18px 0 4px; }
+  .cv-msgwin .cm-user-bubble { max-width: 92%; padding: 10px 13px; }
 
-  /* 摘要一行截断：「读取 3 个文件 · 搜索 2 次 · 调度 4 个子任务」在 344px 里会折三行 */
-  .cv-msgwin[data-size="normal"] .cm-thinking-button .cm-summary-text {
+  /* 摘要一行截断：「读取 3 个文件 · 搜索 2 次 · 调度 4 个子任务」在 372px 里会折三行 */
+  .cv-msgwin .cm-thinking-button .cm-summary-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   /* 时间线图标列收窄，把 4px 排水沟还给正文（竖线随之左移对齐新的列心） */
-  .cv-msgwin[data-size="normal"] .cm-thinking-item {
+  .cv-msgwin .cm-thinking-item {
+    --cm-timeline-x: 9px;
     grid-template-columns: 18px 1fr;
     column-gap: 6px;
   }
-  .cv-msgwin[data-size="normal"] .cm-thinking-body::before { left: 9px; }
 
   /* 工具结果行：去掉右端「结果」标注，压缩内边距，把宽度让给标题 */
-  .cv-msgwin[data-size="normal"] .cm-result { gap: 8px; padding: 7px 10px; }
-  .cv-msgwin[data-size="normal"] .cm-result-meta { display: none; }
+  .cv-msgwin .cm-result { gap: 8px; padding: 7px 10px; }
+  .cv-msgwin .cm-result-meta { display: none; }
 
-  .cv-msgwin[data-size="normal"] .cm-markdown :is(th, td) { padding: 5px 8px; }
-  .cv-msgwin[data-size="normal"] .cm-markdown [data-streamdown="code-block"] { font-size: .86em; }
-  .cv-msgwin[data-size="normal"] .cm-markdown [data-streamdown="code-block"] pre { padding: 10px 12px; }
+  .cv-msgwin .cm-markdown :is(th, td) { padding: 5px 8px; }
+  .cv-msgwin .cm-markdown [data-streamdown="code-block"] { font-size: .86em; }
+  .cv-msgwin .cm-markdown [data-streamdown="code-block"] pre { padding: 10px 12px; }
 
   /* 表格必须放弃 width:100%，否则在横滑容器里只会被挤扁而不滚动 */
-  .cv-msgwin[data-size="normal"] .cm-markdown :is([data-streamdown="table"], table) {
+  .cv-msgwin .cm-markdown :is([data-streamdown="table"], table) {
     width: max-content;
     min-width: 100%;
   }
-
-  /* 标题栏：名称 / 状态 / 新建会话三个 nowrap 项在 344px 里会互撞，名称被挤成 0。
-     状态另起一行，新建会话只留图标。 */
-  .cv-msgwin[data-size="normal"] .cv-msgwin-head { flex-wrap: wrap; row-gap: 3px; }
-  .cv-msgwin[data-size="normal"] .run-brief-status {
-    margin-left: 0;
-    flex-basis: 100%;
-    padding-left: 16px;
-  }
-  .cv-msgwin[data-size="normal"] .run-brief-new { padding: 4px 6px; }
-  .cv-msgwin[data-size="normal"] .run-brief-new span { display: none; }
 }
-.cv-msgwin[data-size="expanded"] .stream-inner { padding: 20px 28px 24px; }
+
+/* ---- 时间线落在玻璃上（而非白底）的修正 ----
+   1) 思考块那条竖直时间线，原本靠图标的 4px 不透明外环（var(--surface)）遮断。
+      玻璃是半透明的，同一招会在通透的面上留下一块白圆饼。改为**按项分段画线**：
+      线只连相邻两枚图标之间的空档，图标处天然断开，外环可以整个撤掉。 */
+.cv-msgwin .cm-thinking-body::before { display: none; }
+.cv-msgwin .cm-thinking-item { position: relative; }
+.cv-msgwin .cm-thinking-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: var(--cm-timeline-x, 10px);   /* 与图标列心对齐 */
+  top: 25px;                          /* 图标底缘（6px 内边距 + 18px 图标）+ 1px 呼吸 */
+  bottom: -5px;                       /* 项间无 gap，探出 5px 接到下一枚图标顶缘前 1px */
+  width: 1px;
+  background: var(--border-2);
+  pointer-events: none;
+}
+.cv-msgwin .cm-thinking-item-icon { background: transparent; box-shadow: none; }
+
+/* 2) 实底元件在通透的面上会戳成一块块补丁：一律换半透明填充。
+      用户气泡是刻意的例外——品牌规定「用户消息 = 系统蓝气泡白字」，它是一块
+      有意为之的实色标记，不是背景板。 */
+.cv-msgwin .cm-tool-results {
+  background: color-mix(in srgb, var(--surface) 42%, transparent);
+  border-color: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+.cv-msgwin .cm-result + .cm-result { border-top-color: color-mix(in srgb, var(--surface) 60%, transparent); }
+.cv-msgwin .cm-result:hover { background: color-mix(in srgb, var(--surface) 58%, transparent); }
+.cv-msgwin .cm-result-icon { background: color-mix(in srgb, var(--separator) 58%, transparent); }
+.cv-msgwin .cm-markdown [data-streamdown="code-block"] {
+  background: color-mix(in srgb, var(--surface) 46%, transparent);
+  border-color: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+.cv-msgwin .cm-markdown [data-streamdown="code-block-header"] {
+  background: color-mix(in srgb, var(--surface) 30%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+.cv-msgwin .cm-markdown th { background: color-mix(in srgb, var(--surface) 40%, transparent); }
 
 .cv-dock-chips {
   display: flex;
@@ -3100,20 +3553,14 @@ body {
   gap: 6px;
   height: 32px;
   padding: 0 13px;
-  border-radius: 9px;
+  border-radius: 999px;   /* 放置矩阵同一格：活动条 / dock chips / 视口提示一律 pill */
   font-size: 12.5px;
   font-weight: 600;
   color: var(--label);
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid var(--separator);
-  box-shadow: var(--elev-1);
+  /* 霜玻璃 thin + 交互高光：材质、边、投影、hover/press 全部交给
+     .frost-glass--soft.frost-glass--interactive（类挂在 CanvasDock.tsx）。 */
   cursor: pointer;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  transition: background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
 }
-.cv-dock-chip:hover { background: rgba(255, 255, 255, 0.95); }
-.cv-dock-chip:active { transform: scale(0.98); }
 .cv-dock-chip:disabled { opacity: .45; cursor: not-allowed; }
 .cv-dock-chip svg { color: var(--blue); flex: 0 0 auto; }
 
@@ -3130,8 +3577,8 @@ body {
 .cv-drawer-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(18, 24, 34, 0.16);
-  /* backdrop-filter 走组件内联（构建期会剥离样式表里的该属性），见 CanvasDrawer.tsx */
+  /* 纯色调光：下方是 LiquidGlass 浮窗与玻璃药丸，遮罩不得再上模糊（玻璃不叠玻璃） */
+  background: color-mix(in srgb, var(--label) 24%, transparent);
 }
 /* 抽屉面板 = 透明容器:表面材质与左投影下沉到主列(.cv-drawer-main) */
 .cv-drawer-panel {
@@ -3149,14 +3596,14 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--surface);
-  box-shadow: -18px 0 50px rgba(12, 18, 32, 0.18);
+  box-shadow: var(--elev-3);
 }
 .cv-drawer-head {
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--separator);
+  box-shadow: inset 0 -.5px 0 var(--separator);   /* chrome 与内容交界：.5px 接触边，非 1px 分区线 */
 }
 .cv-drawer-titlebox { flex: 1; min-width: 0; }
 .cv-drawer-title {
@@ -3177,21 +3624,20 @@ body {
   border: 0;
   background: var(--surface-2);
   color: var(--label-2);
-  border-radius: 8px;
+  border-radius: var(--r-control);
   cursor: pointer;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cv-drawer-close:hover { color: var(--fg); background: var(--surface-3); }
-.cv-drawer-close:active { transform: scale(0.96); }
+.cv-drawer-close:active { transform: scale(.92); }
 .cv-drawer-close:focus-visible,
 .cv-drawer-btn:focus-visible,
 .cv-tool-btn:focus-visible,
 .cv-zoom button:focus-visible,
 .cv-dock-chip:focus-visible,
 .cv-actbar:focus-visible,
-.cv-capsule:focus-visible,
 .cv-cite-btn:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 .cv-drawer-body {
@@ -3205,7 +3651,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 12px 18px;
-  border-top: 1px solid var(--separator);
+  box-shadow: inset 0 .5px 0 var(--separator);   /* chrome 与内容交界：.5px 接触边，非 1px 分区线 */
   background: var(--surface);
 }
 /* 次级按钮：对齐设计系统 .btn-ghost（macOS 白底默认按钮） */
@@ -3215,44 +3661,35 @@ body {
   gap: 7px;
   height: 38px;
   padding: 0 16px;
-  border: 1px solid rgba(60, 60, 67, 0.16);
-  border-radius: 10px;
+  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
+  border-radius: var(--r-window);
   font-size: 13px;
   font-weight: 600;
   color: var(--label);
   background: var(--surface);
   cursor: pointer;
-  transition: transform var(--t-micro) var(--ease-out), background-color var(--t-micro) ease, border-color var(--t-micro) ease;
+  transition: transform var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std);
 }
 .cv-drawer-btn:hover { background: var(--surface-2); }
-.cv-drawer-btn:active { transform: scale(0.98); }
+.cv-drawer-btn:active { transform: scale(.97); }
 .cv-drawer-btn:disabled { opacity: 0.45; cursor: default; }
 .cv-drawer-btn:disabled:hover { background: var(--surface); }
 .cv-drawer-btn:disabled:active { transform: none; }
 /* 主行动按钮：对齐设计系统 .composer-send / .btn-primary（系统蓝渐变 + 顶高光 + 蓝晕投影） */
 .cv-drawer-btn.primary {
-  color: #fff;
-  background: linear-gradient(180deg, #1979f2 0%, #0064e1 100%);
-  border: 1px solid rgba(0, 70, 160, 0.40);
-  box-shadow:
-    0 1px 2px rgba(0, 80, 190, 0.35),
-    0 2px 6px rgba(0, 80, 190, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
+  background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%);
+  border: 0;   /* 深度代替描边 */
+  box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
 }
 .cv-drawer-btn.primary:hover {
-  background: linear-gradient(180deg, #1571e4 0%, var(--blue-press) 100%);
+  background: linear-gradient(180deg, var(--blue-press) 0%, var(--blue-press) 100%);
   transform: none;
-  box-shadow:
-    0 2px 4px rgba(0, 80, 190, 0.40),
-    0 5px 12px rgba(0, 80, 190, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: var(--elev-2), inset 0 1px 0 rgba(255, 255, 255, .25);
 }
 .cv-drawer-btn.primary:active {
-  transform: scale(0.97);
-  box-shadow:
-    0 1px 2px rgba(0, 80, 190, 0.35),
-    0 1px 4px rgba(0, 80, 190, 0.16),
-    inset 0 1px 2px rgba(0, 30, 80, 0.20);
+  transform: scale(.97);
+  box-shadow: var(--elev-1), inset 0 1px 2px rgba(0, 0, 0, .18);
 }
 .cv-drawer-btn.icon { width: 38px; padding: 0; justify-content: center; color: var(--label-2); }
 .cv-drawer-btn.icon:hover { color: var(--fg); }
@@ -3270,23 +3707,32 @@ body {
 .cv-src-label { font-size: 11px; color: var(--label-3); }
 /* 表格单元内的签组(评分表「来源」列):列头已含语义,无标签行上边距 */
 .cv-src-row.is-cell { margin-top: 0; }
+/* 常态是一枚安静的文本签(hairline 描边、三级灰),悬停才染蓝:
+   一份技术矩阵有几十行,行行一枚蓝胶囊就成了满屏蓝斑,可点性靠悬停兑现即可。
+   活跃签(当前正被溯源定位的那一枚)仍是实心蓝,与常态拉开两档。 */
 .cv-src-chip {
   display: inline-flex;
   align-items: center;
   border: 0;
   font-size: 10.5px;
   font-weight: 600;
-  color: var(--blue);
-  background: var(--blue-soft);
+  color: var(--label-3);
+  background: transparent;
+  box-shadow: inset 0 0 0 .5px var(--separator);
   padding: 2.5px 9px;
   border-radius: 999px;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
-.cv-src-chip:hover { background: rgba(0, 100, 225, 0.16); }
+.cv-src-chip:hover { background: var(--blue-soft); color: var(--blue); box-shadow: none; }
 /* 反馈在指针按下即时给出(apple-design):按压态走 :active 缩放 */
-.cv-src-chip:active { transform: scale(0.95); }
+.cv-src-chip:active { transform: scale(.97); }
+.cv-src-chip.is-active,
+.cv-src-chip.is-active:hover,
+.cv-src-chip.is-disabled,
+.cv-src-chip.is-disabled:hover { box-shadow: none; }
 .cv-src-chip.is-disabled,
 .cv-src-chip.is-disabled:hover {
   color: var(--label-3);
@@ -3297,13 +3743,13 @@ body {
 /* 活跃签点亮:全局单活跃 ref,实心蓝与常态浅染拉开 */
 .cv-src-chip.is-active,
 .cv-src-chip.is-active:hover {
-  color: #fff;
+  color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
   background: var(--blue);
 }
 .cv-src-chip:focus-visible,
 .cv-trace-close:focus-visible,
 .cv-trace-error button:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 
@@ -3324,8 +3770,8 @@ body {
 .cv-trace-modal-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(18, 24, 34, 0.28);
-  /* backdrop-filter 走组件内联（构建期会剥离样式表里的该属性），见 TraceModal.tsx */
+  /* 纯色调光：同上，玻璃不叠玻璃 */
+  background: color-mix(in srgb, var(--label) 24%, transparent);
 }
 .cv-trace-modal-panel {
   position: relative;
@@ -3337,7 +3783,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: var(--surface);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-card);
   box-shadow: var(--elev-3);
 }
 .cv-trace-modal-head {
@@ -3346,7 +3792,7 @@ body {
   gap: 9px;
   flex: 0 0 auto;
   padding: 13px 14px 13px 18px;
-  border-bottom: 1px solid var(--separator);
+  box-shadow: inset 0 -.5px 0 var(--separator);   /* chrome 与内容交界：.5px 接触边，非 1px 分区线 */
   color: var(--label-2);
 }
 .cv-trace-title {
@@ -3368,7 +3814,7 @@ body {
   flex-direction: column;
   gap: 7px;
   padding: 11px 18px 12px;
-  border-bottom: 1px solid var(--separator);
+  box-shadow: inset 0 -.5px 0 var(--separator);   /* chrome 与内容交界：.5px 接触边，非 1px 分区线 */
   background: var(--surface-2);
 }
 .cv-trace-claim-head {
@@ -3446,14 +3892,14 @@ body {
   border: 0;
   background: var(--surface);
   color: var(--label-2);
-  border-radius: 6px;
+  border-radius: var(--r-control);   /* 坡道档位 */
   cursor: pointer;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cv-trace-step button:hover { color: var(--fg); background: var(--surface-3); }
-.cv-trace-step button:active { transform: scale(0.94); }
+.cv-trace-step button:active { transform: scale(.97); }
 .cv-trace-step button:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 .cv-trace-close {
@@ -3465,12 +3911,12 @@ body {
   border: 0;
   background: var(--surface-2);
   color: var(--label-2);
-  border-radius: 7px;
+  border-radius: var(--r-control);
   cursor: pointer;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cv-trace-close:hover { color: var(--fg); background: var(--surface-3); }
-.cv-trace-close:active { transform: scale(0.94); }
+.cv-trace-close:active { transform: scale(.92); }
 /* 舞台 = 滚动容器,纸面在其中居中(对齐原型 .pages-viewport.centered)。
    定位滚动的容器身份在此,TracePanel 里 closest(".cv-trace-stage") 依赖它。 */
 .cv-trace-stage {
@@ -3490,8 +3936,8 @@ body {
   box-sizing: border-box;
   padding: 56px 72px 72px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
+  border-radius: var(--r-window);
   box-shadow: var(--elev-1);
 }
 
@@ -3504,7 +3950,7 @@ body {
 }
 .cv-trace-skel i {
   height: 12px;
-  border-radius: 6px;
+  border-radius: 3px;   /* 装饰细件（骨架条），坡道外 */
   background: var(--surface-2);
 }
 .cv-trace-skel i:first-child { height: 18px; }
@@ -3516,28 +3962,28 @@ body {
   gap: 10px;
   font-size: 12.5px;
   line-height: 1.7;
-  color: var(--orange-text);
-  background: rgba(255, 149, 0, .12);
-  border-radius: 10px;
-  padding: 12px 14px;
+  color: var(--label-2);
+  padding: 4px 0;
 }
+.cv-trace-error > p { margin: 0; }
+.cv-trace-error b { font-weight: 600; color: var(--label); }
 .cv-trace-error button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   height: 28px;
   padding: 0 11px;
-  border: 1px solid rgba(60, 60, 67, 0.16);
-  border-radius: 8px;
+  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
+  border-radius: var(--r-control);
   font-size: 12px;
   font-weight: 600;
   color: var(--label);
   background: var(--surface);
   cursor: pointer;
-  transition: transform var(--t-micro) var(--ease-out), background-color var(--t-micro) ease;
+  transition: transform var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
 }
 .cv-trace-error button:hover { background: var(--surface-2); }
-.cv-trace-error button:active { transform: scale(0.97); }
+.cv-trace-error button:active { transform: scale(.97); }
 
 /* 成品排版:层级密度取 .design/prototype/archive/preview.html(文档预览与导出),
    颜色映射 Frost token。衬线栈保留原型序,Web 字体变量(--trace-serif-*)由
@@ -3586,7 +4032,7 @@ body {
   font-size: 0.86em;
   padding: 1px 5px;
   border: 1px solid var(--border-2);
-  border-radius: 4px;
+  border-radius: var(--r-control);
   background: rgba(116, 116, 128, .10);
 }
 .cv-trace-doc pre {
@@ -3594,7 +4040,7 @@ body {
   padding: 12px 14px;
   overflow-x: auto;
   border: 1px solid var(--border-2);
-  border-radius: 10px;
+  border-radius: var(--r-window);
   background: var(--surface-2);
 }
 .cv-trace-doc pre code { border: 0; padding: 0; background: transparent; }
@@ -3605,7 +4051,6 @@ body {
   color: var(--fg-2);
 }
 .cv-trace-doc hr { border: 0; border-top: 1px solid var(--border-2); margin: 22px 0; }
-.cv-trace-doc img { max-width: 100%; height: auto; border-radius: 6px; }
 
 /* 公式:KaTeX 跟随正文字号;行间公式长了在自身容器里横滚,不撑破纸面。
    解析失败(OCR 讹误)降级成朴素等宽文本 —— 不留 KaTeX 默认的刺目红。 */
@@ -3659,16 +4104,18 @@ body {
 }
 
 /* ---- 定位高亮 + 容错(票03) ---- */
-/* 未能定位黄条:line_span 缺失/越界照常开文档,坏数据可见(同 .cv-trace-error 警示皮) */
+/* 未能定位提示:line_span 缺失/越界照常开文档,坏数据可见。
+   不做黄块——一枚橙图标 + 一行字,与详情里的 .cv-det-notice 同一套语汇 */
 .cv-trace-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
   font-size: 12px;
-  line-height: 1.6;
-  color: var(--orange-text);
-  background: rgba(255, 149, 0, .12);
-  border-radius: 8px;
-  padding: 7px 10px;
+  line-height: 1.7;
+  color: var(--label-2);
   margin-bottom: 12px;
 }
+.cv-trace-banner > svg { flex: 0 0 auto; margin-top: 3px; color: var(--orange); }
 /* 块级高亮:系统蓝浅染 + 左缘蓝条(蓝=交互语义,不占橙/红警示色)。
    负外边距 + 等量内边距把染区外扩进左沟,正文原位不动(切换活跃签零布局位移)。
    染色收进 ::before 覆盖层(票05):出现时的一次性短暂强调(micro 档染色淡入)由
@@ -3676,7 +4123,7 @@ body {
 .cv-trace-doc .cv-trace-hit {
   position: relative;
   isolation: isolate;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--r-control) var(--r-control) 0;
   margin-left: -14px;
   padding-left: 14px;
 }
@@ -3707,9 +4154,9 @@ body {
   top: calc(-1 * var(--cv-drawer-pad));
   z-index: 4;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 -20px 14px;
+  align-items: center;
+  gap: 10px;
+  margin: 0 -20px 2px;
   padding: 10px 20px;
   background: var(--surface);
   border-bottom: 1px solid var(--separator);
@@ -3721,8 +4168,8 @@ body {
   width: max-content;
   max-width: 100%;
   padding: 2px;
-  border-radius: 9px;
-  background: rgba(60, 60, 67, .08);
+  border-radius: var(--r-field);
+  background: color-mix(in srgb, var(--separator) 67%, transparent);
 }
 .cv-det-seg button {
   border: 0;
@@ -3731,50 +4178,181 @@ body {
   font-weight: 600;
   color: var(--label-2);
   padding: 4px 11px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   cursor: pointer;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cv-det-seg button:hover { color: var(--label); }
 .cv-det-seg button:active { transform: scale(.97); }
 .cv-det-seg button.is-active {
   background: var(--surface);
   color: var(--label);
-  box-shadow: 0 1px 2px rgba(12, 18, 32, .12), 0 0 0 .5px rgba(12, 18, 32, .05);
+  box-shadow: var(--elev-1);
 }
 .cv-det-seg button:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
+  outline: 2px solid var(--blue);
   outline-offset: 1px;
 }
-.cv-det-anchors { display: flex; flex-wrap: wrap; gap: 5px; }
+/* 分类锚点:与过滤段控同行,自身横向滚动(十几个类目平铺成第二行胶囊墙是旧版最吵的一处)。
+   右缘渐隐提示还可以再滚,滚动条不占位。 */
+.cv-det-anchors {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
+}
+.cv-det-anchors::-webkit-scrollbar { display: none; }
 .cv-det-anchor {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 5px;
   border: 0;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 500;
   color: var(--label-2);
-  background: var(--surface-2);
-  padding: 3px 9px;
-  border-radius: 999px;
+  background: transparent;
+  padding: 3px 8px;
+  border-radius: var(--r-control);   /* 坡道档位 */
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
 }
-.cv-det-anchor:hover { background: var(--blue-soft); color: var(--blue); }
-.cv-det-anchor:active { transform: scale(.96); }
+.cv-det-anchor:hover { background: var(--surface-2); color: var(--label); }
 .cv-det-anchor:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
+  outline: 2px solid var(--blue);
   outline-offset: 1px;
 }
 .cv-det-anchor-n { font-variant-numeric: tabular-nums; color: var(--label-3); }
-.cv-det-anchor:hover .cv-det-anchor-n { color: var(--blue); }
 
-/* 条目行人工动作:应答状态标注(合规/正偏离/负偏离)+ 确认,落对象库(审计 actor=user) */
+/* ---- 条目分组与条目行(2026-08 重做) ----
+   分组不再是「卡中卡」:抽屉自身已是一个面,里面再套边框卡就成了三层盒子。
+   改用一条分组眉 + hairline 列表,靠留白分组。 */
+.cv-det-group + .cv-det-group { margin-top: 4px; }
+.cv-det-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 18px 0 5px;
+}
+.cv-det-group-head b { font-size: 12px; font-weight: 700; color: var(--label); letter-spacing: -.005em; }
+.cv-det-group-head span { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.cv-det-group-head .cv-det-group-mand,
+.cv-det-group-head .cv-det-group-note {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* 实质性条款数是警示,分值小计不是——后者只是中性事实,不该借警示色 */
+.cv-det-group-head .cv-det-group-mand { color: var(--orange-text); }
+.cv-det-group-head .cv-det-group-note { color: var(--label-3); }
+.cv-det-item {
+  position: relative;
+  padding: 11px 0 12px;
+  border-top: 1px solid var(--separator);
+}
+.cv-det-item:first-of-type { border-top: 0; }
+.cv-det-item-top { display: flex; align-items: baseline; gap: 7px; }
+.cv-det-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--label);
+}
+.cv-det-item-text {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--label-2);
+}
+/* 条款原文默认两行:几十条全展开时,列表会长到没人愿意滚 */
+.cv-det-item-text.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cv-det-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 7px;
+  min-height: 20px;
+}
+.cv-det-id { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.cv-det-more {
+  border: 0;
+  background: transparent;
+  font-size: 11.5px;
+  color: var(--blue);
+  padding: 0;
+  cursor: pointer;
+}
+.cv-det-more:hover { text-decoration: underline; }
+.cv-det-more:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 3px;   /* 装饰细件，坡道外 */ }
+/* 行尾状态标记:常驻的是状态(读),按需的是操作(点)——两者共用同一个槽,互斥切换 */
+.cv-det-state {
+  --sig: var(--label-3);
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--label-2);
+  white-space: nowrap;
+  transition: opacity var(--t-micro) var(--ease-std);
+}
+.cv-det-state::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--sig);
+  flex: 0 0 auto;
+  transform: translateY(-2px);
+}
+.cv-det-state.is-compliant { --sig: var(--green); }
+.cv-det-state.is-positive { --sig: var(--label-2); }   /* 语义色只有三对；正偏离用中性刻度 */
+.cv-det-state.is-negative { --sig: var(--orange); }
+.cv-det-state.is-idle { --sig: color-mix(in srgb, var(--label-3) 28%, transparent); color: var(--label-3); }
+.cv-det-item:hover .cv-det-state,
+.cv-det-item:focus-within .cv-det-state { opacity: 0; }
+
+/* 条目行人工动作:应答状态标注(合规/正偏离/负偏离)+ 确认,落对象库(审计 actor=user)。
+   常驻形态留给溯源预览层的对照条(那里就是要就地标注);抽屉条目列表里它包在
+   .cv-det-act 浮层里——几十条各常驻四枚控件就是几百枚按钮,静止时读、指到才操作。 */
 .cv-item-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cv-det-act {
+  position: absolute;
+  right: 0;
+  bottom: 8px;
+  z-index: 2;
+  max-width: 74%;
+  background: var(--surface);
+  box-shadow: var(--elev-1);
+  border-radius: var(--r-window);
+  padding: 3px 4px;
+  opacity: 0;
+  transform: translateY(2px);
+  pointer-events: none;
+  transition: opacity var(--t-micro) var(--ease-std), transform var(--t-float) var(--ease-std);
+}
+.cv-det-item:hover .cv-det-act,
+.cv-det-item:focus-within .cv-det-act {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.cv-det-act .cv-item-actions { margin-top: 0; gap: 6px; }
 .cv-item-actions .cv-det-seg button { padding: 2.5px 9px; font-size: 11px; }
 .cv-item-actions .cv-det-seg button:disabled { cursor: default; opacity: .55; }
 /* 选中态语义色:偏离状态一眼可辨(绿=合规、蓝=正偏离、橙=负偏离) */
@@ -3794,24 +4372,71 @@ body {
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--t-micro) ease, background-color var(--t-micro) ease, transform var(--t-micro) var(--ease-out);
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .cv-item-confirm:hover { background: var(--blue-soft); color: var(--blue); }
-.cv-item-confirm:active { transform: scale(.96); }
+.cv-item-confirm:active { transform: scale(.97); }
 .cv-item-confirm:disabled { cursor: default; opacity: .6; }
 .cv-item-confirm.is-on {
-  background: rgba(52, 199, 89, .15);
+  background: transparent;
   color: var(--green-text);
   opacity: 1;
 }
+.cv-item-confirm.is-on:hover { background: var(--surface-2); color: var(--green-text); }
 .cv-item-confirm:focus-visible {
-  outline: 2px solid rgba(0, 100, 225, .38);
+  outline: 2px solid var(--blue);
   outline-offset: 1px;
 }
 .cv-item-note { font-size: 11px; color: var(--label-3); }
 .cv-item-action-err { font-size: 11px; color: var(--orange-text); }
 
-/* 概要详情纵向时间线:截止节点橙点高亮 + 倒计时徽标,已过期节点整体淡化 */
+/* 提取质量提示(extraction_summary 非 complete):同样不做黄块,
+   一枚橙图标 + 一行字,底下靠留白与详情内容分开 */
+.cv-det-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--label-2);
+}
+.cv-det-notice > svg { flex: 0 0 auto; margin-top: 3px; color: var(--orange); }
+.cv-det-notice b { font-weight: 600; color: var(--label); }
+
+/* 概要详情主指标区:倒计时与预算升格为两个大数,其余字段退回定义列表 */
+.cv-det-hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 0 0 15px;
+  border-bottom: 1px solid var(--separator);
+  margin-bottom: 15px;
+}
+.cv-det-hero-cell b {
+  display: block;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -.028em;
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+}
+.cv-det-hero-cell span { font-size: 11.5px; color: var(--label-3); }
+.cv-det-hero-cell.is-warn b { color: var(--orange-text); }
+.cv-det-hero-cell.is-past b { color: var(--label-2); }
+.cv-det-dl {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 9px 14px;
+  margin: 0 0 16px;
+  font-size: 12.5px;
+}
+.cv-det-dl dt { color: var(--label-3); }
+.cv-det-dl dd { margin: 0; color: var(--label); overflow-wrap: anywhere; }
+.cv-det-sub { font-size: 12px; font-weight: 700; color: var(--label); margin-bottom: 7px; }
+
+/* 概要详情纵向时间线:截止节点橙点高亮 + 倒计时文字,已过期节点整体淡化 */
 .cv-det-timeline { position: relative; }
 .cv-det-timeline::before {
   content: "";
@@ -3832,12 +4457,12 @@ body {
   height: 12px;
   border-radius: 999px;
   background: var(--surface);
-  border: 2.5px solid rgba(60, 60, 67, .28);
+  border: 2.5px solid color-mix(in srgb, var(--label-3) 28%, transparent);
 }
 .cv-det-tl-node.is-deadline .cv-det-tl-dot {
   background: var(--orange);
   border-color: var(--orange);
-  box-shadow: 0 0 0 3px rgba(255, 149, 0, .16);
+  /* 语义点用饱和值即可，不加彩色光晕 */
 }
 .cv-det-tl-node.is-past { opacity: .55; }
 .cv-det-tl-title {
@@ -3849,6 +4474,14 @@ body {
   color: var(--label);
 }
 .cv-det-tl-node.is-deadline .cv-det-tl-title { font-weight: 700; }
+.cv-det-tl-count {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cv-det-tl-node.is-deadline .cv-det-tl-count { color: var(--orange-text); font-weight: 600; }
 .cv-det-tl-meta {
   margin-top: 1px;
   font-size: 12px;
@@ -3857,50 +4490,97 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* 评分详情否决项红区:与实质性条款同级致命,置于详情最顶部 */
+/* 评分详情否决项:与实质性条款同级致命,置于详情最顶部。
+   ---------------------------------------------------------------------------
+   不做彩色填充块、不立彩色边线 —— 那是便利贴,不是提示。语义色只落在**图标与
+   标题**上(destructive 的通行做法:iOS 的破坏性操作、macOS 系统设置的危险区
+   都只染字与符号,不染面积),条文本身用主色照常读,分区交给 hairline 与留白。
+   「最该先看」由位置(排最前)、字重与那枚红图标承担;条文前的中性序号让五条
+   否决项读作一份清单,而不是一堆警告。 */
 .cv-det-veto {
-  border-radius: 12px;
-  background: rgba(255, 59, 48, .08);
-  padding: 12px 14px;
-  margin-bottom: 14px;
+  margin: 0 0 18px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--separator);
 }
 .cv-det-veto-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 7px;
+  padding: 2px 0 8px;
+  font-size: 12.5px;
   font-weight: 700;
+  letter-spacing: -.005em;
   color: var(--red-text);
-  margin-bottom: 4px;
 }
+.cv-det-veto-title > svg { flex: 0 0 auto; }
 .cv-det-veto-count {
+  margin-left: auto;
   font-size: 11px;
   font-weight: 600;
-  color: var(--red-text);
-  background: rgba(255, 59, 48, .12);
-  padding: 1px 8px;
-  border-radius: 999px;
+  color: var(--label-3);
   font-variant-numeric: tabular-nums;
 }
 .cv-det-veto-row {
   display: flex;
-  gap: 8px;
-  padding: 5px 0 0;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--separator);
   font-size: 12.5px;
-  line-height: 1.7;
+  line-height: 1.75;
   color: var(--label);
   overflow-wrap: anywhere;
 }
-.cv-det-veto-bullet {
-  width: 6px;
-  height: 6px;
-  margin-top: 7px;
-  border-radius: 999px;
-  border: 1.5px solid var(--red);
+.cv-det-veto-no {
   flex: 0 0 auto;
+  min-width: 15px;
+  font-size: 11px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
 }
+/* 清单里的来源签自明,不再挂「来源」标签 */
+.cv-det-veto .cv-src-label { display: none; }
+.cv-det-veto .cv-src-row { margin-top: 3px; }
 
-/* 分值结构堆叠条:单蓝色阶按占比着色(价格→商务→技术依次减淡),「其他」为灰,图例同色对应 */
+/* 评分项行式呈现:548px 的抽屉里塞四列窄表,「评分规则」列只剩两三个字的宽度。
+   改成一行一项——标题在左、分值靠右成一条数字轴、规则与来源退到次行。 */
+.cv-det-srow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--separator);
+}
+.cv-det-srow:first-of-type { border-top: 0; }
+.cv-det-srow-main { flex: 1; min-width: 0; }
+.cv-det-srow-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--label);
+}
+.cv-det-srow-rule {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--label-3);
+}
+.cv-det-srow-score {
+  flex: 0 0 auto;
+  min-width: 30px;
+  text-align: right;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
+}
+.cv-det-srow.is-total { border-top-width: 1px; }
+.cv-det-srow.is-total .cv-det-srow-title { font-weight: 700; }
+.cv-det-srow.is-total .cv-det-srow-score { font-weight: 700; }
+
+/* 分值结构堆叠条:段色按名次走中性灰阶,图例同色对应 */
 .cv-det-scorebar {
   display: flex;
   gap: 2px;
@@ -3909,14 +4589,16 @@ body {
   overflow: hidden;
 }
 .cv-det-scorebar i { display: block; height: 100%; min-width: 3px; }
-.cv-det-scorebar .is-price,
-.cv-det-scorelegend .is-price { background: var(--blue); }
-.cv-det-scorebar .is-business,
-.cv-det-scorelegend .is-business { background: rgba(0, 100, 225, .62); }
-.cv-det-scorebar .is-technical,
-.cv-det-scorelegend .is-technical { background: rgba(0, 100, 225, .34); }
+/* 段色走中性灰阶:分值结构是构成关系,不是四种状态,不该动用四档蓝
+   (蓝在 Frost 只归可交互 / 进行中)。深→浅按名次,与卡面结构条同一套语汇。 */
+.cv-det-scorebar .is-rank1,
+.cv-det-scorelegend .is-rank1 { background: color-mix(in srgb, var(--label) 52%, transparent); }
+.cv-det-scorebar .is-rank2,
+.cv-det-scorelegend .is-rank2 { background: color-mix(in srgb, var(--label) 34%, transparent); }
+.cv-det-scorebar .is-rank3,
+.cv-det-scorelegend .is-rank3 { background: color-mix(in srgb, var(--label) 22%, transparent); }
 .cv-det-scorebar .is-other,
-.cv-det-scorelegend .is-other { background: rgba(60, 60, 67, .20); }
+.cv-det-scorelegend .is-other { background: color-mix(in srgb, var(--label) 10%, transparent); }
 .cv-det-scorelegend {
   display: flex;
   flex-wrap: wrap;
@@ -3927,17 +4609,27 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .cv-det-scorelegend > span { display: inline-flex; align-items: center; gap: 5px; }
-.cv-det-scorelegend i { width: 8px; height: 8px; border-radius: 3px; flex: 0 0 auto; }
+.cv-det-scorelegend i { width: 8px; height: 8px; border-radius: 3px;   /* 装饰细件，坡道外 */ flex: 0 0 auto; }
 
 /* ---- 降级：减少透明度时实底化玻璃 ----
-   .cv-capsule 的模糊写在 JSX 内联（构建期会被剥离无前缀属性），这里只压实底色；
-   内联 backdrop-filter 由组件按同一媒体查询自行放弃不现实，实底色已足够可读。 */
+   .cv-toolbar / .cv-dock-chip / .cv-viewport-hint / .cv-actbar 已改用 .frost-glass 工具类，
+   其兜底由 frost-materials.css 统一提供，此处不再重复。仅 LiquidGlass 两面需要单独撤：
+   它的滤镜写在 JSX 内联（构建期会剥离样式表里的无前缀属性），媒体查询够不到。 */
 @media (prefers-reduced-transparency: reduce) {
-  .cv-toolbar { background: rgba(245, 246, 248, 0.98); backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .cv-dock-chip { background: rgba(255, 255, 255, 0.98); backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .cv-viewport-hint { background: rgba(255, 255, 255, .98); backdrop-filter: none; -webkit-backdrop-filter: none; }
-  .cv-capsule,
-  .cv-actbar { background: rgba(250, 251, 253, .98); }
+  /* 液态玻璃整套撤掉：折射与高光边都以「看得见背后」为前提，实底之后它们只剩噪点 */
+  .cv-msgwin-lg > .lg-glass,
+  .cv-agentboard-lg > .lg-glass { background: rgba(250, 251, 253, .98); }
+  .cv-msgwin-lg .lg-warp,
+  .cv-agentboard-lg .lg-warp { filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  .cv-msgwin-lg > .lg-rim,
+  .cv-agentboard-lg > .lg-rim { display: none; }
+  .cv-msgwin-lg .lg-illum,
+  .cv-agentboard-lg .lg-illum { display: none; }
+  /* 面板底一旦实心，正文那套半透明元件就失去了「不戳补丁」的理由，还回实底更清楚 */
+  .cv-msgwin .cm-tool-results,
+  .cv-msgwin .cm-markdown [data-streamdown="code-block"] { background: var(--surface); }
+  .cv-msgwin .cm-markdown [data-streamdown="code-block-header"],
+  .cv-msgwin .cm-markdown th { background: var(--surface-2); }
 }
 
 /* ---- 画布浮层的响应式 ----
@@ -3945,20 +4637,16 @@ body {
    分栏已取消，这里按浮层重写。 */
 @media (max-width: 1180px) {
   .canvas-viewport { --cv-dock-band: 196px; }
-  .cv-msgwin[data-size="normal"] { width: 360px; }
-  .cv-msgwin[data-size="expanded"] { width: min(56vw, 660px); }
   .cv-viewport-hint { display: none; }
 }
 @media (max-width: 860px) {
-  /* 窄屏：浮窗降级为顶部通栏薄片（normal 与 expanded 只差高度），坞铺满宽度。
-     画布在其后仍可见——现在它就是页面本身。 */
+  /* 窄屏：面板降级为顶部通栏薄片，坞铺满宽度。画布在其后仍可见——现在它就是页面本身。
+     宽度写 calc(100% - 2*inset) 而非 left+right：改档由 gsap 逐帧写内联 width，
+     left+right 的自动宽会被它压过，成为过约束。 */
   .canvas-viewport { --cv-dock-band: 178px; --cv-float-inset: 8px; }
-  .cv-msgwin { right: var(--cv-float-inset); }
-  .cv-msgwin[data-size="normal"],
-  .cv-msgwin[data-size="expanded"] { width: auto; }
-  .cv-msgwin[data-size="normal"] { height: min(50vh, var(--cv-msgwin-max-h)); }
-  .cv-msgwin[data-size="expanded"] { height: var(--cv-msgwin-max-h); }
-  .cv-capsule { max-width: calc(100% - 2 * var(--cv-float-inset)); }
+  .cv-msgwin[data-state="min"],
+  .cv-msgwin[data-state="open"] { width: calc(100% - 2 * var(--cv-float-inset)); }
+  .cv-msgwin[data-state="open"] { height: min(60vh, var(--cv-msgwin-max-h)); }
   .cv-dock { bottom: 10px; }
   .cv-dock > * { width: calc(100% - 16px); }
   .cv-dock-chips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
@@ -3982,13 +4670,66 @@ body {
   .workspace .cv-det-seg button.is-active:hover { color: var(--label); }
   .workspace .cv-det-anchor:hover { background: var(--surface-2); color: var(--label-2); }
   .workspace .cv-det-anchor:hover .cv-det-anchor-n { color: var(--label-3); }
-  .workspace .cv-dock-chip:hover { background: rgba(255, 255, 255, .78); }
-  .workspace .cv-actbar:hover { background: rgba(255, 255, 255, .78); }
-  .workspace .cv-capsule:hover { background: rgba(255, 255, 255, .75); }
+  /* 玻璃面的 hover 是光（--_spot-a），不是底色：粗指针设备上取消高光即可，
+     不要给玻璃写半透明白底——那会替换掉整层光学栈。 */
+  .workspace .cv-dock-chip:hover,
+  .workspace .cv-actbar:hover { --_spot-a: 0; }
   .workspace .cv-msgwin-btn:hover { background: transparent; color: var(--muted); }
+  .workspace .cv-msgwin-bot:hover { transform: none; }
+  .workspace .cv-msgwin-bot:hover .cv-bot-eye { animation: none; }
   .workspace .cv-drawer-btn.primary:hover,
   .workspace .composer-send:hover:not(:active) {
-    background: linear-gradient(180deg, #1979f2 0%, #0064e1 100%) !important;
+    background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%) !important;
     transform: none !important;
   }
 }
+
+/* ===== 外观切换（跟随系统 / 浅色 / 深色）=====
+   触发钮沿用顶栏 .icon-btn；菜单是瞬态浮层，按放置矩阵取凝 regular。
+   顶栏是霜玻璃，菜单向下浮出顶栏之外落在内容实底/壁纸上——玻璃不叠玻璃。 */
+/* 菜单 portal 到 body（脱开霜玻璃顶栏子树，否则 backdrop root 落在顶栏上 =
+   玻璃叠玻璃），因此用 fixed 定位，坐标由组件按触发钮视口矩形算。 */
+.appearance-menu {
+  position: fixed;
+  z-index: 60;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: var(--r-card);
+  transform-origin: top right;
+}
+.appearance-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-field);   /* 同心：外 14 − padding 5 */
+  color: var(--label);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
+}
+.appearance-item svg { flex: 0 0 auto; color: var(--label-2); }
+/* 菜单行 hover：整行蓝 + 固定白前景（规范：menu rows → full-width blue） */
+.appearance-item:hover,
+.appearance-item:focus-visible {
+  background: var(--blue);
+  color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
+  outline: none;
+}
+.appearance-item:hover svg,
+.appearance-item:focus-visible svg { color: #ffffff; }
+/* 当前档：蓝字 + 蓝浅染（蓝在此表达「当前选中的可交互项」） */
+.appearance-item.is-active { color: var(--blue); font-weight: 600; }
+.appearance-item.is-active svg { color: var(--blue); }
+.appearance-item.is-active:hover,
+.appearance-item.is-active:focus-visible { color: #ffffff; }
+.appearance-item.is-active:hover svg,
+.appearance-item.is-active:focus-visible svg { color: #ffffff; }

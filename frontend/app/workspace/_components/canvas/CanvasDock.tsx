@@ -61,11 +61,13 @@ export function CanvasDock() {
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
-      // 空的 .cv-dockbar 被 :empty 规则隐藏，别把它算进 stagger（否则第一拍是空的）。
-      const bar = gsap.utils.toArray<HTMLElement>(".cv-dockbar > *").length
-        ? gsap.utils.toArray<HTMLElement>(".cv-dockbar")
-        : [];
-      const targets = [...bar, ...gsap.utils.toArray<HTMLElement>(".cv-dock .composer")];
+      // 玻璃约束:autoAlpha 会给元素设 opacity,而 opacity<1 的**祖先**会切断玻璃的
+      // backdrop——所以补间只落在玻璃元素自身(活动条/各 chip,自身 opacity 不切断)与
+      // 实底 composer 上,绝不作用于 .cv-dockbar / .cv-dock-chips 这类玻璃祖先容器。
+      const targets = [
+        ...gsap.utils.toArray<HTMLElement>(".cv-dockbar .cv-actbar, .cv-dockbar .cv-dock-chip"),
+        ...gsap.utils.toArray<HTMLElement>(".cv-dock .composer"),
+      ];
       if (!targets.length) return;
       gsap.from(targets, {
         autoAlpha: 0,
@@ -83,10 +85,11 @@ export function CanvasDock() {
   // 状态胶囊维持双挂载不值当）。运行状态翻转每次解析只发生一回。
   // 先取元素再判空：idle 且无项目时这一行是空的（chips 与活动条都不渲染），
   // 直接传选择器会让 gsap 每次挂载都往控制台丢一条 target not found。
+  // 同上:目标是玻璃元素自身,不动 .cv-dock-chips 之类玻璃祖先。
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
-      const items = gsap.utils.toArray<HTMLElement>(".cv-dockbar > *");
+      const items = gsap.utils.toArray<HTMLElement>(".cv-dockbar .cv-actbar, .cv-dockbar .cv-dock-chip");
       if (!items.length) return;
       gsap.from(items, {
         autoAlpha: 0,
@@ -117,7 +120,9 @@ export function CanvasDock() {
                 <button
                   key={c.label}
                   type="button"
-                  className="cv-dock-chip"
+                  // 快捷 chips:放置矩阵为 lens thin,lens 预算已满,降级 霜 soft·thin
+                  className="cv-dock-chip frost-glass frost-glass--soft frost-glass--interactive"
+                  data-thick="thin"
                   onClick={() => prefill(c.prompt)}
                 >
                   {c.icon}

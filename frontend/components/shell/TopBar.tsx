@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import { BrandMark } from "@/components/ui/icons";
 import { NavTabs } from "./NavTabs";
+import { AppearanceMenu } from "./AppearanceMenu";
 
 type Crumb = { label: string; current?: boolean };
 
@@ -11,7 +12,8 @@ interface TopBarProps {
 
 export function TopBar({ crumbs, actions }: TopBarProps) {
   return (
-    <header className="topbar">
+    // 顶栏为嵌入式 chrome:霜 soft·thick,flush(无浮起投影,与内容以 .5px contact edge 相接)
+    <header className="topbar frost-glass frost-glass--soft frost-glass--flush" data-thick="thick">
       <div className="brand">
         <div className="brand-mark">
           <BrandMark />
@@ -32,6 +34,7 @@ export function TopBar({ crumbs, actions }: TopBarProps) {
       <NavTabs />
       <div className="topbar-actions">
         {actions}
+        <AppearanceMenu />
         <div className="avatar">LH</div>
       </div>
     </header>

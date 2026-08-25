@@ -10,6 +10,8 @@ export const DEADLINE_WARN_DAYS = 7;
 export interface DeadlineInfo {
   /** 原文时间串,展示用 */
   text: string;
+  /** 解析出的时间戳;解析失败为 null */
+  at: number | null;
   /** 距截止的整日历天数:今日为 0,已过为负;解析失败为 null */
   daysLeft: number | null;
 }
@@ -56,7 +58,7 @@ export function bidDeadline(
   const ev = timeline?.find((e) => e.event === "bid_deadline" && e.datetime);
   if (!ev?.datetime) return null;
   const t = parseDeadline(ev.datetime);
-  return { text: ev.datetime, daysLeft: t === null ? null : calendarDaysBetween(now, t) };
+  return { text: ev.datetime, at: t, daysLeft: t === null ? null : calendarDaysBetween(now, t) };
 }
 
 /** 倒计时呈现:文案 + 语气(normal / warn 警示 / past 已过期) */
@@ -68,4 +70,35 @@ export function deadlineCountdown(daysLeft: number | null): {
   if (daysLeft < 0) return { label: "已截止", tone: "past" };
   if (daysLeft === 0) return { label: "今日截止", tone: "warn" };
   return { label: `剩 ${daysLeft} 天`, tone: daysLeft <= DEADLINE_WARN_DAYS ? "warn" : "normal" };
+}
+
+/** 卡面结构条用的投标窗口:最早时间节点 → 投标截止,拆成「已过 / 剩余」两段(单位:毫秒)。
+ *  缺任一端、或窗口跨度不合法时返回 null —— 没有结构可画就不画空轨道。 */
+export function bidWindow(
+  timeline: TimelineEvent[] | undefined,
+  now: number = Date.now(),
+): { elapsed: number; left: number } | null {
+  const end = timeline?.find((e) => e.event === "bid_deadline" && e.datetime)?.datetime;
+  const t1 = end ? parseDeadline(end) : null;
+  if (t1 === null) return null;
+  let t0: number | null = null;
+  for (const e of timeline ?? []) {
+    if (!e.datetime) continue;
+    const t = parseDeadline(e.datetime);
+    if (t !== null && (t0 === null || t < t0)) t0 = t;
+  }
+  if (t0 === null || t0 >= t1) return null;
+  const span = t1 - t0;
+  const elapsed = Math.min(span, Math.max(0, now - t0));
+  return { elapsed, left: span - elapsed };
+}
+
+/** 卡面用短日期:「09-12 09:30」。232px 的卡面放不下带年份的完整原文,
+ *  而年份可由倒计时天数反推;完整原文留在抽屉详情的时间线里。零点整按纯日期呈现。 */
+export function fmtShortDeadline(at: number): string {
+  const d = new Date(at);
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  const date = `${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  if (d.getHours() === 0 && d.getMinutes() === 0) return date;
+  return `${date} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }

@@ -1,9 +1,8 @@
 "use client";
 
 import type { ToolCall } from "@/lib/hagent/timeline";
+import { TableIcon } from "@/components/ui/icons";
 import { toolLabel } from "./toolLabel";
-
-const stroke = { fill: "none" as const, stroke: "currentColor" as const };
 
 // 复用设计稿的 .cm-tool-section / .cm-tool-header / .cm-tool-results / .cm-result 结构，
 // 仅把数据源换成真实工具调用。不新增样式类。
@@ -21,9 +20,7 @@ export function ToolSection({ call }: { call: ToolCall }) {
         <div className="cm-tool-results">
           <div className="cm-result">
             <div className="cm-result-icon">
-              <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.6}>
-                <path d="M2 4h12v9H2zM2 7h12" />
-              </svg>
+              <TableIcon aria-hidden="true" />
             </div>
             <div className="cm-result-title">{clip(result)}</div>
             <div className="cm-result-meta">结果</div>

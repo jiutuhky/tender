@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Prose app icon">
+  <defs>
+    <linearGradient id="frost-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5fb0ff"></stop>
+      <stop offset=".55" stop-color="#1670ec"></stop>
+      <stop offset="1" stop-color="#0a3fa8"></stop>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="27" fill="url(#frost-bg)"></rect>
+  <rect x="30" y="46" width="60" height="44" rx="8" fill="#ffffff" opacity=".28"></rect>
+  <rect x="26" y="36" width="68" height="48" rx="8" fill="#ffffff" opacity=".5"></rect>
+  <rect x="22" y="25" width="76" height="52" rx="9" fill="#ffffff"></rect>
+  <rect x="34" y="38" width="40" height="5" rx="2.5" fill="#1670ec"></rect>
+  <rect x="34" y="50" width="52" height="4" rx="2" fill="#9cc4f5"></rect>
+  <rect x="34" y="60" width="46" height="4" rx="2" fill="#9cc4f5"></rect>
+</svg>

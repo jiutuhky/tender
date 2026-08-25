@@ -1,6 +1,6 @@
-/* Preview-specific structural CSS, migrated from prototype/archive/preview.html */
+/* preview 路由专属结构样式，迁移自 prototype/archive/preview.html */
 
-/* ---------- Main grid ---------- */
+/* ---------- 主栅格 ---------- */
   .main {
     display: grid;
     grid-template-columns: 240px 1fr 340px;
@@ -14,27 +14,27 @@
     .right-export { display: none; }
   }
 
-  /* ---------- Left outline ---------- */
+  /* ---------- 左侧大纲栏 ---------- */
+  /* 霜玻璃嵌入式 chrome（类挂在 Outline.tsx）：材质交给工具类，
+     与内容交界只留 .5px 接触边（inset 投影替代 1px 边线）。 */
   .outline {
-    border-right: 1px solid var(--border);
-    background: var(--bg);
+    box-shadow: inset -.5px 0 0 var(--separator);
     overflow-y: auto;
     padding: 14px 8px 20px;
   }
   .outline-title {
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 11px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    color: var(--label-2);
+      letter-spacing: 0.06em;
     margin: 4px 12px 10px;
   }
   .outline-item {
     display: flex; align-items: center; gap: 9px;
     padding: 6px 10px 6px 12px;
     font-size: 13px;
-    color: var(--fg-2);
-    border-radius: var(--radius-sm);
+    color: var(--label-2);
+    border-radius: var(--r-control);
     cursor: pointer;
     line-height: 1.4;
   }
@@ -42,7 +42,7 @@
   .outline-item.active {
     position: relative;
     background: var(--surface);
-    color: var(--fg);
+    color: var(--label);
     margin-left: -2px;
     padding-left: 12px;
     font-weight: 500;
@@ -54,75 +54,75 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: var(--accent);
+    background: var(--blue);
     border-radius: 0;
   }
   .outline-item .idx {
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 11px;
-    color: var(--faint);
+    color: var(--label-3);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
     width: 22px;
   }
-  .outline-item.active .idx { color: var(--accent); }
+  .outline-item.active .idx { color: var(--blue); }
   .outline-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .outline-item .stat {
-    font-family: var(--font-sans); font-size: 10.5px;
-    color: var(--faint); font-variant-numeric: tabular-nums;
+    font-family: var(--font-ui); font-size: 10.5px;
+    color: var(--label-3); font-variant-numeric: tabular-nums;
   }
   .outline-sub {
     padding-left: 38px;
     font-size: 12px;
-    color: var(--muted);
+    color: var(--label-2);
     padding-top: 2px; padding-bottom: 2px;
     display: flex; gap: 8px; align-items: center;
-    border-radius: var(--radius-sm);
+    border-radius: var(--r-control);
     cursor: pointer;
   }
-  .outline-sub:hover { background: var(--surface-2); color: var(--fg); }
+  .outline-sub:hover { background: var(--surface-2); color: var(--label); }
   .outline-sub .dot {
     width: 4px; height: 4px; border-radius: 50%;
-    background: var(--faint); flex-shrink: 0;
+    background: var(--label-3); flex-shrink: 0;
   }
-  .outline-sub.done .dot { background: var(--success); }
-  .outline-sub.running .dot { background: var(--accent); }
-  .outline-sub.todo .dot { background: var(--faint); }
+  .outline-sub.done .dot { background: var(--green-text); }
+  .outline-sub.running .dot { background: var(--blue); }
+  .outline-sub.todo .dot { background: var(--label-3); }
 
-  /* ---------- Center: A4 page ---------- */
+  /* ---------- 中央：A4 页面 ---------- */
   .center {
     display: grid;
     grid-template-rows: auto 1fr;
     overflow: hidden;
-    background: var(--surface-3);
+    background: var(--surface-2);
   }
   .doc-toolbar {
     height: 44px;
     display: flex; align-items: center;
-    border-bottom: 1px solid var(--border);
+    /* 霜玻璃 regular + .frost-scroll-edge（类挂在 page.tsx）：
+       内容从条下滑过，用渐进模糊代替分区线。 */
     padding: 0 16px 0 18px;
-    background: var(--bg);
     gap: 14px;
   }
   .zoom-controls {
     display: flex; align-items: center; gap: 4px;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 12px;
-    color: var(--muted);
+    color: var(--label-2);
   }
   .page-indicator {
     font-size: 12px;
-    color: var(--muted);
-    font-family: var(--font-sans);
+    color: var(--label-2);
+    font-family: var(--font-ui);
     font-variant-numeric: tabular-nums;
   }
-  .page-indicator strong { color: var(--fg); font-weight: 500; }
+  .page-indicator strong { color: var(--label); font-weight: 500; }
   .doc-toolbar-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
   .view-toggle {
     display: flex;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 7px;
+    border: 1px solid var(--separator);
+    border-radius: var(--r-control);
     padding: 2px;
   }
   .view-toggle button {
@@ -130,29 +130,28 @@
     font-size: 11px;
     font-family: inherit;
     font-weight: 500;
-    color: rgba(15, 12, 8, 0.72);
+    color: var(--label-2);
     border: 1px solid transparent;
     background: transparent;
-    border-radius: 6px;
+    border-radius: 5px;   /* 同心：外 9 − padding 2 */ /* 同心圆角：外 7 − padding 2 */
     cursor: default;
     user-select: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     outline: none;
-    transition: border-color .14s ease, box-shadow .14s ease, background .14s ease, color .14s ease;
+    transition: border-color var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std);
   }
   .view-toggle button:hover {
-    color: rgba(15, 12, 8, 0.92);
+    color: var(--label);
   }
   .view-toggle button.active {
-    background: rgb(255, 255, 255);
-    color: rgba(15, 12, 8, 0.92);
-    border-color: rgba(15, 12, 8, 0.1);
-    box-shadow: rgba(20, 20, 19, 0.04) 0 1px 2px;
+    background: var(--surface);
+    color: var(--label);
+    box-shadow: var(--elev-1);
   }
   .view-toggle button:focus-visible {
-    outline: 2px solid rgba(0, 100, 225, 0.30);
+    outline: 2px solid color-mix(in srgb, var(--blue) 30%, transparent);
     outline-offset: 2px;
   }
 
@@ -164,43 +163,43 @@
     display: flex; flex-direction: column; align-items: center;
   }
 
-  /* A4 page: 1:√2, rendered at ~720px wide → feels like actual page */
+  /* A4 纸面：1:√2，按 ~720px 宽渲染 → 接近真实页面比例；文档纸面保持实底最亮 */
   .page {
     width: 720px;
-    min-height: 1018px; /* 720 * √2 */
+    min-height: 1018px; /* 720 × √2 */
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
+    border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
+    border-radius: var(--r-window);
     padding: 72px 80px 72px;
     margin-bottom: 24px;
-    font-family: var(--font-serif);
-    color: #1d1d1f;
-    box-shadow: 0 1px 3px oklch(0% 0 0 / 0.04);
+    font-family: var(--font-ui);
+    color: var(--label);
+    box-shadow: var(--elev-1);
     position: relative;
   }
   .page-num {
     position: absolute;
     bottom: 28px; right: 32px;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 10.5px;
-    color: var(--faint);
+    color: var(--label-3);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.04em;
   }
   .page-running-head {
     position: absolute;
     top: 28px; left: 80px; right: 80px;
-    font-family: var(--font-text);
+    font-family: var(--font-ui);
     font-size: 10.5px;
-    color: var(--faint);
-    border-bottom: 1px solid var(--border);
+    color: var(--label-3);
+    border-bottom: 1px solid var(--separator);
     padding-bottom: 6px;
     display: flex; justify-content: space-between;
     letter-spacing: 0.02em;
   }
 
   .page h1.doc-h1 {
-    font-family: var(--font-serif);
+    font-family: var(--font-ui);
     font-size: 30px;
     font-weight: 600;
     line-height: 1.3;
@@ -208,26 +207,26 @@
     margin: 20px 0 6px;
   }
   .page .doc-deck {
-    font-family: var(--font-text);
+    font-family: var(--font-ui);
     font-size: 13px;
-    color: var(--muted);
+    color: var(--label-2);
     margin: 8px 0 28px;
     padding-bottom: 18px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--separator);
     line-height: 1.6;
   }
   .page h2 {
-    font-family: var(--font-serif);
+    font-family: var(--font-ui);
     font-size: 20px;
     font-weight: 600;
     margin: 28px 0 10px;
     letter-spacing: -0.005em;
   }
   .page h3 {
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 13.5px;
     font-weight: 600;
-    color: var(--fg-2);
+    color: var(--label-2);
     margin: 20px 0 8px;
     letter-spacing: 0;
   }
@@ -242,7 +241,7 @@
     width: 100%;
     border-collapse: collapse;
     margin: 16px 0;
-    font-family: var(--font-text);
+    font-family: var(--font-ui);
     font-size: 12.5px;
   }
   .page th, .page td {
@@ -254,7 +253,7 @@
   .page th {
     background: var(--surface-2);
     font-weight: 600;
-    color: var(--fg-2);
+    color: var(--label-2);
     font-size: 11.5px;
     letter-spacing: 0.01em;
   }
@@ -263,76 +262,75 @@
   .figure {
     margin: 16px 0 20px;
     background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border: 1px solid var(--separator);
+    border-radius: var(--r-control);
     overflow: hidden;
   }
   .figure-body {
     aspect-ratio: 16 / 7;
-    background:
-      linear-gradient(180deg, #f2f4f7 0%, #fafbfc 100%);
+    background: var(--surface-2);
     position: relative;
     display: grid;
     place-items: center;
-    color: var(--faint);
+    color: var(--label-3);
     font-size: 11px;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
   }
   .figure-body svg { width: 70%; height: 70%; }
   .figure-caption {
     padding: 8px 14px;
-    font-family: var(--font-text);
+    font-family: var(--font-ui);
     font-size: 11.5px;
-    color: var(--muted);
-    border-top: 1px solid var(--border);
+    color: var(--label-2);
+    border-top: 1px solid var(--separator);
     display: flex; justify-content: space-between;
   }
-  .figure-caption strong { color: var(--fg-2); font-weight: 500; }
+  .figure-caption strong { color: var(--label-2); font-weight: 500; }
 
-  /* Annotations (AI explanations in margin) */
+  /* 页边批注（智能体说明）：中性衬底 + 发丝线；语义蓝只落标签文字，不做彩色边线/衬底 */
   .annotation {
     position: absolute;
     left: calc(100% + 16px);
     width: 220px;
-    font-family: var(--font-text);
+    font-family: var(--font-ui);
     font-size: 11.5px;
-    color: var(--fg-2);
-    background: #f4f6f9;
-    border: 1px solid var(--accent-soft);
-    border-left: 2px solid var(--accent);
+    color: var(--label-2);
+    background: var(--surface-2);
+    border: 1px solid var(--separator);
     padding: 10px 12px;
-    border-radius: 4px;
+    border-radius: var(--r-control);
     line-height: 1.55;
   }
   .annotation::before {
     content: "智能体批注";
     display: block;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 10px;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    color: var(--label-2);
+      letter-spacing: 0.06em;
     margin-bottom: 4px;
   }
 
-  /* Inline citations */
+  /* 行内引用 */
   .cite {
     display: inline;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 10px;
-    color: var(--accent);
-    background: var(--accent-soft);
+    color: var(--blue);
+    background: var(--blue-soft);
     padding: 1px 4px;
-    border-radius: 2px;
+    border-radius: var(--r-control);
     margin-left: 3px;
     vertical-align: 2px;
     cursor: pointer;
   }
 
-  /* ---------- Right export panel ---------- */
+  /* ---------- 右侧导出面板 ---------- */
+  /* 霜玻璃 chrome：frost-glass frost-glass--soft frost-glass--flush + data-thick="thick"
+     类加在 page.tsx；实底背景已删除，材质由玻璃工具类提供。
+     与中央内容以 .5px contact edge 相接（本条 box-shadow 位于 --flush 之后的层叠序，覆盖其 none）。 */
   .right-export {
-    border-left: 1px solid var(--border);
-    background: var(--bg);
+    box-shadow: inset .5px 0 0 var(--separator);
     overflow-y: auto;
     padding: 18px 18px 40px;
     display: flex; flex-direction: column; gap: 20px;
@@ -341,23 +339,22 @@
     margin: 0 0 10px;
     font-size: 11px;
     font-weight: 500;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-family: var(--font-sans);
+    color: var(--label-2);
+      letter-spacing: 0.06em;
+    font-family: var(--font-ui);
   }
 
-  /* Check summary */
+  /* 合规校对清单 */
   .check-summary {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--separator);
+    border-radius: var(--r-window);
     overflow: hidden;
   }
   .check-row {
     display: flex; align-items: center; gap: 10px;
     padding: 11px 14px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--separator);
     font-size: 13px;
   }
   .check-row:last-child { border-bottom: 0; }
@@ -367,9 +364,10 @@
     border-radius: 50%;
     flex-shrink: 0;
   }
+  /* 三态同构：语义色衬底圆 + CSS 画形（勾 / 三角 / 圆点），不用字形字符 */
   .check-row.pass .status-icon {
-    background: oklch(92% 0.05 150);
-    color: var(--success);
+    background: var(--surface-2);
+    color: var(--green-text);
   }
   .check-row.pass .status-icon::after {
     content: "";
@@ -379,46 +377,45 @@
     transform: rotate(-45deg) translate(0, -1px);
   }
   .check-row.warn .status-icon {
-    background: oklch(96% 0.05 70);
-    color: var(--warn);
-    font-size: 11px;
-    font-weight: 700;
+    background: var(--surface-2);
+    color: var(--orange-text);
   }
-  .check-row.warn .status-icon::after { content: "!"; font-family: var(--font-sans); }
+  .check-row.warn .status-icon::after {
+    content: "";
+    width: 7px; height: 6px;
+    background: currentColor;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
   .check-row.live .status-icon {
-    background: var(--accent-soft);
-    color: var(--accent);
+    background: var(--blue-soft);
+    color: var(--blue);
   }
   .check-row.live .status-icon::after {
+    /* 静态语义色圆点：无限循环脉冲已按规范移除（仅 running 态 border beam 可循环） */
     content: ""; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent); animation: pulse 1.6s infinite;
-  }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(0, 100, 225, 0.45); }
-    70% { box-shadow: 0 0 0 6px rgba(0, 100, 225, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 100, 225, 0); }
+    background: var(--blue);
   }
   .check-body { flex: 1; min-width: 0; }
-  .check-name { color: var(--fg); font-weight: 500; }
+  .check-name { color: var(--label); font-weight: 500; }
   .check-name-sub {
-    color: var(--muted);
+    color: var(--label-2);
     font-size: 11.5px;
     margin-top: 1px;
     font-variant-numeric: tabular-nums;
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
   }
   .check-row .count {
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 11.5px;
-    color: var(--muted);
+    color: var(--label-2);
     font-variant-numeric: tabular-nums;
   }
 
-  /* Export */
+  /* 导出 */
   .export-card {
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border: 1px solid var(--separator);
+    border-radius: var(--r-window);
     padding: 14px;
   }
   .format-row {
@@ -430,23 +427,23 @@
   .format {
     padding: 10px 8px;
     background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border: 1px solid var(--separator);
+    border-radius: var(--r-control);
     text-align: center;
     cursor: pointer;
-    transition: border-color .15s;
+    transition: border-color var(--t-micro) var(--ease-std);
   }
   .format:hover { border-color: var(--border-2); }
   .format.active {
-    border-color: var(--fg);
+    border-color: var(--label);
     background: var(--surface);
   }
-  .format svg { width: 18px; height: 18px; color: var(--fg-2); margin-bottom: 4px; }
-  .format-name { font-size: 11.5px; color: var(--fg); font-weight: 500; font-family: var(--font-sans); }
+  .format svg { width: 18px; height: 18px; color: var(--label-2); margin-bottom: 4px; }
+  .format-name { font-size: 11.5px; color: var(--label); font-weight: 500; font-family: var(--font-ui); }
   .format-size {
     font-size: 10px;
-    color: var(--muted);
-    font-family: var(--font-sans);
+    color: var(--label-2);
+    font-family: var(--font-ui);
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
   }
@@ -459,14 +456,14 @@
   }
   .option {
     display: flex; justify-content: space-between; align-items: center;
-    color: var(--fg-2);
+    color: var(--label-2);
   }
   .toggle {
     width: 32px; height: 18px;
     background: var(--border-2);
-    border-radius: 99px;
+    border-radius: 999px;
     position: relative;
-    transition: background .15s;
+    transition: background var(--t-micro) var(--ease-std);
     cursor: pointer;
   }
   .toggle::after {
@@ -474,12 +471,13 @@
     position: absolute;
     left: 2px; top: 2px;
     width: 14px; height: 14px;
-    background: white;
+    background: var(--surface);
     border-radius: 50%;
-    transition: transform .2s;
-    box-shadow: 0 1px 2px oklch(0% 0 0 / 0.15);
+    /* translateX(14px) 为开关滑块行程（非入场位移），按规范保留 */
+    transition: transform var(--t-float) var(--ease-std);
+    box-shadow: var(--elev-1);
   }
-  .toggle.on { background: var(--fg); }
+  .toggle.on { background: var(--label); }
   .toggle.on::after { transform: translateX(14px); }
 
   .export-btn {
@@ -490,28 +488,25 @@
     justify-content: center;
     gap: 5px;
     padding: 6px 12px;
-    border: 1px solid oklch(0% 0 0 / 0.20);
-    background: var(--fg);
-    color: var(--bg);
-    border-radius: 8px;
+    border: none;
+    background: var(--label);
+    color: var(--canvas);
+    border-radius: var(--r-control);
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
     user-select: none;
     outline: none;
     position: relative;
-    box-shadow:
-      oklch(0% 0 0 / 0.22) 0 1px 3px,
-      oklch(0% 0 0 / 0.12) 0 2px 6px,
-      oklch(100% 0 0 / 0.16) 0 1px 0 inset;
-    transition: transform .14s ease, box-shadow .14s ease, background .14s ease, border-color .14s ease;
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .16);
+    transition: transform var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), background var(--t-micro) var(--ease-std);
   }
   .export-btn::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(to bottom, oklch(100% 0 0 / 0.16), oklch(100% 0 0 / 0) 46%);
+    background: linear-gradient(to bottom, rgba(255, 255, 255, .16), rgba(255, 255, 255, 0) 46%);
     pointer-events: none;
   }
   .export-btn svg,
@@ -519,37 +514,30 @@
   .export-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
   .export-btn:hover {
     transform: translateY(-1px);
-    box-shadow:
-      oklch(0% 0 0 / 0.24) 0 2px 4px,
-      oklch(0% 0 0 / 0.14) 0 5px 12px,
-      oklch(100% 0 0 / 0.18) 0 1px 0 inset;
+    box-shadow: var(--elev-2), inset 0 1px 0 rgba(255, 255, 255, .18);
   }
   .export-btn:active {
-    transform: translateY(0);
-    box-shadow:
-      oklch(0% 0 0 / 0.20) 0 1px 2px,
-      oklch(0% 0 0 / 0.10) 0 1px 4px,
-      oklch(0% 0 0 / 0.18) 0 1px 2px inset,
-      oklch(100% 0 0 / 0.10) 0 1px 0 inset;
+    transform: scale(.97);
+    box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .10);
   }
   .export-btn:focus-visible {
-    outline: 2px solid rgba(0, 100, 225, 0.35);
+    outline: 2px solid color-mix(in srgb, var(--blue) 35%, transparent);
     outline-offset: 2px;
   }
 
-  /* Timeline */
+  /* 修订时间线 */
   .timeline { display: flex; flex-direction: column; gap: 10px; }
   .timeline-item {
     display: flex;
     gap: 10px;
     font-size: 12px;
-    color: var(--fg-2);
+    color: var(--label-2);
     line-height: 1.5;
   }
   .timeline-item .time {
-    font-family: var(--font-sans);
+    font-family: var(--font-ui);
     font-size: 11px;
-    color: var(--muted);
+    color: var(--label-2);
     flex-shrink: 0;
     width: 40px;
     text-align: right;
@@ -558,7 +546,7 @@
   }
   .timeline-item .line {
     width: 1px;
-    background: var(--border);
+    background: var(--separator);
     margin-top: 4px;
     margin-bottom: -10px;
     position: relative;
@@ -574,22 +562,21 @@
     background: var(--surface);
     border: 1.5px solid var(--border-2);
   }
-  .timeline-item.done .line::before { background: var(--fg); border-color: var(--fg); }
-  .timeline-item.active .line::before { border-color: var(--accent); background: var(--accent-soft); }
+  .timeline-item.done .line::before { background: var(--label); border-color: var(--label); }
+  .timeline-item.active .line::before { border-color: var(--blue); background: var(--blue-soft); }
   .timeline-item .label { flex: 1; padding-bottom: 4px; }
-  .timeline-item .label strong { color: var(--fg); font-weight: 500; }
+  .timeline-item .label strong { color: var(--label); font-weight: 500; }
 
-  /* Scrollbars */
+  /* 滚动条 */
   *::-webkit-scrollbar { width: 8px; height: 8px; }
   *::-webkit-scrollbar-track { background: transparent; }
   *::-webkit-scrollbar-thumb {
-    background: #c2c5cd;
-    border-radius: 4px;
-    border: 2px solid var(--bg);
+    background: var(--border-2);
+    border-radius: 4px; /* 滚动条 thumb 半径：非控件圆角坡道对象，按规范保留 4px */
+    border: 2px solid var(--canvas);
   }
 
   @media (max-width: 1080px) {
     .annotation { display: none; }
     .page { width: 640px; padding: 60px 64px; }
   }
-

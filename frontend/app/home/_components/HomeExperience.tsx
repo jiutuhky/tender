@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
 import {
+  ArrowElbowDownLeftIcon,
   ArrowUpIcon,
   FileIcon,
   LayersIcon,
@@ -14,6 +15,12 @@ import {
   SparkIcon,
   UploadIcon,
 } from "@/components/ui/icons";
+import {
+  DUR_FLOAT,
+  DUR_PANEL,
+  TRACE_EASE_ENTER,
+  prefersReducedMotion,
+} from "@/app/workspace/_components/canvas/traceMotion";
 import {
   DEFAULT_INTENT,
   HOME_RECENT,
@@ -37,9 +44,6 @@ interface Turn {
   parts?: Array<{ text: string; strong?: boolean }>;
   sources?: string[];
 }
-
-const reducedMotion = () =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** 文件大小 → 「428 KB」/「4.2 MB」 */
 function formatSize(bytes: number): string {
@@ -65,13 +69,13 @@ export function HomeExperience() {
   /* ---- 首屏进场：问候 + composer 依次浮现 ---- */
   useGSAP(
     () => {
-      if (reducedMotion()) return;
+      if (prefersReducedMotion()) return;
       gsap.from(".home-hero > *", {
         autoAlpha: 0,
         y: 8,
-        duration: 0.32,
+        duration: DUR_PANEL,
         stagger: 0.05,
-        ease: "power2.out",
+        ease: TRACE_EASE_ENTER,
       });
     },
     { scope: rootRef },
@@ -80,8 +84,8 @@ export function HomeExperience() {
   /* ---- 新增对话回合进场（只动最后一条） ---- */
   useEffect(() => {
     const el = threadRef.current?.lastElementChild;
-    if (!el || reducedMotion()) return;
-    gsap.from(el, { autoAlpha: 0, y: 6, duration: 0.2, ease: "power2.out" });
+    if (!el || prefersReducedMotion()) return;
+    gsap.from(el, { autoAlpha: 0, y: 6, duration: DUR_FLOAT, ease: TRACE_EASE_ENTER });
   }, [turns]);
 
   /* ---- 整窗拖放：页面任何位置都是投递区 ---- */
@@ -243,7 +247,7 @@ export function HomeExperience() {
               添加招标文件
             </button>
             {fileErr ? (
-              <span className="entry-note" style={{ color: "var(--danger, #c0392b)" }}>
+              <span className="entry-note" style={{ color: "var(--red-text)" }}>
                 {fileErr}
               </span>
             ) : (
@@ -255,7 +259,10 @@ export function HomeExperience() {
               )
             )}
             <span className="entry-foot-spacer" />
-            <span className="entry-kbd">⏎ 发送</span>
+            <span className="entry-kbd">
+              <ArrowElbowDownLeftIcon width={12} height={12} />
+              发送
+            </span>
             <button className="entry-send" type="button" aria-label="发送" onClick={send}>
               <ArrowUpIcon width={14} height={14} />
             </button>
@@ -304,16 +311,10 @@ export function HomeExperience() {
         </div>
       </div>
 
-      {/* 整窗拖放幕布 */}
+      {/* 整窗拖放幕布：容器只动 background-color，玻璃卡自身动 opacity/transform
+          （玻璃祖先禁 opacity<1，见 styles.css 注释） */}
       <div className={`entry-veil${dragging ? " is-on" : ""}`} aria-hidden="true">
-        {/* 玻璃模糊走内联：构建期 Lightning CSS 会剥离样式表里的 backdrop-filter */}
-        <div
-          className="entry-veil-card"
-          style={{
-            backdropFilter: "blur(24px) saturate(160%)",
-            WebkitBackdropFilter: "blur(24px) saturate(160%)",
-          }}
-        >
+        <div className="entry-veil-card frost-glass frost-glass--lens" data-thick="regular">
           <UploadIcon width={30} height={30} />
           <div className="entry-veil-title">松手，把招标文件交给 Prose</div>
           <div className="entry-veil-sub">将创建项目并立即开始解析</div>

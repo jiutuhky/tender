@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   ArrowRightIcon,
   EyeIcon,
-  EyeOffIcon,
+  EyeSlashIcon,
   WechatWorkIcon,
   DingtalkIcon,
   SsoIcon,
@@ -58,7 +58,7 @@ export function LoginForm({
           <div className="lg-row">
             <label className="lg-label">密码</label>
             <a className="lg-label-link" href="#">
-              忘记?
+              忘记？
             </a>
           </div>
           <div className="lg-input-wrap">
@@ -75,16 +75,15 @@ export function LoginForm({
               aria-label={showPassword ? "隐藏密码" : "显示密码"}
               onClick={() => setShowPassword((v) => !v)}
             >
-              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              {showPassword ? <EyeSlashIcon /> : <EyeIcon />}
             </button>
           </div>
         </div>
 
+        {/* 提交中不转 spinner（规范禁无限循环动画）：按钮禁用 + status-first 文案 */}
         <button type="submit" className="lg-submit" disabled={busy}>
           {submitting ? (
-            <>
-              登录中 <span className="lg-spinner" />
-            </>
+            "正在登录……"
           ) : (
             <>
               继续 <ArrowRightIcon />

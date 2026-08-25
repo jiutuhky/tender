@@ -54,7 +54,7 @@ export function CardPreview({ type }: { type: CardType }) {
       ];
       return (
         <div>
-          <div style={{ display: "flex", fontSize: 10.5, color: "var(--label-3)", paddingBottom: 4 }}>
+          <div style={{ display: "flex", fontSize: 11, color: "var(--label-3)", paddingBottom: 4 }}>
             <span style={{ flex: 1 }}>需求条目</span>
             <span style={{ width: 42 }}>响应</span>
             <span style={{ width: 26, textAlign: "right" }}>偏离</span>
@@ -62,7 +62,7 @@ export function CardPreview({ type }: { type: CardType }) {
           {rows.map(([item, resp, sc]) => (
             <div
               key={item}
-              style={{ display: "flex", alignItems: "center", padding: "5px 0", borderTop: "1px solid var(--separator)", fontSize: 11.5 }}
+              style={{ display: "flex", alignItems: "center", padding: "5px 0", borderTop: "1px solid var(--separator)", fontSize: 12 }}
             >
               <span style={{ flex: 1, color: "var(--label)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {item}
@@ -73,7 +73,7 @@ export function CardPreview({ type }: { type: CardType }) {
               </span>
             </div>
           ))}
-          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 7, fontSize: 10.5, color: "var(--blue)" }}>
+          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 7, fontSize: 11, color: "var(--blue)" }}>
             生成 32 / 45
             <Bar fill={0.71} track={4} />
           </div>
@@ -91,7 +91,7 @@ export function CardPreview({ type }: { type: CardType }) {
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {items.map(([t, sc]) => (
-            <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--label)" }}>
+            <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--label)" }}>
               <Dot sc={sc} />
               <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</span>
             </div>
@@ -165,7 +165,7 @@ export function CardPreview({ type }: { type: CardType }) {
               />
             </div>
           ))}
-          <div style={{ fontSize: 10.5, color: "var(--label-3)", marginTop: 1 }}>实施周期 6 个月 · 4 里程碑</div>
+          <div style={{ fontSize: 11, color: "var(--label-3)", marginTop: 1 }}>实施周期 6 个月 · 4 里程碑</div>
         </div>
       );
     }
@@ -186,7 +186,7 @@ export function CardPreview({ type }: { type: CardType }) {
                 gap: 8,
                 padding: "6px 0",
                 borderTop: i ? "1px solid var(--separator)" : "none",
-                fontSize: 11.5,
+                fontSize: 12,
               }}
             >
               <span style={{ flex: 1, color: "var(--label)" }}>{item}</span>

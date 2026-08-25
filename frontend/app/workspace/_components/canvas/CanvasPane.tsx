@@ -19,6 +19,7 @@ import {
   RefreshCcwIcon,
   TreeStructureIcon,
 } from "@/components/ui/icons";
+import { DUR_PANEL, TRACE_EASE_ENTER } from "./traceMotion";
 import { useCanvasViewport, type WorldRect } from "./useCanvasViewport";
 import { SpineCard } from "./SpineCard";
 import { CanvasLinks } from "./CanvasLinks";
@@ -26,6 +27,7 @@ import { ArtifactCard, type CardBadge } from "./ArtifactCard";
 import { CanvasDrawer } from "./CanvasDrawer";
 import { CanvasDock } from "./CanvasDock";
 import { MessageWindow } from "../MessageWindow";
+import { AgentBoard } from "./AgentBoard";
 import {
   LINK_DEFS,
   META,
@@ -49,8 +51,8 @@ import type { DetailType } from "./CardDetail";
 const NEXT_HINT_RECT = centerStageRect();
 
 // 停靠飞行与相机取景是同一次运镜的两个组成部分,时长/曲线必须一致,
-// 否则相机先落定、卡片还在飞,读成两拍子。
-const FLIGHT_MOTION = { duration: 0.44, ease: "power3.inOut" } as const;
+// 否则相机先落定、卡片还在飞,读成两拍子。节拍走 traceMotion 的 panel 档与品牌标准缓动。
+const FLIGHT_MOTION = { duration: DUR_PANEL, ease: TRACE_EASE_ENTER } as const;
 
 interface DrawerState {
   type: DetailType;
@@ -272,7 +274,7 @@ export function CanvasPane() {
       tl.fromTo(
         hint,
         { autoAlpha: 0, y: 8 },
-        { autoAlpha: 1, y: 0, duration: 0.32, ease: "power3.out", clearProps: "transform,opacity,visibility" },
+        { autoAlpha: 1, y: 0, duration: DUR_PANEL, ease: TRACE_EASE_ENTER, clearProps: "transform,opacity,visibility" },
         Math.max(0, tl.duration() - 0.12),
       );
     }
@@ -329,7 +331,11 @@ export function CanvasPane() {
 
   return (
     <div className="canvas-pane">
-      <div className="cv-toolbar">
+      {/* 画布工具条:霜 soft·regular,flush 嵌入(材质分区,不用 1px 线) */}
+      <div
+        className="cv-toolbar frost-glass frost-glass--soft frost-glass--flush frost-scroll-edge"
+        data-thick="regular"
+      >
         <span className="cv-toolbar-label">
           <GridIcon width={15} height={15} />
           大纲视图
@@ -376,18 +382,20 @@ export function CanvasPane() {
             >
               <div className="cv-next-hint-body">
                 <TreeStructureIcon width={17} height={17} />
-                <span>下一步:生成投标大纲</span>
+                <span>下一步：生成投标大纲</span>
               </div>
             </div>
           )}
         </div>
 
-        <div className="cv-viewport-hint" aria-hidden="true">拖动画布 · 滚轮缩放 · 点击卡片查看详情</div>
+        {/* 视口提示:按放置矩阵本应 lens thin,lens 预算已满,降级 霜 soft·thin */}
+        <div className="cv-viewport-hint frost-glass frost-glass--soft" data-thick="thin" aria-hidden="true">拖动画布 · 滚轮缩放 · 点击卡片查看详情</div>
 
         {/* 对话浮层。挂在视口内部（而非 .canvas-pane 下）有两个理由：视口的
             overflow:hidden 免费给出「不许骑到工具条上」的裁剪；展开态浮窗的
             height: calc(100% - …) 也才以视口为解算盒。抽屉 z-30 的遮罩天然压住它们。 */}
         <MessageWindow />
+        <AgentBoard />
         <CanvasDock />
 
         {drawer && (

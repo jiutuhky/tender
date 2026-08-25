@@ -30,6 +30,23 @@ import {
   type ScoringMatrix,
   type TechnicalMatrix,
 } from "@/lib/hagent/matrix";
+
+/**
+ * 面向用户的错误文案：产品面恒为简体中文。
+ * lib/hagent/api.ts 抛出的 Error 其 message 已是中文陈述（技术细节挂在 cause）；
+ * 未经该层的异常（如 fetch 的 TypeError: Failed to fetch）不得原样呈现，
+ * 统一兜底为中文，原始信息只进 console。
+ */
+function toUserMessage(e: unknown): string {
+  if (e instanceof Error) {
+    // 中文陈述句直接用；纯英文技术串（无 CJK 字符）兜底
+    if (/[\u4e00-\u9fa5]/.test(e.message)) return e.message;
+    console.error("[workspace]", e);
+    return "执行过程中出现异常，请稍后重试。";
+  }
+  console.error("[workspace]", e);
+  return "执行过程中出现异常，请稍后重试。";
+}
 import { prettyLabel } from "@/lib/hagent/naming";
 
 export type RunPhase = "idle" | "creating" | "uploading" | "running" | "loading_results" | "done" | "error";
@@ -65,21 +82,22 @@ const emptyMatrices = (): MatrixSlots => ({
 /** 拼装结果对四槽位类型皆可赋值(全字段可缺失 + index signature),集中一处断言 */
 type AnyMatrix = BasicInfoMatrix & BusinessMatrix & TechnicalMatrix & ScoringMatrix;
 
-/** 画布左上角消息浮窗的尺寸档。 */
-export type StreamSize = "capsule" | "normal" | "expanded";
+/** 画布左上角 Prose Bot 消息窗的两档。
+ *  min  = 只留 Bot 与一行滚动播报（无玻璃底，直接浮在画布上）；
+ *  open = 玻璃面板，完整执行流。
+ *  两档里 Bot 的绝对坐标完全一致，窗口从它右下方生长——这是整个交互的支点。 */
+export type StreamSize = "min" | "open";
 
 interface WorkspaceState {
   // —— UI 状态 ——
   composerDraft: string;
-  /** 消息浮窗的尺寸档。放 store 而非组件本地:浮窗自身、底部坞的活动条、以及
+  /** 消息窗的档位。放 store 而非组件本地:消息窗自身、底部坞的活动条、以及
    *  「出错自动展开」分处三棵互不相邻的子树;提到共同父级就是 CanvasPane,
    *  那会让每次改档都重渲整套卡片编排机器。与 SSE 批处理完全正交——
    *  flush 只写 timeline/todos/matrices,新增切片对热路径零成本。
    *  纪律:消费方一律用字段选择器订阅,且**不要**在 AgentStream 内读它
    *  (它在流式期每帧重渲)。 */
   streamSize: StreamSize;
-  /** 胶囊态展开时回到的档位(记住用户上次留下的窗形)。 */
-  lastOpenSize: Exclude<StreamSize, "capsule">;
 
   // —— 解析运行状态 ——
   sessionId: string | null;
@@ -250,7 +268,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       set((s) => ({
         matrices: {
           ...s.matrices,
-          [t]: { status: "error", data: null, error: e instanceof Error ? e.message : String(e) },
+          [t]: { status: "error", data: null, error: toUserMessage(e) },
         },
       }));
       return false;
@@ -303,15 +321,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     return published.size > 0;
   };
 
-  // 发起解析/对话时保证回复面在场:胶囊态抬回上次的窗形,其余不动。
+  // 发起解析/对话时保证回复面在场:min 档展开,已展开则不动。
   // 用户刚对智能体说了话,回复必须有落点——这是状态指示,不是抢焦点。
   const revealStream = (s: WorkspaceState): Partial<WorkspaceState> =>
-    s.streamSize === "capsule" ? { streamSize: s.lastOpenSize } : {};
+    s.streamSize === "min" ? { streamSize: "open" as const } : {};
 
   return {
   composerDraft: "",
-  streamSize: "normal",
-  lastOpenSize: "normal",
+  streamSize: "open",
 
   sessionId: null,
   projectId: null,
@@ -325,9 +342,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   witnessedParse: false,
 
   setComposerDraft: (text) => set({ composerDraft: text }),
-  // 展开档同时记进 lastOpenSize:胶囊再打开时回到用户上次留下的窗形,而非固定 normal。
-  setStreamSize: (next) =>
-    set(next === "capsule" ? { streamSize: next } : { streamSize: next, lastOpenSize: next }),
+  setStreamSize: (next) => set({ streamSize: next }),
 
   pushEvent: (ev) => {
     pending.push(ev);
@@ -430,7 +445,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const anyReady = MATRIX_TYPES.some((t) => get().matrices[t].status === "ready");
       if (anyReady) void patchProject(proj.id, { status: "parsed" }).catch(() => {});
     } catch (e) {
-      set({ phase: "error", errorMsg: e instanceof Error ? e.message : String(e) });
+      set({ phase: "error", errorMsg: toUserMessage(e) });
     }
   },
 
@@ -465,7 +480,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // 无矩阵写入的轮次无需刷新。
       set(streamError ? { phase: "error", errorMsg: streamError } : { phase: "done" });
     } catch (e) {
-      set({ phase: "error", errorMsg: e instanceof Error ? e.message : String(e) });
+      set({ phase: "error", errorMsg: toUserMessage(e) });
     }
   },
 
@@ -485,7 +500,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         phase: hasResults ? "done" : "idle",
       });
     } catch (e) {
-      set({ phase: "error", errorMsg: e instanceof Error ? e.message : String(e) });
+      set({ phase: "error", errorMsg: toUserMessage(e) });
     }
   },
 
@@ -514,7 +529,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       await get().loadResults();
       set({ phase: "done" });
     } catch (e) {
-      set({ phase: "error", errorMsg: e instanceof Error ? e.message : String(e) });
+      set({ phase: "error", errorMsg: toUserMessage(e) });
     }
   },
 
@@ -565,8 +580,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       matrices: emptyMatrices(),
       witnessedParse: false,
       composerDraft: "",
-      streamSize: "normal",
-      lastOpenSize: "normal",
+      streamSize: "open",
     });
   },
   };

@@ -11,24 +11,19 @@ import { activityLine } from "./runStatus";
 // zustand 跳过重渲，所以流式逐 token 的绝大多数帧里底部坞是静止的。
 export function ActivityBar() {
   const line = useWorkspaceStore((s) => activityLine(s.timeline, s.phase));
-  const streamSize = useWorkspaceStore((s) => s.streamSize);
-  const lastOpenSize = useWorkspaceStore((s) => s.lastOpenSize);
   const setStreamSize = useWorkspaceStore((s) => s.setStreamSize);
 
   return (
     <button
       type="button"
-      className="cv-actbar is-running"
-      // 玻璃材质走内联：构建期 Lightning CSS 会丢掉样式表里无前缀的 backdrop-filter
-      style={{
-        backdropFilter: "blur(20px) saturate(180%)",
-        WebkitBackdropFilter: "blur(20px) saturate(180%)",
-      }}
+      // 玻璃走规范工具类。放置矩阵里活动条本应是 凝 lens·thin，但单屏 lens 预算(≤3)
+      // 已被消息浮窗 / agent 看板 / 瞬态菜单占满，按规范「超预算降级」取 霜 soft·thin。
+      className="cv-actbar is-running frost-glass frost-glass--soft frost-glass--interactive"
+      data-thick="thin"
       title="展开执行流"
-      onClick={() => setStreamSize(streamSize === "capsule" ? lastOpenSize : "expanded")}
+      onClick={() => setStreamSize("open")}
     >
       {/* 边框流光的载体。本组件只在运行期渲染，故恒为 is-running。 */}
-      <span className="cv-sheen" aria-hidden="true" />
       <span className="run-dot running" aria-hidden="true" />
       <span className="cv-actbar-text cv-shimmer" role="status" aria-live="polite">
         {line}

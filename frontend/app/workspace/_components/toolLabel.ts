@@ -52,12 +52,15 @@ export function toolLabel(call: ToolCall): string {
     case "Skill":
       return `调用技能 ${s("skill") || s("name")}`;
     case "Agent":
-      return `子任务 ${s("subagent_type") || s("description") || ""}`.trim();
+      return `子任务 ${s("description") || ""}`.trim();   // 中文描述优先，不落英文标识
     case "TaskCreate":
+      return "任务清单 · 新建";
     case "TaskUpdate":
+      return "任务清单 · 更新";
     case "TaskList":
+      return "任务清单 · 列出";
     case "TaskGet":
-      return `任务清单 · ${call.tool_name}`;
+      return "任务清单 · 查看";
     default: {
       const prose = PROSE_TOOL_ZH[call.tool_name];
       if (prose) {
@@ -65,7 +68,8 @@ export function toolLabel(call: ToolCall): string {
         const zh = MATRIX_ZH[matrix];
         return zh ? `${prose} · ${zh}` : prose;
       }
-      return call.tool_name || "工具调用";
+      // 产品面恒为简体中文：未登记的工具名不直出英文标识（技术名只进 console/日志）。
+      return "工具调用";
     }
   }
 }

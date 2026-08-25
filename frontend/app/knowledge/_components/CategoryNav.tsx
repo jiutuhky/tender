@@ -6,6 +6,7 @@ import {
   GridIcon,
   LayersIcon,
   PenIcon,
+  SunIcon,
   TemplateIcon,
   UsersIcon,
 } from "@/components/ui/icons";
@@ -22,17 +23,14 @@ const TYPE_ICONS = [
 ];
 const AGENT_ICONS = [ClockIcon, LayersIcon, SunIcon];
 
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-    </svg>
-  );
-}
-
 export function CategoryNav() {
   return (
-    <aside className="nav-side">
+    /* 嵌入式霜玻璃 chrome：当前被 .page-wrap 实底浮窗包裹（globals.css），壁纸不可透，
+       玻璃类按放置矩阵先行标注；contact edge 见 styles.css .page-wrap .nav-side */
+    <aside
+      className="nav-side frost-glass frost-glass--soft frost-glass--flush"
+      data-thick="thick"
+    >
       <h5>资料类型</h5>
       {NAV_TYPES.map((entry, i) => {
         const Icon = TYPE_ICONS[i] ?? GridIcon;

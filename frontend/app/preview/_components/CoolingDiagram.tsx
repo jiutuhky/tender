@@ -1,18 +1,9 @@
+/* 冷板液冷循环示意（内容图形）：中性一律冷灰 token，强调线/节点只用 var(--blue)——
+   工程示意图不引入第二调色板，热/冷回路以「灰 = 热回水、蓝 = 冷供水」区分层次。 */
 export function CoolingDiagram() {
   return (
     <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="hot" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="oklch(70% 0.12 40)" />
-          <stop offset="100%" stopColor="oklch(60% 0.14 35)" />
-        </linearGradient>
-        <linearGradient id="cold" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="oklch(65% 0.10 240)" />
-          <stop offset="100%" stopColor="oklch(60% 0.13 245)" />
-        </linearGradient>
-      </defs>
-
-      {/* Server racks */}
+      {/* 服务器机柜 */}
       <g>
         <rect
           x={60}
@@ -21,7 +12,7 @@ export function CoolingDiagram() {
           height={140}
           rx={3}
           fill="none"
-          stroke="oklch(30% 0.02 60)"
+          stroke="var(--label-2)"
           strokeWidth={1.3}
         />
         {[100, 120, 140, 160, 180, 200].map((y) => (
@@ -32,15 +23,15 @@ export function CoolingDiagram() {
             width={32}
             height={16}
             rx={1}
-            fill="oklch(92% 0.008 80)"
+            fill="var(--surface-2)"
           />
         ))}
         <text
           x={82}
           y={255}
-          fontFamily="system-ui"
+          fontFamily="var(--font-ui)"
           fontSize={10}
-          fill="oklch(40% 0.015 60)"
+          fill="var(--label-2)"
           textAnchor="middle"
         >
           机柜 A01
@@ -53,7 +44,7 @@ export function CoolingDiagram() {
           height={140}
           rx={3}
           fill="none"
-          stroke="oklch(30% 0.02 60)"
+          stroke="var(--label-2)"
           strokeWidth={1.3}
         />
         {[100, 120, 140, 160, 180, 200].map((y) => (
@@ -64,15 +55,15 @@ export function CoolingDiagram() {
             width={32}
             height={16}
             rx={1}
-            fill="oklch(92% 0.008 80)"
+            fill="var(--surface-2)"
           />
         ))}
         <text
           x={142}
           y={255}
-          fontFamily="system-ui"
+          fontFamily="var(--font-ui)"
           fontSize={10}
-          fill="oklch(40% 0.015 60)"
+          fill="var(--label-2)"
           textAnchor="middle"
         >
           机柜 A02
@@ -81,9 +72,9 @@ export function CoolingDiagram() {
         <text
           x={100}
           y={80}
-          fontFamily="system-ui"
+          fontFamily="var(--font-ui)"
           fontSize={10}
-          fill="oklch(30% 0.02 60)"
+          fill="var(--label)"
           textAnchor="middle"
           fontWeight={500}
         >
@@ -91,10 +82,10 @@ export function CoolingDiagram() {
         </text>
       </g>
 
-      {/* Hot pipes */}
+      {/* 热回水管路（中性灰） */}
       <path
         d="M 170 140 L 330 140 L 330 95 L 500 95 L 500 140"
-        stroke="url(#hot)"
+        stroke="var(--label-3)"
         strokeWidth={5}
         fill="none"
         strokeLinecap="round"
@@ -102,18 +93,18 @@ export function CoolingDiagram() {
       <text
         x={330}
         y={85}
-        fontFamily="system-ui"
+        fontFamily="var(--font-ui)"
         fontSize={10}
-        fill="oklch(50% 0.10 40)"
+        fill="var(--label-2)"
         textAnchor="middle"
       >
         热回水 34℃
       </text>
 
-      {/* Cold pipes */}
+      {/* 冷供水管路（蓝 = 强调的制冷回路） */}
       <path
         d="M 170 180 L 330 180 L 330 230 L 500 230 L 500 185"
-        stroke="url(#cold)"
+        stroke="var(--blue)"
         strokeWidth={5}
         fill="none"
         strokeLinecap="round"
@@ -121,15 +112,15 @@ export function CoolingDiagram() {
       <text
         x={330}
         y={248}
-        fontFamily="system-ui"
+        fontFamily="var(--font-ui)"
         fontSize={10}
-        fill="oklch(50% 0.10 240)"
+        fill="var(--blue)"
         textAnchor="middle"
       >
         冷供水 25℃
       </text>
 
-      {/* Heat exchanger */}
+      {/* 板式换热器 */}
       <g>
         <rect
           x={485}
@@ -137,8 +128,8 @@ export function CoolingDiagram() {
           width={80}
           height={90}
           rx={4}
-          fill="oklch(98% 0.005 60)"
-          stroke="oklch(30% 0.02 60)"
+          fill="var(--surface-2)"
+          stroke="var(--label-2)"
           strokeWidth={1.3}
         />
         {[140, 160, 180].map((y) => (
@@ -148,16 +139,16 @@ export function CoolingDiagram() {
             y1={y}
             x2={555}
             y2={y}
-            stroke="oklch(50% 0.02 60)"
+            stroke="var(--label-3)"
             strokeWidth={1}
           />
         ))}
         <text
           x={525}
           y={225}
-          fontFamily="system-ui"
+          fontFamily="var(--font-ui)"
           fontSize={10}
-          fill="oklch(30% 0.02 60)"
+          fill="var(--label-2)"
           textAnchor="middle"
         >
           板式换热器
@@ -166,20 +157,20 @@ export function CoolingDiagram() {
 
       <path
         d="M 565 140 L 650 140"
-        stroke="url(#hot)"
+        stroke="var(--label-3)"
         strokeWidth={5}
         fill="none"
         strokeLinecap="round"
       />
       <path
         d="M 565 180 L 650 180"
-        stroke="url(#cold)"
+        stroke="var(--blue)"
         strokeWidth={5}
         fill="none"
         strokeLinecap="round"
       />
 
-      {/* Dry cooler */}
+      {/* 室外干冷器 */}
       <g>
         <rect
           x={650}
@@ -187,11 +178,11 @@ export function CoolingDiagram() {
           width={100}
           height={100}
           rx={4}
-          fill="oklch(96% 0.006 80)"
-          stroke="oklch(30% 0.02 60)"
+          fill="var(--surface-2)"
+          stroke="var(--label-2)"
           strokeWidth={1.3}
         />
-        <g stroke="oklch(50% 0.02 60)" strokeWidth={1}>
+        <g stroke="var(--label-3)" strokeWidth={1}>
           {[660, 670, 680, 690, 700, 710, 720, 730, 740].map((x) => (
             <line key={`fin-${x}`} x1={x} y1={125} x2={x} y2={195} />
           ))}
@@ -199,9 +190,9 @@ export function CoolingDiagram() {
         <text
           x={700}
           y={225}
-          fontFamily="system-ui"
+          fontFamily="var(--font-ui)"
           fontSize={10}
-          fill="oklch(30% 0.02 60)"
+          fill="var(--label-2)"
           textAnchor="middle"
         >
           室外干冷器
@@ -210,19 +201,20 @@ export function CoolingDiagram() {
       <text
         x={700}
         y={80}
-        fontFamily="system-ui"
+        fontFamily="var(--font-ui)"
         fontSize={10}
-        fill="oklch(30% 0.02 60)"
+        fill="var(--label)"
         textAnchor="middle"
         fontWeight={500}
       >
         基础设施侧 · 自然冷却 5,840 h/年
       </text>
 
-      <g fill="oklch(50% 0.10 40)">
+      {/* 流向箭头：热回路随管路用灰，冷回路用蓝 */}
+      <g fill="var(--label-3)">
         <polygon points="490,138 500,142 490,146" />
       </g>
-      <g fill="oklch(50% 0.10 240)">
+      <g fill="var(--blue)">
         <polygon points="170,178 160,182 170,186" />
       </g>
     </svg>

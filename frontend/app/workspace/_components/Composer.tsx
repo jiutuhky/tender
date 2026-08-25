@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
-import { FileIcon, ListDashesIcon, PaperclipIcon } from "@/components/ui/icons";
+import { FileIcon, ListDashesIcon, PaperPlaneTiltIcon, PaperclipIcon } from "@/components/ui/icons";
+import { DUR_MICRO, TRACE_EASE_ENTER } from "./canvas/traceMotion";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import { listSamples, type SampleInfo } from "@/lib/hagent/api";
 import { prettyLabel } from "@/lib/hagent/naming";
@@ -90,7 +91,7 @@ export function Composer() {
       gsap.fromTo(
         menuRef.current,
         { autoAlpha: 0, transform: "translateY(4px) scale(0.98)" },
-        { autoAlpha: 1, transform: "translateY(0) scale(1)", duration: 0.16, ease: "power3.out" },
+        { autoAlpha: 1, transform: "translateY(0) scale(1)", duration: DUR_MICRO, ease: TRACE_EASE_ENTER },
       );
     },
     { scope: rootRef, dependencies: [open] },
@@ -159,10 +160,10 @@ export function Composer() {
           aria-label="向智能体输入指令"
           placeholder={
             armed
-              ? "补充本次解析要求（可选）…"
+              ? "补充本次解析要求（可选）……"
               : projectId
-                ? "向智能体发送指令，续写或修改本项目的产物…"
-                : "先选择招标文件，再补充解析要求…"
+                ? "向智能体发送指令，续写或修改本项目的产物……"
+                : "先选择招标文件，再补充解析要求……"
           }
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -206,15 +207,18 @@ export function Composer() {
               <span>样本</span>
             </button>
             {open && (
+              /* 样本菜单:瞬态浮层,凝 lens·regular——单屏第 3 张 lens 面
+                 (前两张为消息浮窗与 agent 看板,菜单开合短暂,预算内) */
               <div
-                className="composer-sample-menu"
+                className="composer-sample-menu frost-glass frost-glass--lens"
+                data-thick="regular"
                 id="composer-sample-menu"
                 ref={menuRef}
                 role="menu"
                 aria-label="招标文件样本"
               >
                 <div className="composer-sample-heading">选择招标文件</div>
-                {sampleState === "loading" && <div className="composer-sample-empty">正在载入样本…</div>}
+                {sampleState === "loading" && <div className="composer-sample-empty">正在载入样本……</div>}
                 {sampleState === "error" && <div className="composer-sample-empty">样本载入失败，请上传文件</div>}
                 {sampleState === "ready" && samples.length === 0 && (
                   <div className="composer-sample-empty">暂无可用样本</div>
@@ -247,9 +251,7 @@ export function Composer() {
             disabled={busy || (!armed && !(canChat && draft.trim()))}
             onClick={fire}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M5 12h14M13 5l7 7-7 7" />
-            </svg>
+            <PaperPlaneTiltIcon aria-hidden="true" />
             <span>发送</span>
           </button>
         </div>

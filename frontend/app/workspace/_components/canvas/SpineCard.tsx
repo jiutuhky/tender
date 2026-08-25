@@ -13,7 +13,7 @@ export function SpineCard({
   return (
     <div className="cv-spine" style={{ left: SPINE.x, top: SPINE.y, width: SPINE.w }}>
       <div className="cv-spine-head" style={{ height: SPINE.headerH }}>
-        <TreeStructureIcon width={15} height={15} style={{ color: "var(--blue)" }} />
+        <TreeStructureIcon width={15} height={15} style={{ color: "var(--label-3)" }} />
         <span className="cv-spine-title">投标文件大纲</span>
         <span className="cv-spine-tag">主轴</span>
       </div>

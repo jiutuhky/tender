@@ -2,6 +2,9 @@ import { AppShell } from "@/components/shell/AppShell";
 import { TopBar } from "@/components/shell/TopBar";
 import {
   ArrowRightIcon,
+  ArrowUpIcon,
+  DownloadIcon,
+  EyeIcon,
   PlusIcon,
   SearchIcon,
   UploadIcon,
@@ -10,30 +13,8 @@ import { ASSETS, CASES, TEMPLATES } from "@/lib/mock/knowledge";
 import { CategoryNav } from "./_components/CategoryNav";
 import "./styles.css";
 
-const stroke = {
-  fill: "none" as const,
-  stroke: "currentColor" as const,
-};
-
 function FileIconBadge({ kind }: { kind: "pdf" | "doc" | "xls" | "zip" }) {
   return <div className={`file-icon ${kind}`}>{kind.toUpperCase()}</div>;
-}
-
-function EyeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function DownloadSmallIcon() {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6}>
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-    </svg>
-  );
 }
 
 export default function KnowledgePage() {
@@ -63,7 +44,7 @@ export default function KnowledgePage() {
 
         <main className="content">
           <header className="page-header">
-            <div className="eyebrow">Knowledge base · 资料总览</div>
+            <div className="eyebrow">Knowledge Base · 资料总览</div>
             <h1>知识库 — 全部资料</h1>
             <p className="deck">
               智能体在撰写标书时，从这里自动匹配最合适的历史项目、资质材料、技术白皮书与模板。每份资料都会追踪被引用次数，帮助你识别高价值素材与需要更新的内容。
@@ -75,9 +56,7 @@ export default function KnowledgePage() {
               <div className="label">资料总数</div>
               <div className="value">1,284</div>
               <div className="delta up">
-                <svg viewBox="0 0 24 24" {...stroke} strokeWidth={2.5}>
-                  <path d="M7 14l5-5 5 5" />
-                </svg>
+                <ArrowUpIcon />
                 +34 近 7 天
               </div>
             </div>
@@ -85,9 +64,7 @@ export default function KnowledgePage() {
               <div className="label">本月被智能体引用</div>
               <div className="value">2,847</div>
               <div className="delta up">
-                <svg viewBox="0 0 24 24" {...stroke} strokeWidth={2.5}>
-                  <path d="M7 14l5-5 5 5" />
-                </svg>
+                <ArrowUpIcon />
                 +18% 环比
               </div>
               <svg
@@ -98,7 +75,7 @@ export default function KnowledgePage() {
                 <polyline
                   points="0,18 8,16 16,17 24,14 32,15 40,12 48,13 56,10 64,11 72,8 80,7 88,5 96,4"
                   fill="none"
-                  stroke="var(--accent)"
+                  stroke="var(--label-3)"
                   strokeWidth={1.4}
                 />
               </svg>
@@ -127,8 +104,8 @@ export default function KnowledgePage() {
             <h3>3 份高频资料已过时，建议更新</h3>
             <p>
               <strong>《公司综合业绩表 2024Q4》</strong>在近 14
-              份投标中被引用，但本月已有两份业绩更新未纳入。智能体建议将「轨道交通信号系统」(中标金额
-              ¥3,400 万)与「智慧园区运维平台」合并入业绩表，避免下轮投标信息滞后。
+              份投标中被引用，但本月已有两份业绩更新未纳入。智能体建议将「轨道交通信号系统」（中标金额
+              ¥3,400 万）与「智慧园区运维平台」合并入业绩表，避免下轮投标信息滞后。
             </p>
             <a className="insight-cta" href="#">
               查看建议详情
@@ -140,7 +117,7 @@ export default function KnowledgePage() {
             <h3>已入库历史项目</h3>
             <div className="search">
               <SearchIcon />
-              <input placeholder="搜索项目、甲方、关键词…" defaultValue="" />
+              <input placeholder="搜索项目、甲方、关键词……" defaultValue="" />
             </div>
             <div className="filter-chips">
               <span className="chip active">全部</span>
@@ -250,7 +227,7 @@ export default function KnowledgePage() {
                           <EyeIcon />
                         </button>
                         <button className="icon-btn" type="button">
-                          <DownloadSmallIcon />
+                          <DownloadIcon />
                         </button>
                       </div>
                     </td>

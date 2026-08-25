@@ -14,6 +14,37 @@ import type {
 
 const BASE = "/api/hagent";
 
+/** 操作英文标识 → 面向用户的中文陈述（产品面文案恒为简体中文、正式采购语域）。 */
+const OP_LABEL: Record<string, string> = {
+  createProject: "创建项目",
+  listProjects: "载入项目列表",
+  getProject: "读取项目",
+  patchProject: "更新项目",
+  createSession: "创建会话",
+  listSamples: "载入样本列表",
+  uploadProjectSample: "上传样本招标文件",
+  uploadProjectFile: "上传招标文件",
+  getMatrixStatus: "读取矩阵状态",
+  getMatrixOverview: "读取矩阵总览",
+  queryMatrixItems: "查询矩阵条目",
+  listDocuments: "载入文档列表",
+  getWorkspaceFileText: "读取工作区文件",
+  getTodos: "读取待办",
+  streamMessage: "发送指令",
+};
+
+/**
+ * 构造面向用户的中文错误：message 恒为中文陈述句，供执行流直接呈现；
+ * 原始技术细节（HTTP 状态、响应体片段）挂在 cause 上，只进 console 与日志。
+ */
+function apiError(op: string, status: number, detail?: string): Error {
+  const label = OP_LABEL[op] ?? "请求后端";
+  const err = new Error(`未能${label}，请稍后重试。`, {
+    cause: `${op} failed: ${status}${detail ? ` ${detail}` : ""}`,
+  });
+  return err;
+}
+
 export interface SessionInfo {
   session_id: string;
   status: string;
@@ -65,19 +96,19 @@ export async function createProject(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(metadata ? { name, metadata } : { name }),
   });
-  if (!r.ok) throw new Error(`createProject failed: ${r.status}`);
+  if (!r.ok) throw apiError("createProject", r.status);
   return r.json();
 }
 
 export async function listProjects(): Promise<ProjectInfo[]> {
   const r = await fetch(`${BASE}/projects`);
-  if (!r.ok) throw new Error(`listProjects failed: ${r.status}`);
+  if (!r.ok) throw apiError("listProjects", r.status);
   return r.json();
 }
 
 export async function getProject(pid: string): Promise<ProjectInfo> {
   const r = await fetch(`${BASE}/projects/${pid}`);
-  if (!r.ok) throw new Error(`getProject failed: ${r.status}`);
+  if (!r.ok) throw apiError("getProject", r.status);
   return r.json();
 }
 
@@ -90,7 +121,7 @@ export async function patchProject(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
-  if (!r.ok) throw new Error(`patchProject failed: ${r.status}`);
+  if (!r.ok) throw apiError("patchProject", r.status);
   return r.json();
 }
 
@@ -101,13 +132,13 @@ export async function createSession(opts: { projectId: string }): Promise<Sessio
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ project_id: opts.projectId }),
   });
-  if (!r.ok) throw new Error(`createSession failed: ${r.status}`);
+  if (!r.ok) throw apiError("createSession", r.status);
   return r.json();
 }
 
 export async function listSamples(): Promise<SampleInfo[]> {
   const r = await fetch(`${BASE}/samples`);
-  if (!r.ok) throw new Error(`listSamples failed: ${r.status}`);
+  if (!r.ok) throw apiError("listSamples", r.status);
   return r.json();
 }
 
@@ -118,7 +149,7 @@ export async function uploadProjectSample(pid: string, filename: string): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename }),
   });
-  if (!r.ok) throw new Error(`uploadProjectSample failed: ${r.status}`);
+  if (!r.ok) throw apiError("uploadProjectSample", r.status);
   return r.json();
 }
 
@@ -128,7 +159,7 @@ export async function uploadProjectFile(pid: string, file: File): Promise<Projec
   fd.append("file", file);
   fd.append("path", `sources/${file.name}`);
   const r = await fetch(`${BASE}/projects/${pid}/files`, { method: "POST", body: fd });
-  if (!r.ok) throw new Error(`uploadProjectFile failed: ${r.status}`);
+  if (!r.ok) throw apiError("uploadProjectFile", r.status);
   return r.json();
 }
 
@@ -137,14 +168,14 @@ export async function uploadProjectFile(pid: string, file: File): Promise<Projec
 /** 四矩阵状态汇总(恢复/刷新路径的入口查询)。 */
 export async function getMatrixStatus(pid: string): Promise<ProjectMatrixStatus> {
   const r = await fetch(`${BASE}/projects/${pid}/matrices`);
-  if (!r.ok) throw new Error(`getMatrixStatus failed: ${r.status}`);
+  if (!r.ok) throw apiError("getMatrixStatus", r.status);
   return r.json();
 }
 
 /** 矩阵总览:envelope(meta)+ 分组统计,不含条目本体。 */
 export async function getMatrixOverview(pid: string, type: MatrixType): Promise<MatrixOverview> {
   const r = await fetch(`${BASE}/projects/${pid}/matrices/${type}`);
-  if (!r.ok) throw new Error(`getMatrixOverview failed: ${r.status}`);
+  if (!r.ok) throw apiError("getMatrixOverview", r.status);
   return r.json();
 }
 
@@ -160,7 +191,7 @@ export async function queryMatrixItems(
   }
   const search = qs.size ? `?${qs}` : "";
   const r = await fetch(`${BASE}/projects/${pid}/matrices/${type}/items${search}`);
-  if (!r.ok) throw new Error(`queryMatrixItems failed: ${r.status}`);
+  if (!r.ok) throw apiError("queryMatrixItems", r.status);
   return r.json();
 }
 
@@ -216,7 +247,7 @@ export async function listDocuments(
   }
   const search = qs.size ? `?${qs}` : "";
   const r = await fetch(`${BASE}/projects/${pid}/documents${search}`);
-  if (!r.ok) throw new Error(`listDocuments failed: ${r.status}`);
+  if (!r.ok) throw apiError("listDocuments", r.status);
   return r.json();
 }
 
@@ -239,7 +270,7 @@ export async function fetchAllDocuments(pid: string): Promise<DocumentRecord[]> 
 export async function getWorkspaceFileText(pid: string, path: string): Promise<string> {
   const encoded = path.split("/").map(encodeURIComponent).join("/");
   const r = await fetch(`${BASE}/projects/${pid}/workspace/files/${encoded}`);
-  if (!r.ok) throw new Error(`getWorkspaceFileText failed: ${r.status}`);
+  if (!r.ok) throw apiError("getWorkspaceFileText", r.status);
   return r.text();
 }
 
@@ -253,6 +284,11 @@ export class MatrixWriteConflictError extends Error {
   }
 }
 
+const MATRIX_ACTION_LABEL: Record<string, string> = {
+  confirmMatrixItem: "确认条目",
+  setMatrixItemResponseStatus: "更新应答状态",
+};
+
 async function matrixWriteError(r: Response, action: string): Promise<Error> {
   let detail: { code?: string; message?: string; current_version?: number } = {};
   try {
@@ -260,9 +296,10 @@ async function matrixWriteError(r: Response, action: string): Promise<Error> {
   } catch {
     /* 非 JSON 错误体,用状态码兜底 */
   }
-  const message = detail.message || `${action} failed: ${r.status}`;
+  // 上游 detail.message 已是中文；无则回落到中文陈述，技术细节挂 cause。
+  const message = detail.message || `未能${MATRIX_ACTION_LABEL[action] ?? "写入矩阵"}，请稍后重试。`;
   if (r.status === 409) return new MatrixWriteConflictError(message, detail.current_version ?? null);
-  return new Error(message);
+  return new Error(message, { cause: `${action} failed: ${r.status}` });
 }
 
 /** 用户确认条目(审计 actor=user);expected_version 不符时抛 MatrixWriteConflictError。 */
@@ -310,7 +347,7 @@ export async function setMatrixItemResponseStatus(
 
 export async function getTodos(sid: string): Promise<unknown[]> {
   const r = await fetch(`${BASE}/sessions/${sid}/todos`);
-  if (!r.ok) throw new Error(`getTodos failed: ${r.status}`);
+  if (!r.ok) throw apiError("getTodos", r.status);
   return r.json();
 }
 
@@ -330,9 +367,9 @@ export async function* streamMessage(sid: string, content: string): AsyncIterabl
   if (!r.ok) {
     // 非 2xx 是 JSON 错误体不是 SSE 流(如 404/503;M2 起对话轮锁 409),吞掉会静默变空流。
     const body = await r.text().catch(() => "");
-    throw new Error(`streamMessage failed: ${r.status}${body ? ` ${body.slice(0, 200)}` : ""}`);
+    throw apiError("streamMessage", r.status, body ? body.slice(0, 200) : undefined);
   }
-  if (!r.body) throw new Error("no response body");
+  if (!r.body) throw new Error("后端未返回响应内容，请稍后重试。", { cause: "no response body" });
   const reader = r.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";

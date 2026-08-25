@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, type MutableRefObject, type PointerEvent as ReactPointerEvent } from "react";
 import { gsap } from "gsap";
+import { DUR_FLOAT, TRACE_EASE_ENTER } from "./traceMotion";
 
 // 画布视口：背景拖拽=平移；卡片拖拽=移动该卡（startCardDrag 由卡片 onPointerDown 触发）；
 // 滚轮=以光标为锚缩放；缩放按钮/适应/重置=gsap 平滑过渡。
@@ -14,10 +15,11 @@ export interface WorldRect {
   h: number;
 }
 
-/** 相机运镜节拍覆盖(与卡片编排动画同拍时传入,缺省为快速 0.22s power3.out) */
+/** 相机运镜节拍覆盖(与卡片编排动画同拍时传入,缺省为 float 档 + 品牌标准缓动) */
 export interface CameraMotion {
   duration?: number;
-  ease?: string;
+  /** gsap 缓动:字符串名或 CustomEase 产出的缓动函数(traceMotion 的品牌曲线) */
+  ease?: string | gsap.EaseFunction;
 }
 
 interface ViewportOpts {
@@ -39,10 +41,10 @@ const MIN_SCALE = 0.2;
 const MAX_SCALE = 1.4;
 const DEFAULT_VIEW = { tx: 30, ty: 50, scale: 0.72 };
 /** pointerdown 不视作「拖背景平移」：卡片/主轴自处理拖拽，浮层是 chrome。 */
-const PAN_IGNORE = ".cv-card, .cv-spine, .cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-capsule";
+const PAN_IGNORE = ".cv-card, .cv-spine, .cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-agentboard";
 /** wheel 不视作「缩放画布」：只有自带滚动容器/输入的浮层。卡片与主轴仍属画布世界，
  *  悬停其上滚轮照常缩放——所以这两张名单不能合并。 */
-const WHEEL_IGNORE = ".cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-capsule";
+const WHEEL_IGNORE = ".cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-agentboard";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const prefersReduced = () =>
@@ -73,6 +75,17 @@ export function useCanvasViewport(opts: ViewportOpts) {
       const { tx, ty, scale } = view.current;
       w.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
     }
+    // 视口的网格点背景跟随平移/缩放（见 globals.css .canvas-viewport 注释）
+    const vp = viewportRef.current;
+    if (vp) {
+      const { tx, ty, scale } = view.current;
+      // 点阵间距随缩放；缩得太小时间距翻倍，避免密成一片
+      let gap = 24 * scale;
+      while (gap < 12) gap *= 2;
+      vp.style.setProperty("--cv-grid-size", `${gap}px`);
+      vp.style.setProperty("--cv-grid-x", `${tx}px`);
+      vp.style.setProperty("--cv-grid-y", `${ty}px`);
+    }
     if (zoomLabelRef.current) zoomLabelRef.current.textContent = `${Math.round(view.current.scale * 100)}%`;
   }, []);
 
@@ -97,8 +110,8 @@ export function useCanvasViewport(opts: ViewportOpts) {
       const proxy = { ...view.current };
       tweenRef.current = gsap.to(proxy, {
         ...target,
-        duration: motion?.duration ?? 0.22,
-        ease: motion?.ease ?? "power3.out",
+        duration: motion?.duration ?? DUR_FLOAT,
+        ease: motion?.ease ?? TRACE_EASE_ENTER,
         onUpdate: () => {
           view.current = { tx: proxy.tx, ty: proxy.ty, scale: proxy.scale };
           apply();

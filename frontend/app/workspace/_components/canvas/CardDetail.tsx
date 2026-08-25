@@ -31,10 +31,10 @@ export function SecTitle({ t, sub }: { t: string; sub?: string }) {
 
 export function Table({ head, rows }: { head: Col[]; rows: ReactNode[][] }) {
   return (
-    <div style={{ border: "1px solid var(--separator)", borderRadius: 10, overflow: "hidden" }}>
+    <div style={{ border: "1px solid var(--separator)", borderRadius: "var(--r-window)", overflow: "hidden" }}>
       <div style={{ display: "flex", background: "var(--surface-2)" }}>
         {head.map((c) => (
-          <span key={c.t} style={{ flex: c.f, padding: "9px 11px", fontSize: 11.5, fontWeight: 600, color: "var(--label-2)" }}>
+          <span key={c.t} style={{ flex: c.f, padding: "9px 11px", fontSize: 12, fontWeight: 600, color: "var(--label-2)" }}>
             {c.t}
           </span>
         ))}
@@ -47,7 +47,7 @@ export function Table({ head, rows }: { head: Col[]; rows: ReactNode[][] }) {
               style={{
                 flex: head[j]?.f,
                 padding: "10px 11px",
-                fontSize: 12.5,
+                fontSize: 13,
                 color: "var(--label)",
                 display: "flex",
                 alignItems: "center",
@@ -95,9 +95,10 @@ export function CardDetail({ type }: { type: DetailType }) {
     return (
       <div>
         <SecTitle t="技术需求清单" sub="从招标文件第三章提取，共 45 条，按四类归档" />
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {groups.map(([name, count, substantive, a, b]) => (
-            <div key={name} style={{ border: "1px solid var(--separator)", borderRadius: 12, padding: "12px 14px", background: "var(--surface)" }}>
+        {/* 分组不套边框卡(抽屉已是一个面,再套框即三层盒):hairline 分隔 + 留白 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {groups.map(([name, count, substantive, a, b], i) => (
+            <div key={name} style={{ borderTop: i ? "1px solid var(--separator)" : "none", paddingTop: i ? 14 : 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: "var(--label)" }}>{name}</span>
                 <span style={{ fontSize: 11, color: "var(--label-3)" }}>{count} 条</span>
@@ -105,10 +106,10 @@ export function CardDetail({ type }: { type: DetailType }) {
                   <span
                     style={{
                       marginLeft: "auto",
-                      fontSize: 10.5,
+                      fontSize: 11,
                       fontWeight: 600,
                       color: "var(--orange-text)",
-                      background: "rgba(255,149,0,.15)",
+                      background: "var(--surface-2)",   // 语义色只落文字，不做彩色填充块
                       padding: "1px 8px",
                       borderRadius: 999,
                     }}
@@ -118,7 +119,7 @@ export function CardDetail({ type }: { type: DetailType }) {
                 ) : null}
               </div>
               {[a, b].map((it) => (
-                <div key={it} style={{ display: "flex", gap: 8, padding: "5px 0", fontSize: 12.5, color: "var(--label-2)" }}>
+                <div key={it} style={{ display: "flex", gap: 8, padding: "5px 0", fontSize: 13, color: "var(--label-2)" }}>
                   <span className="cv-bullet" />
                   {it}
                 </div>
@@ -193,12 +194,12 @@ export function CardDetail({ type }: { type: DetailType }) {
       <div>
         <SecTitle t="技术方案 · 总体设计" />
         <div style={{ fontSize: 15, fontWeight: 700, margin: "4px 0 8px" }}>3.1  总体技术架构</div>
-        <p style={{ fontSize: 13.5, lineHeight: 1.85, color: "var(--label)", margin: "0 0 14px" }}>
+        <p style={{ fontSize: 14, lineHeight: 1.85, color: "var(--label)", margin: "0 0 14px" }}>
           本项目采用分层微服务架构，将仿真求解、前后处理、数据管理与协同设计四个域解耦。求解层基于国产 CPU 与异构加速实现并行扩展，前后处理层提供 Web
           端可视化建模，数据层以统一仿真数据中台支撑版本与权限治理。
         </p>
         <div style={{ fontSize: 14, fontWeight: 600, margin: "2px 0 6px" }}>3.1.1  求解引擎</div>
-        <p style={{ fontSize: 13.5, lineHeight: 1.85, color: "var(--label)", margin: "0 0 14px" }}>
+        <p style={{ fontSize: 14, lineHeight: 1.85, color: "var(--label)", margin: "0 0 14px" }}>
           求解引擎支持结构、流体、电磁多物理场耦合，单次求解网格规模可达 1000 万以上，并通过区域分解实现近线性并行加速，满足招标第 3.2 条性能指标。
         </p>
         <Table
@@ -218,7 +219,7 @@ export function CardDetail({ type }: { type: DetailType }) {
           <Chip>引用 ISO9001</Chip>
           <Chip>引用 性能测试报告</Chip>
         </div>
-        <div style={{ fontSize: 11.5, color: "var(--label-3)", marginTop: 8 }}>约 1,240 字 · 引用 6 处 · 草稿</div>
+        <div style={{ fontSize: 12, color: "var(--label-3)", marginTop: 8 }}>约 1,240 字 · 引用 6 处 · 草稿</div>
       </div>
     );
   }
@@ -263,7 +264,7 @@ export function CardDetail({ type }: { type: DetailType }) {
             return (
               <div key={name}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <Icon width={15} height={15} style={{ color: "var(--blue)" }} />
+                  <Icon width={15} height={15} style={{ color: "var(--label-3)" }} />
                   <span style={{ fontSize: 13, fontWeight: 700 }}>{name}</span>
                   <span style={{ fontSize: 11, color: "var(--label-3)" }}>{items.length} 项</span>
                 </div>
@@ -271,9 +272,9 @@ export function CardDetail({ type }: { type: DetailType }) {
                   {items.map(([it, meta]) => (
                     <div
                       key={it}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", background: "var(--surface-2)", borderRadius: 10 }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", background: "var(--surface-2)", borderRadius: "var(--r-window)" }}
                     >
-                      <span style={{ flex: 1, fontSize: 12.5, color: "var(--label)" }}>{it}</span>
+                      <span style={{ flex: 1, fontSize: 13, color: "var(--label)" }}>{it}</span>
                       <span style={{ fontSize: 11, color: "var(--label-3)" }}>{meta}</span>
                       <button type="button" className="cv-cite-btn">引用</button>
                     </div>
@@ -306,7 +307,7 @@ export function CardDetail({ type }: { type: DetailType }) {
         <SecTitle t="实施进度计划" sub="总周期 6 个月 · 4 个里程碑" />
         <div style={{ display: "flex", paddingLeft: 128, marginBottom: 6 }}>
           {months.map((m) => (
-            <span key={m} style={{ flex: 1, fontSize: 10.5, color: "var(--label-3)", textAlign: "center" }}>
+            <span key={m} style={{ flex: 1, fontSize: 11, color: "var(--label-3)", textAlign: "center" }}>
               {m}
             </span>
           ))}

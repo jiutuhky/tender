@@ -47,12 +47,12 @@ export function CanvasLinks({
   return (
     <svg className="cv-links" width={10} height={10}>
       {segs.map((s, i) => (
-        <path key={`p${i}`} d={pathD(s)} fill="none" stroke="var(--blue)" strokeWidth={1.6} strokeOpacity={0.45} strokeLinecap="round" />
+        <path key={`p${i}`} d={pathD(s)} fill="none" stroke="var(--label-3)" strokeWidth={1.6} strokeOpacity={0.45} strokeLinecap="round" />
       ))}
       {segs.map((s, i) => (
         <g key={`d${i}`}>
-          <circle cx={s.sx} cy={s.sy} r={3} fill="var(--blue)" fillOpacity={0.7} />
-          <circle cx={s.tx} cy={s.ty} r={3} fill="var(--blue)" fillOpacity={0.7} />
+          <circle cx={s.sx} cy={s.sy} r={3} fill="var(--label-3)" fillOpacity={0.7} />
+          <circle cx={s.tx} cy={s.ty} r={3} fill="var(--label-3)" fillOpacity={0.7} />
         </g>
       ))}
     </svg>

@@ -1,45 +1,10 @@
-/* Migrated verbatim from .design/prototype/archive/projects.html <style> block. */
+/* 迁移自 .design/prototype/archive/projects.html；token 层已统一收敛到 globals.css 规范层。 */
 
-/* ============================================================
-   Shared tokens — identical to existing pages
-   ============================================================ */
+/* 页面私有变量：状态胶囊/圆点的语义软底（由语义 graphic 色按 15% 派生，globals 无此档） */
 .app-shell {
-  --bg:        #eef0f3;
-  --surface:   #ffffff;
-  --surface-2: #f5f6f8;
-  --surface-3: #ececf1;
-  --fg:        #1d1d1f;
-  --fg-2:      #48484f;
-  --muted:     #55555e;
-  --faint:     #8e8e98;
-  --border:    rgba(60, 60, 67, .12);
-  --border-2:  rgba(60, 60, 67, .20);
-  --accent:    #0064e1;
-  --accent-soft: rgba(0, 100, 225, .10);
-  --clay:      #0064e1; /* Frost: 原 clay 槽位整体切到系统蓝 */
-  --clay-deep: #0052bc;
-  --success:   #1d8f45;
-  --success-soft: rgba(52, 199, 89, .15);
-  --warn:      #b25e00;
-  --warn-soft: rgba(255, 149, 0, .15);
-  --danger:    #d70015;
-  --danger-soft: rgba(255, 59, 48, .12);
-
-  --font-sans:  "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
-  --font-text:  "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif;
-  --font-serif: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", system-ui, sans-serif; /* Frost: 不再使用衬线，旧引用统一落到系统栈 */
-  --font-mono:  "SF Mono", ui-monospace, "Geist Mono", "JetBrains Mono", Menlo, monospace;
-
-  --radius-sm: 7px;
-  --radius:    10px;
-  --radius-lg: 14px;
+  
+  
 }
-
-
-
-
-
-
 
 /* 统一外壳：同一 grid 管行（52px 顶栏 + 1fr 主区）和列（窄栏 + 二级面板 + 内容）。
    最左窄栏跨满两行延伸到顶；展开时第一列 56 → 216 推开右侧（push，不覆盖）。 */
@@ -49,15 +14,11 @@
   grid-template-rows: 52px 1fr;
   height: 100vh;
   overflow: hidden;
-  transition: grid-template-columns .28s cubic-bezier(0.4, 0.0, 0.2, 1);
+  /* 展开/收起为布局属性（grid-template-columns），规范只补间 transform/opacity —— 瞬切 */
 }
 .app-shell.rail-expanded {
   grid-template-columns: 216px 296px 1fr;
 }
-@media (prefers-reduced-motion: reduce) {
-  .app-shell { transition: none; }
-}
-
 /* ============================================================
    Top bar (matches other pages exactly)
    ============================================================ */
@@ -66,8 +27,9 @@
   grid-row: 1;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  /* 霜玻璃 chrome（TSX 侧挂 .frost-glass--soft --flush data-thick=thick），
+     与内容以 .5px contact edge 相接，不用 1px 分区线 */
+  box-shadow: inset 0 -0.5px 0 var(--separator);
   padding: 0 20px;
   gap: 16px;
   user-select: none;
@@ -75,7 +37,7 @@
 }
 .app-shell .brand {
   display: flex; align-items: center; gap: 10px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-style: normal;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -94,29 +56,29 @@
 .app-shell .topbar-divider { width: 1px; height: 18px; background: var(--border-2); }
 .app-shell .breadcrumb {
   display: flex; align-items: center; gap: 8px;
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 13.5px;
-  color: var(--muted);
+  color: var(--label-2);
   flex: 1; min-width: 0;
 }
 .app-shell .breadcrumb .crumb-current {
-  color: var(--fg); font-weight: 500;
+  color: var(--label); font-weight: 500;
   white-space: nowrap;
 }
-.app-shell .breadcrumb-sep { color: var(--faint); font-style: normal; }
+.app-shell .breadcrumb-sep { color: var(--label-3); font-style: normal; }
 
 .app-shell .nav-tabs { display: flex; gap: 2px; }
 .app-shell .nav-tabs a {
   padding: 6px 12px;
   font-size: 13px;
-  color: var(--muted);
-  border-radius: 7px;
-  transition: background .15s, color .15s;
+  color: var(--label-2);
+  border-radius: var(--r-control);
+  transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std);
 }
-.app-shell .nav-tabs a:hover { background: var(--surface-2); color: var(--fg); }
-.app-shell .nav-tabs a.active { color: var(--fg); background: var(--surface-2); }
-.app-shell .nav-tabs a.dimmed { color: var(--faint); }
-.app-shell .nav-tabs a.dimmed:hover { color: var(--muted); }
+.app-shell .nav-tabs a:hover { background: var(--surface-2); color: var(--label); }
+.app-shell .nav-tabs a.active { color: var(--label); background: var(--surface-2); }
+.app-shell .nav-tabs a.dimmed { color: var(--label-3); }
+.app-shell .nav-tabs a.dimmed:hover { color: var(--label-2); }
 
 .app-shell .topbar-actions { display: flex; align-items: center; gap: 6px; }
 .app-shell .icon-btn {
@@ -124,11 +86,12 @@
   display: grid; place-items: center;
   background: transparent;
   border: 0;
-  border-radius: 7px;
-  color: var(--muted);
-  transition: background .15s, color .15s;
+  border-radius: var(--r-control);
+  color: var(--label-2);
+  transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
-.app-shell .icon-btn:hover { background: var(--surface-2); color: var(--fg); }
+.app-shell .icon-btn:hover { background: var(--surface-2); color: var(--label); }
+.app-shell .icon-btn:active { transform: scale(.92); }
 .app-shell .icon-btn svg { width: 16px; height: 16px; }
 
 /* primary CTA — Anthropic warm-glow style */
@@ -137,12 +100,12 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  background: var(--clay);
-  color: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: linear-gradient(180deg, var(--blue), var(--blue-press));
+  color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
+  border: 0;
   padding: 6px 12px;
-  border-radius: 8px;
-  font-family: var(--font-sans);
+  border-radius: var(--r-control);
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.2;
@@ -150,29 +113,13 @@
   user-select: none;
   outline: none;
   position: relative;
-  box-shadow:
-    0 1px 3px rgba(0, 80, 190, 0.35),
-    0 2px 6px rgba(0, 80, 190, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
-}
-.app-shell .btn-primary::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(to bottom, oklch(100% 0 0 / 0.16), oklch(100% 0 0 / 0) 46%);
-  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), var(--elev-1);
+  transition: transform var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std);
 }
 .app-shell .btn-primary:hover {
-  background: var(--clay-deep);
-  transform: translateY(-1px);
-  box-shadow:
-    0 2px 4px rgba(0, 80, 190, 0.40),
-    0 5px 12px rgba(0, 80, 190, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), var(--elev-2);
 }
-.app-shell .btn-primary:active { transform: translateY(0); }
+.app-shell .btn-primary:active { transform: scale(.97); }
 .app-shell .btn-primary svg { width: 13px; height: 13px; position: relative; }
 
 .app-shell .btn-ghost {
@@ -180,26 +127,27 @@
   align-items: center;
   gap: 5px;
   background: var(--surface);
-  color: var(--fg-2);
-  border: 1px solid rgba(15, 12, 8, 0.10);
+  color: var(--label-2);
+  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
   padding: 5px 10px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
-  box-shadow: rgba(20, 20, 19, 0.04) 0 1px 2px;
-  transition: border-color .14s, box-shadow .14s, color .14s;
+  box-shadow: var(--elev-1);
+  transition: background var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
   cursor: pointer;
 }
 .app-shell .btn-ghost:hover {
-  border-color: rgba(15, 12, 8, 0.18);
-  color: var(--fg);
+  background: var(--blue-soft);   /* 规范：plain/ghost 的 hover 是安静的蓝浅染 wash */
+  color: var(--label);
 }
+.app-shell .btn-ghost:active { transform: scale(.97); }
 .app-shell .btn-ghost svg { width: 13px; height: 13px; }
 
 .app-shell .avatar {
   width: 26px; height: 26px; border-radius: 50%;
-  background: linear-gradient(135deg, #5fb0ff, #0a4ecf);
+  background: linear-gradient(135deg, #5FB0FF, #1670EC, #0A3FA8);
   color: white;
   display: grid; place-items: center;
   font-size: 11px; font-weight: 600;
@@ -216,9 +164,8 @@
   grid-column: 1;
   grid-row: 1 / 3;
   overflow: hidden;
-  border-right: 1px solid var(--border);
-  /* 与二级面板同一底灰：侧栏整体读作一块，分层交给 hairline */
-  background: var(--bg);
+  /* 霜玻璃 chrome：底透壁纸，与二级面板以 .5px contact edge 相接 */
+  box-shadow: inset -0.5px 0 0 var(--separator);
 }
 .app-shell .rail-inner {
   width: 216px;
@@ -240,14 +187,14 @@
   height: 38px;
   border: 0;
   padding: 0;
-  border-radius: 9px;
+  border-radius: var(--r-field);
   background: transparent;
   cursor: pointer;
   text-decoration: none;
   position: relative;
   white-space: nowrap;
-  color: var(--muted);
-  transition: background .14s, color .14s;
+  color: var(--label-2);
+  transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std);
 }
 .app-shell .rail-ico {
   flex: 0 0 36px;
@@ -260,22 +207,22 @@
 
 .app-shell .rail-label {
   flex: 1; min-width: 0;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 13px;
-  color: var(--fg-2);
+  color: var(--label-2);
   overflow: hidden; text-overflow: ellipsis;
   opacity: 0;
-  transition: opacity .18s ease;
+  transition: opacity var(--t-float) var(--ease-std);
 }
 .app-shell .rail-kbd {
   flex-shrink: 0;
   margin-right: 8px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10.5px;
-  color: var(--faint);
+  color: var(--label-3);
   letter-spacing: 0.04em;
   opacity: 0;
-  transition: opacity .18s ease;
+  transition: opacity var(--t-float) var(--ease-std);
 }
 .app-shell.rail-expanded .rail-label, .app-shell.rail-expanded .rail-kbd, .app-shell.rail-expanded .rail-id { opacity: 1; }
 
@@ -294,7 +241,7 @@
   width: 36px; height: 36px;
   display: grid;
   place-items: center;
-  transition: opacity .14s ease;
+  transition: opacity var(--t-micro) var(--ease-std);
 }
 
 /* toggle —— 展开/收起切换；caret 展开时翻转指向收起方向。
@@ -308,7 +255,7 @@
   opacity: 0;
   pointer-events: none;
   background: var(--surface-2);
-  transition: opacity .14s ease;
+  transition: opacity var(--t-micro) var(--ease-std);
 }
 .app-shell:not(.rail-expanded) .rail-head:hover .rail-toggle,
 .app-shell:not(.rail-expanded) .rail-toggle:focus-visible {
@@ -320,47 +267,33 @@
   opacity: 0;
 }
 .app-shell.rail-expanded .rail-toggle { margin-left: auto; }
-.app-shell .rail-toggle:hover { background: var(--surface-2); color: var(--fg); }
-.app-shell .rail-caret {
-  transform-box: view-box;
-  transform-origin: 8px 8px;
-  transition: transform .28s cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-.app-shell.rail-expanded .rail-caret { transform: rotate(180deg); }
-@media (prefers-reduced-motion: reduce) {
-  .app-shell .rail-caret { transition: none; }
-}
-
+.app-shell .rail-toggle:hover { background: var(--surface-2); color: var(--label); }
+.app-shell .rail-toggle:active .rail-ico { transform: scale(.92); transition: transform var(--t-micro) var(--ease-std); }
 /* CTA —— 收起：clay 圆角章落在 36px 图标槽（与图标/头像同量级）。
    展开：整行升级为 clay 主按钮，章融进底色（透明 + 去边框/阴影）、文字转白。 */
-.app-shell .rail-cta { color: var(--fg); margin-bottom: 6px; }
+.app-shell .rail-cta { color: var(--label); margin-bottom: 6px; }
 .app-shell .rail-chip {
   width: 28px; height: 28px;
   display: grid; place-items: center;
-  border-radius: 8px;
-  background: var(--clay);
+  border-radius: var(--r-control);
+  background: linear-gradient(180deg, var(--blue), var(--blue-press));
   color: white;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  box-shadow:
-    0 1px 2px rgba(0, 80, 190, 0.20),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  transition: background .14s, box-shadow .14s, border-color .14s;
+  border: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), var(--elev-1);
+  transition: background var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std);
 }
 .app-shell .rail-chip svg { width: 13px; height: 13px; }
-.app-shell .rail-cta .rail-label { font-weight: 500; color: var(--fg); }
+.app-shell .rail-cta .rail-label { font-weight: 500; color: var(--label); }
 .app-shell .rail-cta:hover { background: var(--surface-2); }
-.app-shell .rail-cta:hover .rail-chip { background: var(--clay-deep); }
+.app-shell .rail-cta:hover .rail-chip { background: var(--blue-press); }
 
 /* 展开态：整行变 clay 实心按钮 */
 .app-shell.rail-expanded .rail-cta {
-  background: var(--clay);
-  box-shadow:
-    0 1px 2px rgba(0, 80, 190, 0.28),
-    0 2px 6px rgba(0, 80, 190, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  transition: background .14s, box-shadow .14s;
+  background: linear-gradient(180deg, var(--blue), var(--blue-press));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), var(--elev-1);
+  transition: background var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std);
 }
-.app-shell.rail-expanded .rail-cta:hover { background: var(--clay-deep); }
+.app-shell.rail-expanded .rail-cta:hover { background: var(--blue-press); }
 .app-shell.rail-expanded .rail-cta .rail-chip {
   background: transparent;
   border-color: transparent;
@@ -371,26 +304,26 @@
 .app-shell.rail-expanded .rail-cta .rail-kbd { color: rgba(255, 255, 255, 0.72); }
 
 /* nav item */
-.app-shell .rail-item:hover { background: var(--surface-2); color: var(--fg); }
-.app-shell .rail-item.active { background: var(--surface-2); color: var(--fg); }
-.app-shell .rail-item.active .rail-ico { color: var(--accent); }
-.app-shell .rail-item.active .rail-label { color: var(--fg); }
+.app-shell .rail-item:hover { background: var(--surface-2); color: var(--label); }
+.app-shell .rail-item.active { background: var(--surface-2); color: var(--label); }
+.app-shell .rail-item.active .rail-ico { color: var(--blue); }
+.app-shell .rail-item.active .rail-label { color: var(--label); }
 .app-shell .rail-item.active::before {
   content: "";
   position: absolute;
   left: -10px; top: 50%;
   transform: translateY(-50%);
   width: 3px; height: 18px;
-  background: var(--accent);
-  border-radius: 99px;
+  background: var(--blue);
+  border-radius: 999px;
 }
 .app-shell .rail-item .badge-dot {
   position: absolute;
   top: 5px; right: 5px;
   width: 7px; height: 7px;
   border-radius: 50%;
-  background: var(--accent);
-  border: 1.5px solid var(--bg);
+  background: var(--blue);
+  border: 1.5px solid var(--canvas);
 }
 
 .app-shell .rail-spacer { flex: 1; min-height: 8px; }
@@ -401,7 +334,7 @@
 .app-shell .rail-ava {
   width: 28px; height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #5fb0ff, #0a4ecf);
+  background: linear-gradient(135deg, #5FB0FF, #1670EC, #0A3FA8);
   color: white;
   display: grid; place-items: center;
   font-size: 11px; font-weight: 600;
@@ -410,13 +343,13 @@
   display: flex; flex-direction: column;
   gap: 1px; min-width: 0;
   opacity: 0;
-  transition: opacity .18s ease;
+  transition: opacity var(--t-float) var(--ease-std);
 }
 .app-shell .rail-id-name {
-  font-size: 12.5px; font-weight: 500; color: var(--fg);
+  font-size: 12.5px; font-weight: 500; color: var(--label);
   overflow: hidden; text-overflow: ellipsis;
 }
-.app-shell .rail-id-role { font-size: 10.5px; color: var(--muted); }
+.app-shell .rail-id-role { font-size: 10.5px; color: var(--label-2); }
 
 /* ---- context panel ----
    内部网格约定：列表行（nav-item / recent-row）自带 10px 横向 padding 作 hover 药丸；
@@ -426,15 +359,15 @@
 .app-shell .nav-panel {
   grid-column: 2;
   grid-row: 2;
-  border-right: 1px solid var(--border);
-  background: var(--bg);
+  /* 霜玻璃 chrome：与内容主列以 .5px contact edge 相接 */
+  box-shadow: inset -0.5px 0 0 var(--separator);
   padding: 16px 14px 24px;
   display: flex; flex-direction: column;
   overflow-y: auto;
 }
 .app-shell .nav-panel > * { flex-shrink: 0; }
 .app-shell .panel-head {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -447,7 +380,7 @@
 .app-shell .panel-head .pct {
   font-size: 11px;
   font-weight: 400;
-  color: var(--muted);
+  color: var(--label-2);
   letter-spacing: 0.02em;
 }
 
@@ -456,38 +389,39 @@
   align-items: center;
   gap: 8px;
   background: var(--surface);
-  color: var(--fg-2);
-  border: 1px solid rgba(60, 60, 67, .16);
+  color: var(--label-2);
+  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
   padding: 7px 12px;
-  border-radius: 9px;
-  font-family: var(--font-sans);
+  border-radius: var(--r-field);
+  font-family: var(--font-ui);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   margin: 0 0 4px;
-  box-shadow: 0 1px 2px rgba(18, 24, 38, .08);
-  transition: background .14s, color .14s, border-color .14s;
+  box-shadow: var(--elev-1);
+  transition: background var(--t-micro) var(--ease-std), color var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .app-shell .panel-cta:hover {
   background: var(--surface-2);
-  color: var(--fg);
+  color: var(--label);
 }
-.app-shell .panel-cta svg { width: 13px; height: 13px; color: var(--muted); }
-.app-shell .panel-cta:hover svg { color: var(--fg); }
+.app-shell .panel-cta:active { transform: scale(.97); }
+.app-shell .panel-cta svg { width: 13px; height: 13px; color: var(--label-2); }
+.app-shell .panel-cta:hover svg { color: var(--label); }
 .app-shell .panel-cta .kbd {
   margin-left: auto;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10.5px;
-  color: var(--faint);
+  color: var(--label-3);
   letter-spacing: 0.04em;
   font-weight: 400;
 }
 
 /* 组标题：对照品牌板 .sb-group（11px / 600，正常大小写，不用 uppercase 眉题） */
 .app-shell .nav-panel h5 {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--muted);
+  color: var(--label-2);
   letter-spacing: 0;
   margin: 20px 10px 6px;
   font-weight: 600;
@@ -496,19 +430,19 @@
 }
 .app-shell .nav-panel h5 .more {
   margin-left: auto;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--faint);
+  color: var(--label-3);
   letter-spacing: 0;
   cursor: pointer;
   font-weight: 400;
 }
-.app-shell .nav-panel h5 .more:hover { color: var(--fg-2); }
+.app-shell .nav-panel h5 .more:hover { color: var(--label-2); }
 
 /* 对话域 / 过滤域分界线 */
 .app-shell .panel-sep {
   height: 1px;
-  background: var(--border);
+  background: var(--separator);
   margin: 18px 10px 0;
 }
 .app-shell .panel-sep + h5 { margin-top: 12px; }
@@ -517,14 +451,14 @@
   display: flex; align-items: baseline;
   padding: 6px 10px;
   font-size: 12.5px;
-  color: var(--fg-2);
+  color: var(--label-2);
   white-space: nowrap;
   overflow: hidden;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   cursor: pointer;
   text-decoration: none;
 }
-.app-shell .recent-row:hover { background: var(--surface-2); color: var(--fg); }
+.app-shell .recent-row:hover { background: var(--surface-2); color: var(--label); }
 .app-shell .recent-row .rt {
   flex: 1;
   min-width: 0;
@@ -533,9 +467,9 @@
 }
 .app-shell .recent-row .when {
   margin-left: 8px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10.5px;
-  color: var(--faint);
+  color: var(--label-3);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
@@ -562,40 +496,40 @@
 .app-shell .nav-side-pin {
   margin: 24px 10px 0;
   padding-top: 14px;
-  border-top: 1px solid var(--border);
-  font-family: var(--font-sans);
+  border-top: 1px solid var(--separator);
+  font-family: var(--font-ui);
   font-size: 11.5px;
-  color: var(--faint);
+  color: var(--label-3);
   line-height: 1.6;
 }
 .app-shell .nav-item {
   display: flex; align-items: center; gap: 10px;
   padding: 7px 10px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   font-size: 13px;
-  color: var(--fg-2);
+  color: var(--label-2);
   cursor: pointer;
-  transition: background .14s;
+  transition: background var(--t-micro) var(--ease-std);
   white-space: nowrap;
 }
 .app-shell .nav-item:hover { background: var(--surface-2); }
 .app-shell .nav-item.active {
   background: var(--surface-2);
-  color: var(--fg);
-  font-weight: 500;
-  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--label);
+  font-weight: 600;
+  background: var(--blue-soft);   /* 选中态用蓝衬底，不立左缘指示条 */
 }
 .app-shell .nav-item .count {
   margin-left: auto;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--faint);
+  color: var(--label-3);
   font-variant-numeric: tabular-nums;
 }
-.app-shell .nav-item.active .count { color: var(--muted); }
+.app-shell .nav-item.active .count { color: var(--label-2); }
 .app-shell .nav-item svg {
   width: 13px; height: 13px;
-  color: var(--muted);
+  color: var(--label-2);
   flex-shrink: 0;
 }
 /* 状态圆点收进与 13px 图标等宽的槽位（7 + 3×2），三组列表文本共线 */
@@ -607,22 +541,22 @@
 }
 /* 无图标行（按系统类型）：缩进到同一文本线（10 padding + 13 槽 + 10 gap） */
 .app-shell .nav-item.indent { padding-left: 33px; }
-.app-shell .dot-status.s-draft { background: var(--faint); }
-.app-shell .dot-status.s-writing { background: var(--accent); }
-.app-shell .dot-status.s-review { background: #3d9bff; }
-.app-shell .dot-status.s-bid { background: var(--warn); }
-.app-shell .dot-status.s-delivered { background: var(--success); }
-.app-shell .dot-status.s-won { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
-.app-shell .dot-status.s-lost { background: var(--faint); }
+.app-shell .dot-status.s-draft { background: var(--label-3); }
+.app-shell .dot-status.s-writing { background: var(--blue); }
+.app-shell .dot-status.s-review { background: var(--blue); }
+.app-shell .dot-status.s-bid { background: var(--orange-text); }
+.app-shell .dot-status.s-delivered { background: var(--green-text); }
+.app-shell .dot-status.s-won { background: var(--green-text); box-shadow: 0 0 0 3px var(--surface-2); }
+.app-shell .dot-status.s-lost { background: var(--label-3); }
 
 .app-shell .team-pill {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 10px;
-  border-radius: 7px;
+  border-radius: var(--r-control);
   font-size: 13px;
-  color: var(--fg-2);
+  color: var(--label-2);
   cursor: pointer;
-  transition: background .14s;
+  transition: background var(--t-micro) var(--ease-std);
   white-space: nowrap;
 }
 .app-shell .team-pill:hover { background: var(--surface-2); }
@@ -637,9 +571,9 @@
 }
 .app-shell .team-pill .count {
   margin-left: auto;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--faint);
+  color: var(--label-3);
 }
 
 /* ============================================================
@@ -648,6 +582,8 @@
 .app-shell .content {
   grid-column: 3;
   grid-row: 2;
+  /* 内容主列保持实底（chrome 全为霜玻璃，壁纸从 body 透出） */
+  background: var(--canvas);
   padding: 36px 40px 80px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -664,14 +600,13 @@
   gap: 24px;
   margin-bottom: 28px;
   padding-bottom: 22px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--separator);
 }
 .app-shell .page-header .eyebrow {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10.5px;
-  color: var(--accent);
+  color: var(--label-3);
   letter-spacing: 0.14em;
-  text-transform: uppercase;
   margin-bottom: 12px;
   display: inline-flex;
   align-items: center;
@@ -679,11 +614,11 @@
   white-space: nowrap;
 }
 .app-shell .page-header .eyebrow .pubdate {
-  color: var(--muted);
+  color: var(--label-2);
   letter-spacing: 0.06em;
 }
 .app-shell .page-header h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 36px;
   font-weight: 600;
   letter-spacing: -0.018em;
@@ -693,11 +628,11 @@
 .app-shell .page-header h1 em {
   font-style: normal;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--label-2);
 }
 .app-shell .page-header .deck {
-  font-family: var(--font-sans);
-  color: var(--fg-2);
+  font-family: var(--font-ui);
+  color: var(--label-2);
   font-size: 14px;
   max-width: 640px;
   line-height: 1.6;
@@ -712,9 +647,9 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  background: var(--separator);
+  border: 1px solid var(--separator);
+  border-radius: var(--r-control);
   overflow: hidden;
   margin-bottom: 40px;
 }
@@ -727,29 +662,28 @@
   min-height: 96px;
 }
 .app-shell .kpi .label {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
+  color: var(--label-2);
   letter-spacing: 0.14em;
   margin-bottom: 12px;
 }
 .app-shell .kpi .value {
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 32px;
   font-weight: 600;
   letter-spacing: -0.018em;
-  color: var(--fg);
+  color: var(--label);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   align-self: end;
 }
 .app-shell .kpi .value .unit {
   font-size: 14px;
-  color: var(--muted);
+  color: var(--label-2);
   margin-left: 4px;
   font-weight: 500;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-style: normal;
   letter-spacing: 0;
 }
@@ -760,23 +694,23 @@
 .app-shell .kpi .delta {
   margin-top: 10px;
   font-size: 11.5px;
-  color: var(--muted);
-  font-family: var(--font-sans);
+  color: var(--label-2);
+  font-family: var(--font-ui);
   font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   white-space: nowrap;
 }
-.app-shell .kpi .delta.up { color: var(--success); }
-.app-shell .kpi .delta.warn { color: var(--warn); }
+.app-shell .kpi .delta.up { color: var(--green-text); }
+.app-shell .kpi .delta.warn { color: var(--orange-text); }
 .app-shell .kpi .delta svg { width: 10px; height: 10px; }
 .app-shell .kpi.alert::after {
   content: "";
   position: absolute;
   top: 0; right: 0;
   width: 6px; height: 100%;
-  background: linear-gradient(to right, transparent, rgba(255, 149, 0, 0.12));
+  background: none;
 }
 @media (max-width: 900px) {
   .app-shell .kpi-strip { grid-template-columns: 1fr 1fr; }
@@ -794,33 +728,26 @@
   gap: 14px;
   margin-bottom: 18px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--separator);
 }
 .app-shell .section-eyebrow {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--accent);
+  color: var(--label-3);
   letter-spacing: 0.18em;
-  text-transform: uppercase;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
 }
+/* 静态语义点：进行中语义由蓝色本身承担，规范禁无限循环动效 */
 .app-shell .section-eyebrow .pulse-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 0 var(--accent);
-  animation: pulse 1.8s infinite;
-}
-@keyframes pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 100, 225, 0.45); }
-  70%  { box-shadow: 0 0 0 6px rgba(0, 100, 225, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 100, 225, 0); }
+  background: var(--label-3);
 }
 .app-shell .section-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.012em;
@@ -829,15 +756,15 @@
 }
 .app-shell .section-title em {
   font-style: normal;
-  color: var(--muted);
+  color: var(--label-2);
   font-weight: 500;
   font-size: 18px;
   margin-left: 6px;
 }
 .app-shell .section-meta {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--muted);
+  color: var(--label-2);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -847,7 +774,7 @@
   flex-shrink: 1;
 }
 .app-shell .section-meta a {
-  color: var(--accent);
+  color: var(--blue);
   margin-left: 10px;
 }
 
@@ -871,10 +798,10 @@
   width: 100%;
   padding: 7px 10px 7px 32px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  border: 1px solid var(--separator);
+  border-radius: var(--r-control);
   font-size: 13px;
-  color: var(--fg);
+  color: var(--label);
   font-family: inherit;
   outline: none;
 }
@@ -884,30 +811,31 @@
   position: absolute;
   left: 10px; top: 50%;
   transform: translateY(-50%);
-  color: var(--muted);
+  color: var(--label-2);
 }
 
 .app-shell .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .app-shell .chip {
   font-size: 12px;
   padding: 4px 10px;
-  border-radius: 99px;
-  border: 1px solid var(--border);
+  border-radius: 999px;
+  border: 1px solid var(--separator);
   background: var(--surface);
-  color: var(--fg-2);
-  font-family: var(--font-sans);
+  color: var(--label-2);
+  font-family: var(--font-ui);
   cursor: pointer;
   white-space: nowrap;
-  transition: background .15s, border-color .15s;
+  transition: background var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
 .app-shell .chip:hover { background: var(--surface-2); }
+.app-shell .chip:active { transform: scale(.97); }
 .app-shell .chip.active {
-  background: var(--fg);
-  color: var(--bg);
-  border-color: var(--fg);
+  background: var(--label);
+  color: var(--canvas);
+  border-color: var(--label);
 }
 .app-shell .chip .n {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10.5px;
   margin-left: 4px;
   opacity: 0.7;
@@ -915,8 +843,8 @@
 
 .app-shell .view-toggle {
   display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  border: 1px solid var(--separator);
+  border-radius: var(--r-control);
   background: var(--surface);
   padding: 2px;
   margin-left: auto;
@@ -925,18 +853,17 @@
   background: transparent;
   border: 0;
   padding: 4px 9px;
-  border-radius: 2px;
+  border-radius: 5px;   /* 同心：外 9 − padding 2 */ /* 同心：外 7px − 2px padding */
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--label-2);
   display: inline-flex; align-items: center; gap: 4px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   letter-spacing: 0.04em;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 .app-shell .view-toggle button.active {
   background: var(--surface-2);
-  color: var(--fg);
+  color: var(--label);
 }
 .app-shell .view-toggle button svg { width: 11px; height: 11px; }
 
@@ -945,10 +872,9 @@
   grid-template-columns: 1fr 122px 96px 126px 122px;
   gap: 18px;
   padding: 0 18px 8px 22px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--muted);
-  text-transform: uppercase;
+  color: var(--label-2);
   letter-spacing: 0.14em;
   font-weight: 500;
 }
@@ -959,8 +885,8 @@
   display: flex;
   flex-direction: column;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  border: 1px solid var(--separator);
+  border-radius: var(--r-control);
   overflow: hidden;
 }
 
@@ -970,10 +896,10 @@
   gap: 18px;
   align-items: center;
   padding: 16px 18px 16px 22px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--separator);
   position: relative;
   cursor: pointer;
-  transition: background .14s;
+  transition: background var(--t-micro) var(--ease-std);
   text-decoration: none;
   color: inherit;
 }
@@ -985,9 +911,9 @@
   left: 0; top: 0; bottom: 0;
   width: 3px;
   background: transparent;
-  transition: background .14s;
+  transition: background var(--t-micro) var(--ease-std);
 }
-.app-shell .project-row:hover::before { background: var(--accent); }
+.app-shell .project-row:hover::before { background: var(--blue); }
 
 .app-shell .pr-status-rail {
   position: absolute;
@@ -995,11 +921,11 @@
   width: 6px; height: 6px;
   border-radius: 50%;
 }
-.app-shell .pr-status-rail.s-draft { background: var(--faint); }
-.app-shell .pr-status-rail.s-writing { background: var(--accent); box-shadow: 0 0 0 3px rgba(0, 100, 225, 0.14); }
-.app-shell .pr-status-rail.s-review { background: #3d9bff; box-shadow: 0 0 0 3px rgba(61, 155, 255, 0.15); }
-.app-shell .pr-status-rail.s-bid { background: var(--warn); box-shadow: 0 0 0 3px rgba(255, 149, 0, 0.15); }
-.app-shell .pr-status-rail.s-delivered { background: var(--success); box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.18); }
+.app-shell .pr-status-rail.s-draft { background: var(--label-3); }
+.app-shell .pr-status-rail.s-writing { background: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
+.app-shell .pr-status-rail.s-review { background: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
+.app-shell .pr-status-rail.s-bid { background: var(--orange-text); box-shadow: 0 0 0 3px var(--surface-2); }
+.app-shell .pr-status-rail.s-delivered { background: var(--green-text); box-shadow: 0 0 0 3px var(--surface-2); }
 
 .app-shell .pr-main { min-width: 0; }
 .app-shell .pr-title-row {
@@ -1010,22 +936,21 @@
   min-width: 0;
 }
 .app-shell .pr-title {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.008em;
-  color: var(--fg);
+  color: var(--label);
   line-height: 1.35;
   flex: 1 1 auto;
   min-width: 0;
 }
 .app-shell .pr-status {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
   letter-spacing: 0.14em;
-  text-transform: uppercase;
   padding: 2px 7px;
-  border-radius: 99px;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1037,20 +962,20 @@
 .app-shell .pr-status .sb-dot {
   width: 5px; height: 5px; border-radius: 50%;
 }
-.app-shell .pr-status.s-draft { background: var(--surface-3); color: var(--muted); }
-.app-shell .pr-status.s-draft .sb-dot { background: var(--faint); }
-.app-shell .pr-status.s-writing { background: var(--accent-soft); color: var(--accent); }
-.app-shell .pr-status.s-writing .sb-dot { background: var(--accent); animation: pulse 1.8s infinite; }
-.app-shell .pr-status.s-review { background: rgba(61, 155, 255, 0.14); color: #0a5dc2; }
-.app-shell .pr-status.s-review .sb-dot { background: #3d9bff; }
-.app-shell .pr-status.s-bid { background: var(--warn-soft); color: var(--warn); }
-.app-shell .pr-status.s-bid .sb-dot { background: var(--warn); }
-.app-shell .pr-status.s-delivered { background: var(--success-soft); color: var(--success); }
-.app-shell .pr-status.s-delivered .sb-dot { background: var(--success); }
-.app-shell .pr-status.s-won { background: var(--fg); color: var(--bg); }
-.app-shell .pr-status.s-won .sb-dot { background: var(--bg); }
-.app-shell .pr-status.s-lost { background: var(--surface-3); color: var(--muted); }
-.app-shell .pr-status.s-lost .sb-dot { background: var(--faint); }
+.app-shell .pr-status.s-draft { background: var(--surface-2); color: var(--label-2); }
+.app-shell .pr-status.s-draft .sb-dot { background: var(--label-3); }
+.app-shell .pr-status.s-writing { background: var(--blue-soft); color: var(--blue); }
+.app-shell .pr-status.s-writing .sb-dot { background: var(--blue); }
+.app-shell .pr-status.s-review { background: var(--blue-soft); color: var(--blue); }
+.app-shell .pr-status.s-review .sb-dot { background: var(--blue); }
+.app-shell .pr-status.s-bid { background: var(--surface-2); color: var(--orange-text); }
+.app-shell .pr-status.s-bid .sb-dot { background: var(--orange-text); }
+.app-shell .pr-status.s-delivered { background: var(--surface-2); color: var(--green-text); }
+.app-shell .pr-status.s-delivered .sb-dot { background: var(--green-text); }
+.app-shell .pr-status.s-won { background: var(--label); color: var(--canvas); }
+.app-shell .pr-status.s-won .sb-dot { background: var(--canvas); }
+.app-shell .pr-status.s-lost { background: var(--surface-2); color: var(--label-2); }
+.app-shell .pr-status.s-lost .sb-dot { background: var(--label-3); }
 
 .app-shell .pr-meta {
   display: flex;
@@ -1058,10 +983,10 @@
   gap: 10px;
   flex-wrap: wrap;
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--label-2);
 }
 .app-shell .pr-meta .buyer {
-  color: var(--fg-2);
+  color: var(--label-2);
 }
 .app-shell .pr-meta .sep {
   width: 3px; height: 3px;
@@ -1069,28 +994,27 @@
   background: var(--border-2);
 }
 .app-shell .pr-tag {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
   letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--muted);
+  color: var(--label-2);
   padding: 2px 6px;
-  border: 1px solid var(--border);
-  border-radius: 99px;
+  border: 1px solid var(--separator);
+  border-radius: 999px;
   white-space: nowrap;
 }
 .app-shell .pr-amount {
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-weight: 600;
-  color: var(--fg);
+  color: var(--label);
   font-variant-numeric: tabular-nums;
   font-style: normal;
   white-space: nowrap;
 }
 .app-shell .pr-amount .unit {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--muted);
+  color: var(--label-2);
   font-weight: 500;
   margin-left: 1px;
 }
@@ -1106,48 +1030,48 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--muted);
+  color: var(--label-2);
   font-variant-numeric: tabular-nums;
 }
 .app-shell .pr-progress-label strong {
-  color: var(--fg);
+  color: var(--label);
   font-weight: 500;
 }
 .app-shell .pr-progress-track {
   height: 3px;
-  background: var(--surface-3);
-  border-radius: 99px;
+  background: var(--surface-2);
+  border-radius: 999px;
   overflow: hidden;
 }
 .app-shell .pr-progress-fill {
   height: 100%;
-  background: var(--accent);
-  border-radius: 99px;
+  background: var(--blue);
+  border-radius: 999px;
 }
-.app-shell .pr-progress-fill.s-review { background: #3d9bff; }
-.app-shell .pr-progress-fill.s-delivered { background: var(--success); }
+.app-shell .pr-progress-fill.s-review { background: var(--blue); }
+.app-shell .pr-progress-fill.s-delivered { background: var(--green-text); }
 
 .app-shell .pr-scoring-cell {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-variant-numeric: tabular-nums;
 }
 .app-shell .pr-scoring-num {
   font-size: 14px;
-  color: var(--fg);
+  color: var(--label);
   font-weight: 500;
   white-space: nowrap;
 }
 .app-shell .pr-scoring-num .denom {
-  color: var(--muted);
+  color: var(--label-2);
 }
 .app-shell .pr-scoring-warn {
   font-size: 10.5px;
-  color: var(--warn);
+  color: var(--orange-text);
   letter-spacing: 0.04em;
   display: inline-flex;
   align-items: center;
@@ -1155,8 +1079,8 @@
   white-space: nowrap;
 }
 .app-shell .pr-scoring-warn svg { width: 9px; height: 9px; }
-.app-shell .pr-scoring-warn.ok { color: var(--success); }
-.app-shell .pr-scoring-warn.pending { color: var(--faint); }
+.app-shell .pr-scoring-warn.ok { color: var(--green-text); }
+.app-shell .pr-scoring-warn.pending { color: var(--label-3); }
 
 .app-shell .pr-deadline-cell {
   display: flex;
@@ -1164,36 +1088,36 @@
   gap: 2px;
 }
 .app-shell .pr-deadline-date {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12px;
-  color: var(--muted);
+  color: var(--label-2);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   white-space: nowrap;
 }
 .app-shell .pr-deadline-count {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 17px;
   font-weight: 600;
-  color: var(--fg);
+  color: var(--label);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.008em;
   line-height: 1.05;
   white-space: nowrap;
 }
 .app-shell .pr-deadline-count em {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-style: normal;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--label-2);
   font-weight: 500;
   margin-left: 2px;
   letter-spacing: 0;
 }
-.app-shell .pr-deadline-count.urgent { color: var(--warn); }
-.app-shell .pr-deadline-count.urgent em { color: var(--warn); opacity: 0.8; }
-.app-shell .pr-deadline-count.critical { color: var(--danger); }
-.app-shell .pr-deadline-count.critical em { color: var(--danger); opacity: 0.8; }
+.app-shell .pr-deadline-count.urgent { color: var(--orange-text); }
+.app-shell .pr-deadline-count.urgent em { color: var(--orange-text); opacity: 0.8; }
+.app-shell .pr-deadline-count.critical { color: var(--red-text); }
+.app-shell .pr-deadline-count.critical em { color: var(--red-text); opacity: 0.8; }
 
 .app-shell .pr-team-cell {
   display: flex;
@@ -1217,16 +1141,15 @@
 .app-shell .project-row:hover .pr-team-stack .ava { border-color: var(--surface-2); }
 .app-shell .pr-team-stack .ava:first-child { margin-left: 0; }
 .app-shell .pr-team-stack .ava.more {
-  background: var(--surface-3);
-  color: var(--fg-2);
-  font-family: var(--font-sans);
+  background: var(--surface-2);
+  color: var(--label-2);
+  font-family: var(--font-ui);
 }
 .app-shell .pr-team-lead {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--muted);
+  color: var(--label-2);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -1242,8 +1165,8 @@
   width: 100%;
   border-collapse: collapse;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  border: 1px solid var(--separator);
+  border-radius: var(--r-control);
   overflow: hidden;
   font-size: 13px;
 }
@@ -1251,41 +1174,40 @@
   text-align: left;
   padding: 10px 16px;
   background: var(--surface-2);
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--label-2);
   letter-spacing: 0.14em;
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--separator);
 }
 .app-shell .archive-table th.num { text-align: right; }
 .app-shell .archive-table td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--separator);
   vertical-align: middle;
 }
 .app-shell .archive-table tr:last-child td { border-bottom: 0; }
 .app-shell .archive-table tr {
   cursor: pointer;
-  transition: background .14s;
+  transition: background var(--t-micro) var(--ease-std);
 }
 .app-shell .archive-table tbody tr:hover { background: var(--surface-2); }
 .app-shell .archive-table td.num {
   text-align: right;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-variant-numeric: tabular-nums;
-  color: var(--fg-2);
+  color: var(--label-2);
 }
 .app-shell .archive-title {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-weight: 600;
   font-size: 14px;
-  color: var(--fg);
+  color: var(--label);
   letter-spacing: -0.005em;
 }
 .app-shell .archive-sub {
-  color: var(--muted);
+  color: var(--label-2);
   font-size: 12px;
   margin-top: 2px;
 }
@@ -1293,11 +1215,10 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--success);
-  font-family: var(--font-sans);
+  color: var(--green-text);
+  font-family: var(--font-ui);
   font-size: 11px;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 .app-shell .archive-trophy svg { width: 11px; height: 11px; }
 
@@ -1307,19 +1228,18 @@
   gap: 6px;
   background: transparent;
   border: 0;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--muted);
+  color: var(--label-2);
   letter-spacing: 0.06em;
-  text-transform: uppercase;
   cursor: pointer;
   padding: 4px 0;
-  transition: color .14s;
+  transition: color var(--t-micro) var(--ease-std);
 }
-.app-shell .archive-toggle:hover { color: var(--fg); }
+.app-shell .archive-toggle:hover { color: var(--label); }
 .app-shell .archive-toggle svg {
   width: 11px; height: 11px;
-  transition: transform .2s;
+  transition: transform var(--t-float) var(--ease-std);
 }
 .app-shell .archive-toggle.is-open svg { transform: rotate(180deg); }
 .app-shell .archive-body {
@@ -1333,9 +1253,9 @@
    ============================================================ */
 .app-shell .empty-hint {
   margin-top: 14px;
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--label-2);
 }
 
 /* scrollbar fine */
@@ -1343,8 +1263,8 @@
 .app-shell *::-webkit-scrollbar { width: 6px; height: 6px; }
 .app-shell *::-webkit-scrollbar-track { background: transparent; }
 .app-shell *::-webkit-scrollbar-thumb {
-  background: #c2c5cd;
-  border-radius: 99px;
+  background: var(--border-2);
+  border-radius: 999px;
   border: 1.5px solid transparent;
   background-clip: padding-box;
 }
@@ -1375,26 +1295,25 @@
   margin-bottom: 26px;
 }
 .app-shell .page-header .eyebrow {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--accent);
+  color: var(--label-3);
   letter-spacing: 0.16em;
-  text-transform: uppercase;
   margin-bottom: 12px;
   display: inline-block;
 }
 .app-shell .page-header h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-ui);
   font-size: 32px;
   font-weight: 600;
   letter-spacing: -0.018em;
   margin: 0 0 6px;
   line-height: 1.15;
 }
-.app-shell .page-header h1 em { font-style: normal; font-weight: 500; color: var(--muted); }
+.app-shell .page-header h1 em { font-style: normal; font-weight: 500; color: var(--label-2); }
 .app-shell .page-header .deck {
-  font-family: var(--font-sans);
-  color: var(--fg-2);
+  font-family: var(--font-ui);
+  color: var(--label-2);
   font-size: 13.5px;
   margin: 0;
   line-height: 1.55;
@@ -1413,21 +1332,21 @@
 
 /* 待决策行（无进度）的占位文案 */
 .app-shell .pr-progress-cell .pending-note {
-  font-family: var(--font-sans);
+  font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--warn);
+  color: var(--orange-text);
   letter-spacing: 0.04em;
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 .app-shell .pr-progress-cell .pending-note .sb-dot {
-  width: 5px; height: 5px; border-radius: 50%; background: var(--warn);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--orange-text);
 }
 
 /* 进度填充：草稿态用浅色 */
-.app-shell .pr-progress-fill.s-draft { background: var(--faint); }
-.app-shell .pr-progress-fill.s-bid { background: var(--warn); }
+.app-shell .pr-progress-fill.s-draft { background: var(--label-3); }
+.app-shell .pr-progress-fill.s-bid { background: var(--orange-text); }
 
 /* 响应式收拢 */
 @media (max-width: 1180px) {
@@ -1472,18 +1391,22 @@
 }
 .app-shell .projects-empty b {
   font-size: 15px;
-  color: var(--ink, var(--label));
+  color: var(--label);
 }
 .app-shell .projects-empty span {
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--label-2);
   line-height: 1.7;
   max-width: 360px;
 }
 .app-shell .projects-empty-link {
   margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12.5px;
-  color: var(--accent);
+  color: var(--blue);
   text-decoration: none;
 }
 .app-shell .projects-empty-link:hover { text-decoration: underline; }
+.app-shell .projects-empty-link svg { width: 12px; height: 12px; }

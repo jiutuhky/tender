@@ -60,12 +60,13 @@ export const META: Record<CardType, CardMeta> = {
   chapter: { title: "技术方案 · 总体设计", icon: FileIcon, stage: "章节", status: "草稿", sc: "gray", w: 260, h: 208 },
   chart: { title: "实施进度计划", icon: ChartBarIcon, stage: "章节", status: "已生成", sc: "green", w: 238, h: 166 },
   assemble: { title: "投标文件 · 成稿", icon: FilesIcon, stage: "成稿", status: "编制中", sc: "blue", w: 226, h: 182 },
-  // —— 真实矩阵卡(数据订阅自 store,META 中的 status/sc 仅为兜底,实际徽标由 matrixCardBadge 驱动) ——
-  // h 为就绪态卡面实测高度(卡身实际由内容自适应,h 只喂编排布局的间距计算)
-  basic_info: { title: "项目概要", icon: IdCardIcon, stage: "解析", status: "等待解析", sc: "gray", w: 232, h: 256 },
-  business: { title: "商务应答矩阵", icon: CasesIcon, stage: "应答", status: "等待解析", sc: "gray", w: 232, h: 244 },
-  technical: { title: "技术应答矩阵", icon: ListDashesIcon, stage: "应答", status: "等待解析", sc: "gray", w: 232, h: 244 },
-  scoring: { title: "评分办法", icon: ChartBarIcon, stage: "评审", status: "等待解析", sc: "gray", w: 232, h: 208 },
+  // —— 真实矩阵卡(数据订阅自 store,META 中的 status/sc 仅为兜底,实际状态由 matrixCardBadge 驱动) ——
+  // h 为就绪态卡面实测高度(卡身实际由内容自适应,h 只喂编排布局的间距计算)。
+  // 四卡同高是卡面四行语法(题名/主指标/结构条/信号行)的直接结果,停靠列里逐行对齐。
+  basic_info: { title: "项目概要", icon: IdCardIcon, stage: "解析", status: "等待解析", sc: "gray", w: 232, h: 127 },
+  business: { title: "商务应答矩阵", icon: CasesIcon, stage: "应答", status: "等待解析", sc: "gray", w: 232, h: 127 },
+  technical: { title: "技术应答矩阵", icon: ListDashesIcon, stage: "应答", status: "等待解析", sc: "gray", w: 232, h: 127 },
+  scoring: { title: "评分办法", icon: ChartBarIcon, stage: "评审", status: "等待解析", sc: "gray", w: 232, h: 127 },
 };
 
 /* ---- 主轴：投标文件大纲（背景骨架卡） ---- */
@@ -147,49 +148,61 @@ export const isTerminalSlotStatus = (s: MatrixSlotStatus): boolean => s === "rea
 export const isSlotInterrupted = (s: MatrixSlotStatus, streamAborted: boolean): boolean =>
   streamAborted && !isTerminalSlotStatus(s);
 
-/** 矩阵槽位状态 → 卡角徽标(蓝只授予进行中;成功绿、失败橙、待命灰) */
-export function matrixCardBadge(status: MatrixSlotStatus): {
+/** 卡面基调。决定题名行报不报状态、卡壳立不立色条:
+ *  progress/idle 报一行状态文字;done 什么都不报(卡面有数字本身就是「已生成」,
+ *  全局进度画布工具栏已报过一次);failed/stalled 不报文字,改由卡壳左缘色条 +
+ *  卡面一句直陈承担。这是「状态标签只在偏离常态时发声」的落点。 */
+export type FaceTone = "progress" | "idle" | "done" | "failed" | "stalled";
+
+export interface MatrixCardBadge {
   label: string;
   sc: StatusColor;
   inProgress: boolean;
-} {
+  tone: FaceTone;
+}
+
+/** 矩阵槽位状态 → 卡面基调与状态文案(蓝只授予进行中;成功绿、失败橙、待命灰) */
+export function matrixCardBadge(status: MatrixSlotStatus): MatrixCardBadge {
   switch (status) {
     case "loading":
-      return { label: "解析中", sc: "blue", inProgress: true };
+      return { label: "正在解析", sc: "blue", inProgress: true, tone: "progress" };
     case "ready":
-      return { label: "已生成", sc: "green", inProgress: false };
+      return { label: "已生成", sc: "green", inProgress: false, tone: "done" };
     case "error":
-      return { label: "解析失败", sc: "orange", inProgress: false };
+      return { label: "解析失败", sc: "orange", inProgress: false, tone: "failed" };
     default:
-      return { label: "等待解析", sc: "gray", inProgress: false };
+      return { label: "等待解析", sc: "gray", inProgress: false, tone: "idle" };
   }
 }
 
-/** 运行中(尚无槽位数据)时四卡统一显示「解析中」;流中断时未终态槽位如实翻「解析中断」 */
+/** 运行中(尚无槽位数据)时四卡统一显示「正在解析」;流中断时未终态槽位如实翻「解析中断」 */
 export function matrixCardBadgeForPhase(
   slot: MatrixSlot<unknown>,
   running: boolean,
   aborted = false,
-): { label: string; sc: StatusColor; inProgress: boolean } {
+): MatrixCardBadge {
   if (isSlotInterrupted(slot.status, aborted))
-    return { label: "解析中断", sc: "gray", inProgress: false };
-  if (slot.status === "empty" && running) return { label: "解析中", sc: "blue", inProgress: true };
+    return { label: "解析中断", sc: "gray", inProgress: false, tone: "stalled" };
+  if (slot.status === "empty" && running)
+    return { label: "正在解析", sc: "blue", inProgress: true, tone: "progress" };
   return matrixCardBadge(slot.status);
 }
 
 /* ---- 配色助手 ---- */
 
-/** 状态色 → [底色, 前景色]，用于状态徽标 */
+/** 状态色 → [底色, 前景色]，用于状态徽标。
+ *  底色恒为中性：语义色只落文字与图标，不做彩色填充块（规范 + CONTEXT.md 提示语汇通则）。
+ *  唯一例外是蓝——它表达「可交互 / 进行中」，蓝衬底属规范发放的 --blue-soft。 */
 export function scPair(sc: StatusColor): [string, string] {
   switch (sc) {
     case "green":
-      return ["rgba(52,199,89,.15)", "var(--green-text)"];
+      return ["var(--surface-2)", "var(--green-text)"];
     case "blue":
       return ["var(--blue-soft)", "var(--blue)"];
     case "orange":
-      return ["rgba(255,149,0,.15)", "var(--orange-text)"];
+      return ["var(--surface-2)", "var(--orange-text)"];
     default:
-      return ["rgba(60,60,67,.10)", "var(--label-2)"];
+      return ["var(--surface-2)", "var(--label-2)"];
   }
 }
 

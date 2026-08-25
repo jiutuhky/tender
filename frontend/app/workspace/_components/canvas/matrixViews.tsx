@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState, type ReactNode } from "react";
+import { Fragment, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useWorkspaceStore, type MatrixSlot } from "@/lib/store/workspace";
 import { MatrixWriteConflictError } from "@/lib/hagent/api";
 import {
@@ -8,6 +8,7 @@ import {
   asSourceRefs,
   fmtLineSpan,
   fmtMoney,
+  fmtMoneyCompact,
   fmtSourceRef,
   fmtSourceRefs,
   type BasicInfoMatrix,
@@ -23,10 +24,19 @@ import {
   type TimelineEvent,
 } from "@/lib/hagent/matrix";
 import { assessSourceRef } from "@/lib/trace/refs";
-import { SecTitle, Table, type Col } from "./CardDetail";
+import { CheckIcon, ClockIcon, ProhibitIcon, WarningIcon } from "@/components/ui/icons";
 import { isSlotInterrupted } from "./cardMeta";
 import { useTrace, type TraceClaim } from "./traceContext";
-import { bidDeadline, calendarDaysBetween, deadlineCountdown, parseDeadline } from "./deadline";
+import {
+  DEADLINE_WARN_DAYS,
+  bidDeadline,
+  bidWindow,
+  calendarDaysBetween,
+  deadlineCountdown,
+  fmtShortDeadline,
+  parseDeadline,
+  type DeadlineInfo,
+} from "./deadline";
 
 /** 来源签处要填的对照条数据。itemKey / refs / refIndex 由 SourceChips 就地补齐
  *  (它本来就持有这三样),调用点只描述「被核验的是什么」。 */
@@ -95,73 +105,91 @@ const zh = (map: Record<string, string>, key: string | undefined): string =>
 
 /* ---------- 通用小态 ---------- */
 
-/** 载入中卡面的骨架条:形状呼应就绪后的行式内容,静态呈现(Frost 禁无限循环动效),
- *  进行感由卡顶蓝色进度条与「解析中」徽标承担。 */
+/** 载入中卡面的骨架:形状呼应就绪后的四行语法(主指标块 → 结构条 → 注释行),
+ *  静态呈现(Frost 禁无限循环动效),进行感由卡顶发丝线与题名行的「正在解析」承担。 */
 function FaceSkeleton() {
   return (
     <div className="cv-skel" aria-hidden>
-      {[0.92, 0.64, 0.8, 0.48].map((w, i) => (
-        <i key={i} style={{ width: `${w * 100}%` }} />
-      ))}
+      <i className="hero" style={{ width: "46%" }} />
+      <i style={{ width: "100%" }} />
+      <i style={{ width: "72%" }} />
     </div>
   );
 }
 
 /** 非 ready 槽位的占位(预览与详情共用):正在… / 等待 / 失败 / 中断。
- *  失败与中断的详情视图附「对话重试」引导——本迭代不做定向重试,恢复走对话。 */
+ *  卡面不发状态药丸——失败与中断由卡壳左缘色条(ArtifactCard 按 tone 挂类)加这里
+ *  的一句直陈承担。失败与中断的详情视图附「对话重试」引导:本迭代不做定向重试,恢复走对话。 */
 function SlotFallback({ slot, compact }: { slot: MatrixSlot<unknown>; compact?: boolean }) {
   const aborted = useWorkspaceStore((s) => s.phase === "error");
   const parsing = useWorkspaceStore(
     (s) => s.phase === "creating" || s.phase === "uploading" || s.phase === "running",
   );
-  const fs = compact ? 11.5 : 13;
   const retryHint = (
     <div style={{ color: "var(--label-3)", marginTop: 6 }}>可在对话中要求智能体重新解析。</div>
   );
   if (slot.status === "error") {
-    return (
-      <div style={{ fontSize: fs, lineHeight: 1.7 }}>
-        <div style={{ color: "var(--orange-text)" }}>
-          解析失败{compact ? "" : `：${slot.error ?? "未知错误"}`}
+    const reason = slot.error ?? "未知错误";
+    if (compact) {
+      return (
+        <div className="cv-face-fail">
+          <b>
+            <WarningIcon width={13} height={13} />
+            未取到解析结果
+          </b>
+          {reason}
         </div>
-        {!compact && retryHint}
+      );
+    }
+    return (
+      <div style={{ fontSize: 13, lineHeight: 1.7 }}>
+        <div style={{ color: "var(--orange-text)" }}>解析失败：{reason}</div>
+        {retryHint}
       </div>
     );
   }
   // 流整体中断且本槽位未终态:如实定格为「解析中断」,不再假装进行中
   if (isSlotInterrupted(slot.status, aborted)) {
+    if (compact) {
+      return (
+        <div className="cv-face-fail">
+          <b>
+            <ClockIcon width={13} height={13} />
+            解析中断
+          </b>
+          未获得本矩阵结果
+        </div>
+      );
+    }
     return (
-      <div style={{ fontSize: fs, lineHeight: 1.7 }}>
+      <div style={{ fontSize: 13, lineHeight: 1.7 }}>
         <div style={{ color: "var(--label-2)" }}>解析中断，未获得本矩阵结果</div>
-        {!compact && retryHint}
+        {retryHint}
       </div>
     );
   }
-  // 卡面在「解析中」(徽标同语义:载入中,或解析流进行中的待命槽)呈骨架条,不再是一行灰字
+  // 卡面在「解析中」(载入中,或解析流进行中的待命槽)呈骨架,不再是一行灰字
   if (compact && (slot.status === "loading" || (slot.status === "empty" && parsing)))
     return <FaceSkeleton />;
-  const text = slot.status === "loading" ? "正在载入矩阵数据…" : "等待智能体完成解析";
-  return <div style={{ fontSize: fs, color: "var(--label-3)", lineHeight: 1.7 }}>{text}</div>;
+  const text = slot.status === "loading" ? "正在载入矩阵数据……" : "等待智能体完成解析";
+  return (
+    <div style={{ fontSize: compact ? 12 : 13, color: "var(--label-3)", lineHeight: 1.7 }}>{text}</div>
+  );
 }
 
-/** extraction_summary 非 complete 时的黄条提示 */
+/** extraction_summary 非 complete 时的提示:一枚橙图标 + 一行字。
+ *  不做黄块——语义色只落在图标上,文案照常读。 */
 function SummaryStrip({ data }: { data: { extraction_summary?: { status?: string; warnings?: string[] } } }) {
   const s = data.extraction_summary;
   if (!s || s.status === "complete") return null;
   const label = s.status === "needs_review" ? "待复核" : "部分提取";
   return (
-    <div
-      style={{
-        fontSize: 12,
-        color: "var(--orange-text)",
-        background: "rgba(255,149,0,.12)",
-        borderRadius: 8,
-        padding: "7px 10px",
-        marginBottom: 12,
-      }}
-    >
-      {label}
-      {s.warnings?.length ? ` · ${s.warnings[0]}` : " · 提取结果可能不完整，请对照原文核验"}
+    <div className="cv-det-notice" role="status">
+      <WarningIcon width={14} height={14} />
+      <span>
+        <b>{label}</b>
+        {s.warnings?.length ? ` · ${s.warnings[0]}` : " · 提取结果可能不完整，请对照原文核验"}
+      </span>
     </div>
   );
 }
@@ -266,10 +294,12 @@ function SourceLine({
   index: number;
 }) {
   const fallbackId = useId();
+  if ((item.source_refs?.length ?? 0) === 0) return null;
   return (
-    <SourceRow
+    <SourceChips
       refs={item.source_refs ?? []}
       itemKey={item.id ?? fallbackId}
+      compact
       claim={{
         matrixType: type,
         itemId: item.id ?? null,
@@ -283,12 +313,22 @@ function SourceLine({
   );
 }
 
-/** ★ 实质性徽标:与卡面 .cv-face-badge 同皮(票3评审遗留③,橙=实质性、红=高风险统一口径) */
-function MandatoryBadge() {
-  return <span className="cv-face-badge is-mand">★ 实质性</span>;
+/** 实质性标记:沿用招标文件的原生记号 ★,不另造图形;窄处只留符号,悬停给全称。 */
+export function MandatoryMark({ full }: { full?: boolean }) {
+  return (
+    <span className="cv-star" title={full ? undefined : "实质性条款"}>
+      {full ? "★ 实质性" : "★"}
+    </span>
+  );
 }
 
-/** 分组卡外壳:商务/技术条目分组与评分分组共用 */
+/** 高风险标记:一枚红点 + 两个字,替代此前的红底药丸。 */
+export function RiskMark({ label = "高风险" }: { label?: string }) {
+  return <span className="cv-mark is-risk">{label}</span>;
+}
+
+/** 分组外壳:商务/技术条目分组与评分分组共用。
+ *  抽屉自身已是一个面,里面再套边框卡就成了三层盒子 —— 改用一条分组眉 + hairline 列表。 */
 function GroupCard({
   id,
   title,
@@ -305,13 +345,10 @@ function GroupCard({
   children: ReactNode;
 }) {
   return (
-    <div
-      id={id}
-      style={{ border: "1px solid var(--separator)", borderRadius: 12, padding: "12px 14px", background: "var(--surface)" }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--label)" }}>{title}</span>
-        <span style={{ fontSize: 11, color: "var(--label-3)" }}>
+    <div id={id} className="cv-det-group">
+      <div className="cv-det-group-head">
+        <b>{title}</b>
+        <span>
           {count} {unit}
         </span>
         {extra}
@@ -325,7 +362,7 @@ function GroupCard({
 function TruncNote({ rest, unit }: { rest: number; unit: string }) {
   if (rest <= 0) return null;
   return (
-    <div style={{ fontSize: 11.5, color: "var(--label-3)", marginTop: 10 }}>
+    <div style={{ fontSize: 12, color: "var(--label-3)", marginTop: 10 }}>
       其余 {rest} {unit}未展示，可在对话中让智能体检索
     </div>
   );
@@ -333,7 +370,7 @@ function TruncNote({ rest, unit }: { rest: number; unit: string }) {
 
 /** 详情空态短句(未提取到 / 过滤无匹配) */
 function EmptyNote({ text }: { text: string }) {
-  return <div style={{ fontSize: 12.5, color: "var(--label-3)", padding: "6px 0" }}>{text}</div>;
+  return <div style={{ fontSize: 13, color: "var(--label-3)", padding: "6px 0" }}>{text}</div>;
 }
 
 /* ---------- 聚合工具 ---------- */
@@ -353,168 +390,173 @@ const mandatoryCount = (items: RequirementItem[]): number =>
   items.filter((i) => i.mandatory).length;
 
 /* ---------- 预览:卡面紧凑视图 ---------- */
+/* 四张卡共用一套四行语法:题名(卡壳给) / 主指标 / 结构条 / 信号行。
+   卡面只回答一个问题,其余交给抽屉详情。信号行至多两项,风险信号优先于分类注释。 */
 
-function Bar({ fill }: { fill: number }) {
+/** 结构条:分类构成压成一条 4px 堆叠条。段色走中性灰阶(深→浅 = 多→少),
+ *  第五类及以后并成一段浅色尾;段数为 0 时整条不渲染。 */
+function FaceStack({ parts }: { parts: number[] }) {
+  const total = parts.reduce((a, b) => a + b, 0);
+  if (parts.length === 0 || total <= 0) return null;
+  const cls = ["s1", "s2", "s3", "s4"];
   return (
-    <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
-      <div style={{ width: `${Math.min(1, fill) * 100}%`, height: "100%", background: "var(--blue)", borderRadius: 999 }} />
+    <div className="cv-face-stack" aria-hidden>
+      {parts.map((v, i) => (
+        <i key={i} className={cls[i] ?? "rest"} style={{ flex: Math.max(v, 0) }} />
+      ))}
     </div>
   );
 }
 
-/** 概要卡决策触发器:投标截止时间 + 剩余天数倒计时,全卡最醒目一行(临近截止翻警示色) */
-function DeadlineHero({ data }: { data: BasicInfoMatrix }) {
-  const dl = bidDeadline(data.timeline);
-  const cd = deadlineCountdown(dl?.daysLeft ?? null);
-  const tone = cd?.tone ?? "normal";
-  const cls =
-    tone === "warn" ? "cv-face-deadline is-warn" : tone === "past" ? "cv-face-deadline is-past" : "cv-face-deadline";
-  return (
-    <div className={cls}>
-      <div className="cv-face-deadline-top">
-        <span>投标截止</span>
-        {cd && <span className="cv-face-deadline-count">{cd.label}</span>}
-      </div>
-      <div className="cv-face-deadline-date">{dl?.text || "—"}</div>
-    </div>
-  );
+/** 概要卡主指标:剩余天数。无从推导时由调用方降级到预算。 */
+function deadlineHero(dl: DeadlineInfo): { value: string; unit: string; tone: string } | null {
+  const d = dl.daysLeft;
+  if (d === null) return null;
+  if (d > 0)
+    return { value: String(d), unit: "天后投标截止", tone: d <= DEADLINE_WARN_DAYS ? " is-warn" : "" };
+  if (d === 0) return { value: "今日", unit: "投标截止", tone: " is-warn" };
+  return { value: "已截止", unit: `已过 ${-d} 天`, tone: " is-past" };
 }
 
 function BasicInfoPreview({ slot }: { slot: MatrixSlot<BasicInfoMatrix> }) {
   if (slot.status !== "ready" || !slot.data) return <SlotFallback slot={slot} compact />;
-  const p = slot.data.project ?? {};
-  const kv: Array<[string, string]> = [
-    ["项目预算", fmtMoney(p.budget)],
-    ["采购方式", p.procurement_method || "—"],
-    ["评标方法", p.evaluation_method || "—"],
-  ];
+  const d = slot.data;
+  const p = d.project ?? {};
+  const dl = bidDeadline(d.timeline);
+  const hero = dl ? deadlineHero(dl) : null;
+  const win = bidWindow(d.timeline);
+  // 卡面金额一律走紧凑格式(「270 万元」):原文 text 可能带小数、大写与最高限价整句,
+  // 放进 27px 大字会撑爆四行语法、把下面的卡顶到重叠。完整原文在抽屉里。
+  const budget = fmtMoneyCompact(p.budget);
+  // 招标文件没写明投标截止时,主指标顺位降到预算;两者都缺就如实说一句
+  const fallbackHero = budget
+    ? { value: budget.value, unit: `${budget.unit} · 项目预算`, tone: "" }
+    : { value: "—", unit: p.name || d.project_name || "未识别关键信息", tone: "" };
+  const h = hero ?? fallbackHero;
+  // 信号行:主指标是截止时补「截止时刻 · 预算」;主指标已是预算时,说清截止缺席,
+  // 再带一个采购方式——信号行总得有一条对下游决策有用的事实。
+  const deadlineNote = hero
+    ? dl?.at
+      ? `${fmtShortDeadline(dl.at)} 截止`
+      : ""
+    : dl
+      ? "投标截止时间无法解析"
+      : "未写明投标截止时间";
+  const note = [
+    deadlineNote,
+    hero && budget ? `预算 ${budget.value} ${budget.unit}` : "",
+    !hero ? p.procurement_method || "" : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-      <DeadlineHero data={slot.data} />
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: "var(--label)",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {p.name || slot.data.project_name || "未识别项目名称"}
+    <>
+      <div className={`cv-face-hero${h.tone}`}>
+        <b>{h.value}</b>
+        <span>{h.unit}</span>
       </div>
-      {kv.map(([k, v]) => (
-        <div key={k} style={{ display: "flex", gap: 8, fontSize: 11.5 }}>
-          <span style={{ width: 52, color: "var(--label-3)" }}>{k}</span>
-          <span
-            style={{
-              flex: 1,
-              color: "var(--label)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {v}
-          </span>
-        </div>
-      ))}
-    </div>
+      {win ? <FaceStack parts={[win.elapsed, win.left]} /> : null}
+      <div className="cv-face-sig" style={win ? undefined : { marginTop: 13 }}>
+        <span className="is-note">{note}</span>
+      </div>
+    </>
   );
 }
 
 function RequirementPreview({
   slot,
+  unit,
   categoryMap,
   showRisk,
 }: {
   slot: MatrixSlot<BusinessMatrix | TechnicalMatrix>;
+  /** 主指标后缀:「条商务要求」/「条技术要求」 */
+  unit: string;
   categoryMap: Record<string, string>;
-  /** 技术卡专属:存在高风险条目时追加「高风险 N」徽标 */
+  /** 技术卡专属:存在高风险条目时追加信号 */
   showRisk?: boolean;
 }) {
   if (slot.status !== "ready" || !slot.data) return <SlotFallback slot={slot} compact />;
   const items = slot.data.items ?? [];
-  const groups = groupByCategory(items).slice(0, 4);
-  const max = groups[0]?.[1].length ?? 1;
+  const groups = groupByCategory(items);
+  const top = groups.slice(0, 4);
+  const rest = items.length - top.reduce((acc, [, arr]) => acc + arr.length, 0);
+  const parts = [...top.map(([, arr]) => arr.length), ...(rest > 0 ? [rest] : [])];
   const mand = mandatoryCount(items);
-  const risk = showRisk ? items.filter((i) => i.risk_level === "high").length : 0;
+  const risk = showRisk ? items.filter(isHighRisk).length : 0;
+  // 信号行至多两项:实质性 > 高风险 > 分类注释。两个风险信号都在时不再挤注释
+  const catNote = top
+    .slice(0, 2)
+    .map(([cat, arr]) => `${zh(categoryMap, cat)} ${arr.length}`)
+    .join(" · ");
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-      {/* 决策触发器:实质性计数升格为★橙色徽标(漏一条即废标);为 0 时中性呈现不误报 */}
-      <div className="cv-face-badges">
-        <span className={mand > 0 ? "cv-face-badge is-mand" : "cv-face-badge"}>
-          {mand > 0 ? `★ 实质性 ${mand} 项` : "实质性 0 项"}
-        </span>
-        {risk > 0 && <span className="cv-face-badge is-risk">高风险 {risk}</span>}
+    <>
+      <div className="cv-face-hero">
+        <b>{items.length}</b>
+        <span>{unit}</span>
       </div>
-      {groups.map(([cat, arr]) => (
-        <div key={cat} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{ width: 44, fontSize: 11, color: "var(--label-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
-          >
-            {zh(categoryMap, cat)}
+      <FaceStack parts={parts} />
+      <div className="cv-face-sig">
+        {mand > 0 && (
+          <span className="is-mand">
+            实质性 <b>{mand}</b> 项
           </span>
-          <Bar fill={arr.length / max} />
-          <span style={{ width: 20, textAlign: "right", fontSize: 11, fontVariantNumeric: "tabular-nums", color: "var(--label-3)" }}>
-            {arr.length}
+        )}
+        {risk > 0 && (
+          <span className="is-fatal">
+            高风险 <b>{risk}</b>
           </span>
-        </div>
-      ))}
-      <div style={{ marginTop: 1, fontSize: 11, color: "var(--label-3)", fontVariantNumeric: "tabular-nums" }}>
-        共 {items.length} 条
+        )}
+        {!(mand > 0 && risk > 0) && (
+          <span className="is-note">{mand > 0 ? catNote : `无实质性条款${catNote ? ` · ${catNote}` : ""}`}</span>
+        )}
       </div>
-    </div>
+    </>
   );
+}
+
+/** 否决项计数:与详情红区同口径(文本拼得出来的 pass_fail_rules 才算数) */
+function countVetoRules(ev: NonNullable<ScoringMatrix["evaluation"]>): number {
+  return (ev.pass_fail_rules ?? []).filter((r) => vetoRuleText(r)).length;
 }
 
 function ScoringPreview({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
   if (slot.status !== "ready" || !slot.data) return <SlotFallback slot={slot} compact />;
   const ev = slot.data.evaluation ?? {};
-  const subs: Array<[string, number | null | undefined]> = [
+  const dims: Array<[string, number | null | undefined]> = [
+    ["技术", ev.technical_score],
     ["价格", ev.price_score],
     ["商务", ev.business_score],
-    ["技术", ev.technical_score],
   ];
-  // 权重基数:优先总分,缺失时退化为三格分值之和(仍能比出价格标/技术标)
-  const base =
-    typeof ev.total_score === "number" && ev.total_score > 0
-      ? ev.total_score
-      : subs.reduce((acc, [, v]) => acc + (typeof v === "number" && v > 0 ? v : 0), 0);
+  // 分值降序:结构条的灰阶按名次给(最重的一维最深),注释行也只报前两名
+  const ranked = dims
+    .filter((x): x is [string, number] => typeof x[1] === "number" && x[1] > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const total = typeof ev.total_score === "number" && ev.total_score > 0 ? ev.total_score : null;
+  const known = ranked.reduce((acc, [, v]) => acc + v, 0);
+  const other = total !== null && total - known > 0 ? total - known : 0;
+  const veto = countVetoRules(ev);
+  const count = slot.data.items?.length ?? 0;
+  const dimNote = ranked
+    .slice(0, 2)
+    .map(([k, v]) => `${k} ${fmtScore(v)}`)
+    .join(" · ");
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 8 }}>
-        <span style={{ fontSize: 24, fontWeight: 700, color: "var(--label)", fontVariantNumeric: "tabular-nums" }}>
-          {ev.total_score ?? "—"}
-        </span>
-        <span style={{ fontSize: 11, color: "var(--label-3)" }}>
-          {ev.method || "综合评分法"} · {slot.data.items?.length ?? 0} 项
-        </span>
+    <>
+      <div className="cv-face-hero">
+        <b>{total ?? "—"}</b>
+        <span>{count > 0 ? `分 · ${count} 项` : "分"}</span>
       </div>
-      <div style={{ display: "flex", gap: 6 }}>
-        {subs.map(([k, v]) => {
-          const fill = base > 0 && typeof v === "number" && v > 0 ? Math.min(1, v / base) : 0;
-          return (
-            <div
-              key={k}
-              style={{ flex: 1, background: "var(--surface-2)", borderRadius: 8, padding: "6px 0 7px", textAlign: "center" }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--label)", fontVariantNumeric: "tabular-nums" }}>
-                {v ?? "—"}
-              </div>
-              <div style={{ fontSize: 10.5, color: "var(--label-3)" }}>{k}</div>
-              {/* 权重占比微条(分值/总分):一眼可辨价格标还是技术标;分值缺失的格不画空轨道 */}
-              {base > 0 && typeof v === "number" && v > 0 && (
-                <div className="cv-face-weight">
-                  <i style={{ width: `${fill * 100}%` }} />
-                </div>
-              )}
-            </div>
-          );
-        })}
+      <FaceStack parts={[...ranked.map(([, v]) => v), ...(other > 0 ? [other] : [])]} />
+      <div className="cv-face-sig">
+        {veto > 0 && (
+          <span className="is-fatal">
+            否决项 <b>{veto}</b> 条
+          </span>
+        )}
+        <span className="is-note">{dimNote || ev.method || "综合评分法"}</span>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -525,9 +567,22 @@ export function MatrixCardPreview({ type }: { type: MatrixType }) {
     case "basic_info":
       return <BasicInfoPreview slot={slot as MatrixSlot<BasicInfoMatrix>} />;
     case "business":
-      return <RequirementPreview slot={slot as MatrixSlot<BusinessMatrix>} categoryMap={BIZ_CATEGORY} />;
+      return (
+        <RequirementPreview
+          slot={slot as MatrixSlot<BusinessMatrix>}
+          unit="条商务要求"
+          categoryMap={BIZ_CATEGORY}
+        />
+      );
     case "technical":
-      return <RequirementPreview slot={slot as MatrixSlot<TechnicalMatrix>} categoryMap={TECH_CATEGORY} showRisk />;
+      return (
+        <RequirementPreview
+          slot={slot as MatrixSlot<TechnicalMatrix>}
+          unit="条技术要求"
+          categoryMap={TECH_CATEGORY}
+          showRisk
+        />
+      );
     case "scoring":
       return <ScoringPreview slot={slot as MatrixSlot<ScoringMatrix>} />;
   }
@@ -535,67 +590,81 @@ export function MatrixCardPreview({ type }: { type: MatrixType }) {
 
 /* ---------- 详情:抽屉完整视图 ---------- */
 
-function KvGrid({ rows }: { rows: Array<[string, string]> }) {
+/** 字段定义列表:八格键值网格里一半是空值时格线感最重,改成有值才列的 dt/dd。 */
+function FieldList({ rows }: { rows: Array<[string, string]> }) {
+  const filled = rows.filter(([, v]) => v && v !== "—");
+  if (filled.length === 0) return null;
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px 18px", marginBottom: 14 }}>
-      {rows.map(([k, v]) => (
-        <div key={k}>
-          <div style={{ fontSize: 11, color: "var(--label-3)", marginBottom: 2 }}>{k}</div>
-          <div style={{ fontSize: 13, color: "var(--label)", lineHeight: 1.55, overflowWrap: "anywhere" }}>{v || "—"}</div>
-        </div>
+    <dl className="cv-det-dl">
+      {filled.map(([k, v]) => (
+        <Fragment key={k}>
+          <dt>{k}</dt>
+          <dd>{v}</dd>
+        </Fragment>
       ))}
-    </div>
+    </dl>
   );
 }
 
 function BasicInfoDetail({ slot }: { slot: MatrixSlot<BasicInfoMatrix> }) {
-  if (slot.status !== "ready" || !slot.data) {
-    return (
-      <div>
-        <SecTitle t="项目概要" />
-        <SlotFallback slot={slot} />
-      </div>
-    );
-  }
+  if (slot.status !== "ready" || !slot.data) return <SlotFallback slot={slot} />;
   const d = slot.data;
   const p = d.project ?? {};
   const timeline = d.timeline ?? [];
   const packages = p.packages ?? [];
+  const dl = bidDeadline(timeline);
+  const hero = dl ? deadlineHero(dl) : null;
+  const budget = fmtMoney(p.budget);
   return (
     <div>
-      <SecTitle t="项目概要" sub={p.number ? `项目编号 ${p.number}` : undefined} />
       <SummaryStrip data={d} />
-      <KvGrid
+      {(hero || budget !== "—") && (
+        <div className="cv-det-hero">
+          {hero && (
+            <div className={`cv-det-hero-cell${hero.tone}`}>
+              <b>{hero.value}</b>
+              <span>{hero.unit}</span>
+            </div>
+          )}
+          {budget !== "—" && (
+            <div className="cv-det-hero-cell">
+              <b>{budget}</b>
+              <span>项目预算</span>
+            </div>
+          )}
+        </div>
+      )}
+      <FieldList
         rows={[
+          // 项目编号不在此列:抽屉标题栏的副标题已经写着它
           ["项目名称", p.name || d.project_name || ""],
-          ["项目预算", fmtMoney(p.budget)],
           ["采购方式", p.procurement_method || ""],
           ["评标方法", p.evaluation_method || ""],
-          ["采购人", p.purchaser?.name || ""],
-          ["代理机构", p.agency?.name || ""],
           ["服务期 / 工期", p.delivery_or_service_period || ""],
           ["交付地点", p.delivery_location || ""],
+          ["采购人", p.purchaser?.name || ""],
+          ["代理机构", p.agency?.name || ""],
         ]}
       />
       {p.scope && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "var(--label-3)", marginBottom: 3 }}>采购范围</div>
-          <p style={{ fontSize: 13, lineHeight: 1.8, color: "var(--label)", margin: 0 }}>{p.scope}</p>
+        <div style={{ marginBottom: 16 }}>
+          <div className="cv-det-sub">采购范围</div>
+          <p style={{ fontSize: 13, lineHeight: 1.8, color: "var(--label-2)", margin: 0 }}>{p.scope}</p>
         </div>
       )}
       {packages.length > 0 && (
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>分包 · {packages.length} 个</div>
+        <div style={{ marginBottom: 16 }}>
+          <div className="cv-det-sub">分包 · {packages.length} 个</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {packages.map((pkg, i) => (
               <div
                 key={pkg.package_id ?? i}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", background: "var(--surface-2)", borderRadius: 10 }}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 11px", background: "var(--surface-2)", borderRadius: "var(--r-window)" }}
               >
-                <span style={{ flex: 1, fontSize: 12.5, color: "var(--label)" }}>
+                <span style={{ flex: 1, fontSize: 13, color: "var(--label)" }}>
                   {pkg.package_name || pkg.package_id || `包 ${i + 1}`}
                 </span>
-                <span style={{ fontSize: 11.5, color: "var(--label-3)", fontVariantNumeric: "tabular-nums" }}>
+                <span style={{ fontSize: 12, color: "var(--label-3)", fontVariantNumeric: "tabular-nums" }}>
                   {fmtMoney(pkg.budget)}
                 </span>
               </div>
@@ -605,7 +674,7 @@ function BasicInfoDetail({ slot }: { slot: MatrixSlot<BasicInfoMatrix> }) {
       )}
       {timeline.length > 0 && (
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>关键时间节点</div>
+          <div className="cv-det-sub">关键时间节点</div>
           <DetailTimeline timeline={timeline} />
         </div>
       )}
@@ -646,11 +715,7 @@ function DetailTimeline({ timeline }: { timeline: TimelineEvent[] }) {
             <div style={{ minWidth: 0 }}>
               <div className="cv-det-tl-title">
                 {zh(TIMELINE_EVENT, ev.event)}
-                {cd && (
-                  <span className={cd.tone === "warn" ? "cv-face-badge is-warn" : "cv-face-badge"}>
-                    {cd.label}
-                  </span>
-                )}
+                {cd && <span className="cv-det-tl-count">{cd.label}</span>}
               </div>
               <div className="cv-det-tl-meta">
                 {ev.datetime || "—"}
@@ -744,7 +809,15 @@ export function ItemActions({
         disabled={busy || row.confirmed}
         onClick={onConfirm}
       >
-        {row.confirmed ? "✓ 已确认" : "确认"}
+        {/* 勾号走 Phosphor 图标,不用 Unicode 图形字符 ✓ */}
+        {row.confirmed ? (
+          <>
+            <CheckIcon width={12} height={12} aria-hidden="true" />
+            已确认
+          </>
+        ) : (
+          "确认"
+        )}
       </button>
       {row.response_note && <span className="cv-item-note">备注 {row.response_note}</span>}
       {error && (
@@ -767,38 +840,99 @@ const REQ_FILTERS: Array<{ k: ReqFilter; label: string; pred: (it: RequirementIt
   { k: "risk", label: "高风险", pred: isHighRisk },
 ];
 
-/** business / technical 共用的条目详情:顶部过滤签(全部/★实质性/高风险)与
- *  分类锚点计数签吸顶,几百条逐条响应中快速聚焦致命条款;条目按 category 分组,渲染上限 300 条。
- *  条目行带人工动作(确认/应答状态),经 store 写 REST 端点落对象库。 */
+/** 条目行状态标记:常驻的是状态(读),按需的是操作(点)。两者共用行尾同一个槽,悬停互斥切换。 */
+function rowState(row: MatrixItemRow | undefined): { text: string; cls: string } | null {
+  if (!row) return null;
+  const opt = RESPONSE_STATUS_OPTS.find((o) => o.k === row.response_status);
+  if (row.confirmed) return { text: opt ? `已确认 · ${opt.label}` : "已确认", cls: opt?.cls ?? "is-compliant" };
+  if (opt) return { text: opt.label, cls: opt.cls };
+  return { text: "待应答", cls: "is-idle" };
+}
+
+
+function RequirementRow({
+  item,
+  index,
+  type,
+  row,
+  action,
+}: {
+  item: RequirementItem;
+  index: number;
+  type: MatrixType;
+  row: MatrixItemRow | undefined;
+  action: ReturnType<typeof useItemAction>;
+}) {
+  const [open, setOpen] = useState(false);
+  // 「展开原文」按实际是否被截断决定,不按字数猜:中英数混排的行宽差一倍,
+  // 猜出来的阈值必然在一部分条目上给出没用的按钮或漏掉该给的按钮。
+  const [clampable, setClampable] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const text = item.requirement_text ?? "";
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    setClampable(el.scrollHeight - el.clientHeight > 1);
+  }, [text]);
+  const state = rowState(row);
+  return (
+    <div className="cv-det-item">
+      <div className="cv-det-item-top">
+        {item.mandatory && <MandatoryMark />}
+        {isHighRisk(item) && !item.mandatory && <RiskMark />}
+        <span className="cv-det-item-title">{item.title || "未命名条目"}</span>
+      </div>
+      {text && (
+        <p ref={textRef} className={open ? "cv-det-item-text" : "cv-det-item-text is-clamped"}>
+          {text}
+        </p>
+      )}
+      <div className="cv-det-foot">
+        <span className="cv-det-id">{item.id ?? `#${index + 1}`}</span>
+        <SourceLine item={item} type={type} index={index} />
+        {clampable && (
+          <button type="button" className="cv-det-more" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+            {open ? "收起" : "展开原文"}
+          </button>
+        )}
+        {state && <span className={`cv-det-state ${state.cls}`}>{state.text}</span>}
+      </div>
+      {row && (
+        <div className="cv-det-act">
+          <ItemActions
+            row={row}
+            busy={action.busyItemId === row.item_id}
+            error={action.actionErr?.id === row.item_id ? action.actionErr.msg : null}
+            onConfirm={() => action.confirm(row.item_id)}
+            onSetStatus={(status) => action.setStatus(row.item_id, status)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** business / technical 共用的条目详情:过滤段控与分类锚点同行吸顶(锚点自身横滚),
+ *  几百条逐条响应中快速聚焦致命条款;条目按 category 分组,渲染上限 300 条。
+ *  条目行的人工动作(确认/应答状态)悬停浮现,经 store 写 REST 端点落对象库。 */
 function RequirementDetail({
   type,
   slot,
-  title,
   categoryMap,
 }: {
   type: MatrixType;
   slot: MatrixSlot<BusinessMatrix | TechnicalMatrix>;
-  title: string;
   categoryMap: Record<string, string>;
 }) {
   const [filter, setFilter] = useState<ReqFilter>("all");
   const anchorBase = useId();
   const headRef = useRef<HTMLDivElement>(null);
-  const { busyItemId, actionErr, confirm, setStatus } = useItemAction(type);
-  if (slot.status !== "ready" || !slot.data) {
-    return (
-      <div>
-        <SecTitle t={title} />
-        <SlotFallback slot={slot} />
-      </div>
-    );
-  }
+  const action = useItemAction(type);
+  if (slot.status !== "ready" || !slot.data) return <SlotFallback slot={slot} />;
   const d = slot.data;
   const all = d.items ?? [];
   // 行级管理状态(确认/应答状态/乐观锁版本)按业务 id 对齐条目 payload
   const rowsById = new Map((slot.itemRows ?? []).map((r) => [r.item_id, r]));
-  const mand = mandatoryCount(all);
-  const conf = d.extraction_summary?.confidence;
   const filters = REQ_FILTERS.map((f) => ({ ...f, n: all.filter(f.pred).length }));
   const active = REQ_FILTERS.find((f) => f.k === filter) ?? REQ_FILTERS[0]!;
   const filtered = all.filter(active.pred);
@@ -819,10 +953,6 @@ function RequirementDetail({
   };
   return (
     <div>
-      <SecTitle
-        t={title}
-        sub={`共 ${all.length} 条 · 实质性 ${mand} 项${conf ? ` · 置信度 ${conf}` : ""}`}
-      />
       <SummaryStrip data={d} />
       <div ref={headRef} className="cv-det-head">
         <div className="cv-det-seg" role="group" aria-label="条目过滤">
@@ -852,62 +982,31 @@ function RequirementDetail({
       {items.length === 0 ? (
         <EmptyNote text={all.length === 0 ? "未提取到条目" : "当前过滤下无匹配条目"} />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {groups.map(([cat, arr]) => (
-            <GroupCard
-              key={cat}
-              id={gid(cat)}
-              title={zh(categoryMap, cat)}
-              count={arr.length}
-              unit="条"
-              extra={
-                mandatoryCount(arr) > 0 ? (
-                  <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--orange-text)" }}>
-                    实质性 {mandatoryCount(arr)}
-                  </span>
-                ) : undefined
-              }
-            >
-              {arr.map((it, i) => {
-                const row = it.id ? rowsById.get(it.id) : undefined;
-                return (
-                  <div
-                    key={it.id ?? i}
-                    style={{ padding: "9px 0", borderTop: i ? "1px solid var(--separator)" : "none" }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 11, color: "var(--label-3)", fontVariantNumeric: "tabular-nums" }}>
-                        {it.id ?? `#${i + 1}`}
-                      </span>
-                      <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: "var(--label)" }}>
-                        {it.title || "未命名条目"}
-                      </span>
-                      {it.mandatory && <MandatoryBadge />}
-                      {isHighRisk(it) && !it.mandatory && (
-                        <span className="cv-face-badge is-risk">高风险</span>
-                      )}
-                    </div>
-                    {it.requirement_text && (
-                      <p style={{ fontSize: 12.5, lineHeight: 1.75, color: "var(--label-2)", margin: "4px 0 0" }}>
-                        {it.requirement_text}
-                      </p>
-                    )}
-                    <SourceLine item={it} type={type} index={i} />
-                    {row && (
-                      <ItemActions
-                        row={row}
-                        busy={busyItemId === row.item_id}
-                        error={actionErr?.id === row.item_id ? actionErr.msg : null}
-                        onConfirm={() => confirm(row.item_id)}
-                        onSetStatus={(status) => setStatus(row.item_id, status)}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </GroupCard>
-          ))}
-        </div>
+        groups.map(([cat, arr]) => (
+          <GroupCard
+            key={cat}
+            id={gid(cat)}
+            title={zh(categoryMap, cat)}
+            count={arr.length}
+            unit="条"
+            extra={
+              mandatoryCount(arr) > 0 ? (
+                <span className="cv-det-group-mand">实质性 {mandatoryCount(arr)}</span>
+              ) : undefined
+            }
+          >
+            {arr.map((it, i) => (
+              <RequirementRow
+                key={it.id ?? i}
+                item={it}
+                index={i}
+                type={type}
+                row={it.id ? rowsById.get(it.id) : undefined}
+                action={action}
+              />
+            ))}
+          </GroupCard>
+        ))
       )}
       <TruncNote rest={filtered.length - items.length} unit="条" />
     </div>
@@ -935,14 +1034,7 @@ function vetoRuleText(r: unknown): string {
 }
 
 function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
-  if (slot.status !== "ready" || !slot.data) {
-    return (
-      <div>
-        <SecTitle t="评分办法" />
-        <SlotFallback slot={slot} />
-      </div>
-    );
-  }
+  if (slot.status !== "ready" || !slot.data) return <SlotFallback slot={slot} />;
   const d = slot.data;
   const ev = d.evaluation ?? {};
 
@@ -961,16 +1053,19 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
     .filter((v) => v.text);
 
   // 分值结构:价格/商务/技术取评分办法标称分,其他 = 总分与三格之和的差值(>0 才画);
-  // 段色由 .cv-det-scorebar/.cv-det-scorelegend 的修饰类承载,TSX 不写色值
-  const parts: Array<{ label: string; score: number; cls: string }> = [];
-  const raw: Array<[string, number | null | undefined, string]> = [
-    ["价格", ev.price_score, "is-price"],
-    ["商务", ev.business_score, "is-business"],
-    ["技术", ev.technical_score, "is-technical"],
-  ];
-  for (const [label, v, cls] of raw) {
-    if (typeof v === "number" && v > 0) parts.push({ label, score: v, cls });
-  }
+  // 段色按名次走中性灰阶(.is-rank1..3 / .is-other),TSX 不写色值
+  const ranked = ([
+    ["价格", ev.price_score],
+    ["商务", ev.business_score],
+    ["技术", ev.technical_score],
+  ] as Array<[string, number | null | undefined]>)
+    .filter((x): x is [string, number] => typeof x[1] === "number" && x[1] > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const parts: Array<{ label: string; score: number; cls: string }> = ranked.map(([label, score], i) => ({
+    label,
+    score,
+    cls: `is-rank${i + 1}`,
+  }));
   const known = parts.reduce((acc, p) => acc + p.score, 0);
   const total = typeof ev.total_score === "number" && ev.total_score > 0 ? ev.total_score : null;
   if (total !== null && total - known > 0) parts.push({ label: "其他", score: total - known, cls: "is-other" });
@@ -990,61 +1085,22 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
     ...SCORE_GROUP_ORDER.filter((k) => gmap.has(k)),
     ...[...gmap.keys()].filter((k) => !SCORE_GROUP_ORDER.includes(k)),
   ];
-  const head: Col[] = [
-    { t: "评分项", f: "1.6" },
-    { t: "分值", f: "0 0 48px" },
-    { t: "评分规则", f: "2.4" },
-    { t: "来源", f: "0 0 96px" },
-  ];
-  // 「来源」列升级为来源签(票04):多条 ref 全部成签(修复旧版只显示第一条的
-  // 信息丢失),点击行为与条目签一致;窄列用 compact 签面(行号),章节进悬停。
-  const groupRows = (groupKey: string, arr: ScoringItem[]): ReactNode[][] => {
-    const rows: ReactNode[][] = arr.map((it, i) => [
-      <span key="t" style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-        {it.title || `评分项 ${i + 1}`}
-        {it.mandatory_gate && <span className="cv-face-badge is-risk">否决</span>}
-      </span>,
-      <span key="s" style={{ fontVariantNumeric: "tabular-nums" }}>{it.max_score ?? "—"}</span>,
-      <span key="r" style={{ color: "var(--label-2)", lineHeight: 1.6 }}>{it.scoring_rule || "—"}</span>,
-      <span key="l" className="cv-src-row is-cell">
-        <SourceChips
-          refs={it.source_refs ?? []}
-          itemKey={`score:${it.id ?? `${groupKey}#${i}`}`}
-          compact
-          claim={{
-            matrixType: "scoring",
-            itemId: null,
-            label: `评分项 ${it.id ?? i + 1}`,
-            title: it.title || `评分项 ${i + 1}`,
-            requirementText: it.scoring_rule || "",
-            highRisk: !!it.mandatory_gate,
-          }}
-        />
-      </span>,
-    ]);
-    const subtotal = arr.reduce((acc, it) => acc + (typeof it.max_score === "number" ? it.max_score : 0), 0);
-    rows.push([
-      <span key="t" style={{ fontWeight: 700 }}>小计</span>,
-      <span key="s" style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{fmtScore(subtotal)}</span>,
-      "",
-      "",
-    ]);
-    return rows;
-  };
 
   return (
     <div>
-      <SecTitle t="评分办法" sub={ev.method || undefined} />
       <SummaryStrip data={d} />
       {vetoRules.length > 0 && (
-        <div className="cv-det-veto">
+        <section className="cv-det-veto">
           <div className="cv-det-veto-title">
+            <ProhibitIcon width={15} height={15} />
             否决项 / 通过性条款
             <span className="cv-det-veto-count">{vetoRules.length} 条</span>
           </div>
           {vetoRules.map((v, i) => (
             <div key={i} className="cv-det-veto-row">
-              <span className="cv-det-veto-bullet" aria-hidden />
+              <span className="cv-det-veto-no" aria-hidden>
+                {String(i + 1).padStart(2, "0")}
+              </span>
               <div style={{ minWidth: 0 }}>
                 <span>{v.text}</span>
                 <SourceRow
@@ -1062,16 +1118,10 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
               </div>
             </div>
           ))}
-        </div>
+        </section>
       )}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 28, fontWeight: 700, color: "var(--label)", fontVariantNumeric: "tabular-nums" }}>
-          {total ?? "—"}
-        </span>
-        <span style={{ fontSize: 12, color: "var(--label-3)" }}>总分 · {itemsAll.length} 项评分项</span>
-      </div>
       {base > 0 && parts.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 18 }}>
           <div className="cv-det-scorebar">
             {parts.map((p) => (
               <i key={p.label} className={p.cls} style={{ width: `${(p.score / base) * 100}%` }} />
@@ -1088,22 +1138,77 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
         </div>
       )}
       {orderedKeys.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {orderedKeys.map((key) => {
-            const arr = gmap.get(key) ?? [];
-            return (
-              <GroupCard key={key} title={zh(SCORE_GROUP, key)} count={arr.length} unit="项">
-                <Table head={head} rows={groupRows(key, arr)} />
-              </GroupCard>
-            );
-          })}
-        </div>
+        orderedKeys.map((key) => {
+          const arr = gmap.get(key) ?? [];
+          const subtotal = arr.reduce((acc, it) => acc + (typeof it.max_score === "number" ? it.max_score : 0), 0);
+          return (
+            <GroupCard
+              key={key}
+              title={zh(SCORE_GROUP, key)}
+              count={arr.length}
+              unit="项"
+              extra={<span className="cv-det-group-note">{fmtScore(subtotal)} 分</span>}
+            >
+              {arr.map((it, i) => (
+                <div key={it.id ?? i} className="cv-det-srow">
+                  <div className="cv-det-srow-main">
+                    <div className="cv-det-srow-title">
+                      {it.mandatory_gate && <RiskMark label="否决" />}
+                      {it.title || `评分项 ${i + 1}`}
+                    </div>
+                    {it.scoring_rule && <p className="cv-det-srow-rule">{it.scoring_rule}</p>}
+                    {(it.source_refs?.length ?? 0) > 0 && (
+                      <div className="cv-det-foot">
+                        <SourceChips
+                          refs={it.source_refs ?? []}
+                          itemKey={`score:${it.id ?? `${key}#${i}`}`}
+                          compact
+                          claim={{
+                            matrixType: "scoring",
+                            itemId: null,
+                            label: `评分项 ${it.id ?? i + 1}`,
+                            title: it.title || `评分项 ${i + 1}`,
+                            requirementText: it.scoring_rule || "",
+                            highRisk: !!it.mandatory_gate,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <span className="cv-det-srow-score">{it.max_score ?? "—"}</span>
+                </div>
+              ))}
+            </GroupCard>
+          );
+        })
       ) : (
         <EmptyNote text="未提取到评分项" />
       )}
       <TruncNote rest={itemsAll.length - items.length} unit="项" />
     </div>
   );
+}
+
+/** 抽屉标题栏的副标题:详情正文不再自带一遍矩阵名与摘要(抽屉头已经写着标题,
+ *  正文再来一行 SecTitle 就是同一件事说两遍)。摘要上提到头里,正文直接从内容开始。 */
+export function useMatrixDetailSummary(type: MatrixType): string | null {
+  const slot = useWorkspaceStore((s) => s.matrices[type]);
+  if (slot.status !== "ready" || !slot.data) return null;
+  if (type === "basic_info") {
+    const p = (slot.data as BasicInfoMatrix).project ?? {};
+    return p.number ? `项目编号 ${p.number}` : p.procurement_method || null;
+  }
+  if (type === "scoring") {
+    const sc = slot.data as ScoringMatrix;
+    const total = sc.evaluation?.total_score;
+    const n = sc.items?.length ?? 0;
+    return [typeof total === "number" ? `总分 ${fmtScore(total)}` : "", n > 0 ? `${n} 项评分项` : ""]
+      .filter(Boolean)
+      .join(" · ") || null;
+  }
+  const items = (slot.data as BusinessMatrix | TechnicalMatrix).items ?? [];
+  const mand = mandatoryCount(items);
+  return `共 ${items.length} 条${mand > 0 ? ` · 实质性 ${mand} 项` : ""}`;
 }
 
 /** 抽屉详情统一入口 */
@@ -1113,13 +1218,9 @@ export function MatrixCardDetail({ type }: { type: MatrixType }) {
     case "basic_info":
       return <BasicInfoDetail slot={slot as MatrixSlot<BasicInfoMatrix>} />;
     case "business":
-      return (
-        <RequirementDetail type={type} slot={slot as MatrixSlot<BusinessMatrix>} title="商务应答矩阵" categoryMap={BIZ_CATEGORY} />
-      );
+      return <RequirementDetail type={type} slot={slot as MatrixSlot<BusinessMatrix>} categoryMap={BIZ_CATEGORY} />;
     case "technical":
-      return (
-        <RequirementDetail type={type} slot={slot as MatrixSlot<TechnicalMatrix>} title="技术应答矩阵" categoryMap={TECH_CATEGORY} />
-      );
+      return <RequirementDetail type={type} slot={slot as MatrixSlot<TechnicalMatrix>} categoryMap={TECH_CATEGORY} />;
     case "scoring":
       return <ScoringDetail slot={slot as MatrixSlot<ScoringMatrix>} />;
   }

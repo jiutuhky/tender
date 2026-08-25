@@ -2,6 +2,8 @@
 
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
+import { XIcon } from "@/components/ui/icons";
+
 // 以 ai-elements 的 `Artifact` 一组组件为蓝本（registry: artifact.tsx）。
 // 适配本项目无 Tailwind/shadcn 环境——所有样式由 globals.css 的语义化 className 接管：
 //   .artifact / .artifact-header / .artifact-title / .artifact-description
@@ -28,7 +30,17 @@ export function Artifact({ className, ...props }: ArtifactProps) {
 export type ArtifactHeaderProps = HTMLAttributes<HTMLDivElement>;
 
 export function ArtifactHeader({ className, ...props }: ArtifactHeaderProps) {
-  return <div className={cx("artifact-header", className)} {...props} />;
+  // 放置矩阵：artifact header = 霜 regular + 渐进模糊边（内容从条下滑过，不画分区线）
+  return (
+    <div
+      className={cx(
+        "artifact-header frost-glass frost-glass--soft frost-scroll-edge",
+        className,
+      )}
+      data-thick="regular"
+      {...props}
+    />
+  );
 }
 
 export type ArtifactTitleProps = HTMLAttributes<HTMLParagraphElement>;
@@ -91,11 +103,7 @@ export function ArtifactClose({ className, children, type = "button", ...props }
       aria-label="关闭"
       {...props}
     >
-      {children ?? (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
-          <path d="M6 6l12 12M18 6l-12 12" />
-        </svg>
-      )}
+      {children ?? <XIcon aria-hidden="true" />}
     </button>
   );
 }

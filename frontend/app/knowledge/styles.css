@@ -10,18 +10,23 @@
     .nav-side { display: none; }
   }
 
-  /* Category side nav */
+  /* Category side nav —— 嵌入式 chrome：标注 frost-glass--soft --flush（见 CategoryNav.tsx）。
+     该侧栏被 .page-wrap 实底浮窗包裹（globals.css 窗口化规则，background: var(--surface)），
+     玻璃后方无壁纸可透，soft tint 仅呈轻微霜面；按治理契约保持嵌入式 .5px contact edge
+     与内容区相接，替代 1px 描边。 */
   .nav-side {
-    border-right: 1px solid var(--border);
     padding: 18px 10px;
     min-height: calc(100vh - 52px);
+  }
+  .page-wrap .nav-side {
+    /* contact edge（提高特异度以覆盖 .frost-glass--flush 的 box-shadow: none） */
+    box-shadow: inset -0.5px 0 0 var(--separator);
   }
   .nav-side h5 {
     font-family: var(--font-sans);
     font-size: 11px;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+      letter-spacing: 0.06em;
     margin: 12px 10px 6px;
     font-weight: 500;
   }
@@ -29,7 +34,7 @@
   .nav-item {
     display: flex; align-items: center; gap: 10px;
     padding: 7px 10px;
-    border-radius: 6px;
+    border-radius: var(--r-control);
     font-size: 13px;
     color: var(--fg-2);
     cursor: pointer;
@@ -70,8 +75,7 @@
     font-size: 11px;
     color: var(--muted);
     letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
+      margin-bottom: 8px;
   }
   .page-header h1 {
     font-family: var(--font-sans);
@@ -95,7 +99,7 @@
     gap: 1px;
     background: var(--border);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--r-window);
     overflow: hidden;
     margin: 26px 0 32px;
   }
@@ -107,8 +111,7 @@
     font-family: var(--font-sans);
     font-size: 10.5px;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+      letter-spacing: 0.06em;
     margin-bottom: 10px;
   }
   .kpi .value {
@@ -170,12 +173,12 @@
     padding: 7px 10px 7px 32px;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 7px;
+    border-radius: var(--r-control);
     font-size: 13px;
     color: var(--fg);
     font-family: inherit;
     outline: none;
-    transition: border-color .15s;
+    transition: border-color var(--t-micro) var(--ease-std);
   }
   .search input:focus { border-color: var(--border-2); }
   .search svg {
@@ -193,13 +196,13 @@
   .chip {
     font-size: 12px;
     padding: 4px 10px;
-    border-radius: 99px;
+    border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--fg-2);
     font-family: var(--font-sans);
     cursor: pointer;
-    transition: background .15s, border-color .15s;
+    transition: background var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std);
   }
   .chip:hover { background: var(--surface-2); }
   .chip.active {
@@ -212,7 +215,7 @@
   .table-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--r-window);
     overflow: hidden;
     margin-bottom: 36px;
   }
@@ -230,8 +233,7 @@
     font-size: 11px;
     font-weight: 500;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+      letter-spacing: 0.06em;
     font-family: var(--font-sans);
     border-bottom: 1px solid var(--border);
   }
@@ -241,14 +243,14 @@
     vertical-align: middle;
   }
   .asset-table tbody tr:last-child td { border-bottom: 0; }
-  .asset-table tbody tr { transition: background .15s; cursor: pointer; }
+  .asset-table tbody tr { transition: background var(--t-micro) var(--ease-std); cursor: pointer; }
   .asset-table tbody tr:hover { background: var(--surface-2); }
 
   .name-cell { display: flex; align-items: center; gap: 10px; }
   .file-icon {
     width: 28px; height: 34px;
     flex-shrink: 0;
-    border-radius: 3px;
+    border-radius: var(--r-control);
     position: relative;
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -265,12 +267,13 @@
     width: 8px; height: 8px;
     border-left: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-    background: #eceef2;
+    background: var(--surface-2);
   }
-  .file-icon.pdf { color: oklch(50% 0.12 30); }
-  .file-icon.doc { color: oklch(50% 0.12 245); }
-  .file-icon.xls { color: oklch(45% 0.12 150); }
-  .file-icon.zip { color: #8e6b2f; }
+  /* 文件类型不上多色：分类靠角标文字与形状，装饰不花色彩（Frost 单一 accent 原则） */
+  .file-icon.pdf,
+  .file-icon.doc,
+  .file-icon.xls,
+  .file-icon.zip { color: var(--label-3); }
 
   .name-main {
     font-weight: 500;
@@ -287,23 +290,24 @@
   .tag {
     display: inline-block;
     padding: 2px 7px;
-    border-radius: 4px;
+    border-radius: 999px;
     font-size: 11px;
     font-weight: 500;
     background: var(--surface-2);
     color: var(--fg-2);
     border: 1px solid var(--border);
   }
-  .tag.technical { background: rgba(0, 100, 225, 0.10); color: var(--accent); border-color: transparent; }
-  .tag.case { background: oklch(95% 0.03 240); color: oklch(48% 0.13 245); border-color: transparent; }
-  .tag.template { background: oklch(95% 0.03 150); color: var(--success); border-color: transparent; }
-  .tag.cred { background: oklch(95% 0.025 300); color: oklch(48% 0.13 300); border-color: transparent; }
+  /* 类别标签一律中性：彩底彩字属装饰用色，清除；分类由文字本身承担 */
+  .tag.technical,
+  .tag.case,
+  .tag.template,
+  .tag.cred { background: var(--surface-2); color: var(--label-2); }
 
   .citation-bar {
     width: 80px;
     height: 5px;
     background: var(--border);
-    border-radius: 99px;
+    border-radius: 999px;
     position: relative;
     overflow: hidden;
   }
@@ -311,7 +315,7 @@
     position: absolute;
     left: 0; top: 0; bottom: 0;
     background: var(--fg);
-    border-radius: 99px;
+    border-radius: 999px;
   }
   .citation-text {
     font-family: var(--font-sans);
@@ -332,7 +336,7 @@
     display: flex;
     gap: 2px;
     opacity: 0;
-    transition: opacity .15s;
+    transition: opacity var(--t-micro) var(--ease-std);
   }
   .asset-table tbody tr:hover .row-actions { opacity: 1; }
 
@@ -349,9 +353,9 @@
   .case-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--r-window);
     padding: 20px;
-    transition: border-color .2s;
+    transition: border-color var(--t-float) var(--ease-std);
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -377,7 +381,7 @@
   .case-meta .status.lost .dot { background: var(--faint); }
 
   .case-title {
-    font-family: var(--font-serif);
+    font-family: var(--font-ui);
     font-size: 19px;
     font-weight: 500;
     line-height: 1.3;
@@ -401,8 +405,7 @@
     font-family: var(--font-sans);
     font-size: 10px;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+      letter-spacing: 0.05em;
     margin-bottom: 3px;
   }
   .case-metric .m-value {
@@ -426,7 +429,8 @@
     padding-top: 12px;
     border-top: 1px solid var(--border);
   }
-  .case-footer .cite-count { color: var(--accent); font-weight: 500; }
+  /* 引用次数是静态计数，非交互也非进行中 → 中性 */
+  .case-footer .cite-count { color: var(--label-2); font-weight: 500; }
 
   /* ====== Template library ====== */
   .tpl-grid {
@@ -441,16 +445,16 @@
   .tpl-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--r-window);
     overflow: hidden;
     cursor: pointer;
-    transition: border-color .2s;
+    transition: border-color var(--t-float) var(--ease-std);
   }
   .tpl-card:hover { border-color: var(--border-2); }
   .tpl-preview {
     aspect-ratio: 5 / 4;
     background:
-      linear-gradient(180deg, #f3f4f7 0%, #fafbfc 100%);
+      linear-gradient(180deg, var(--surface-2) 0%, var(--surface) 100%);
     border-bottom: 1px solid var(--border);
     position: relative;
     overflow: hidden;
@@ -466,11 +470,12 @@
   }
   .tpl-thumb .line {
     height: 3px;
-    background: #d6d9df;
-    border-radius: 1px;
+    background: var(--border-2);
+    border-radius: 1px;   /* 装饰细件，坡道外 */
   }
   .tpl-thumb .line.title { height: 5px; width: 55%; background: var(--fg-2); margin-bottom: 4px; }
-  .tpl-thumb .line.accent { background: var(--accent); width: 30%; }
+  /* 缩略图里的装饰线条：中性（装饰不消耗彩色） */
+  .tpl-thumb .line.accent { background: var(--label-3); width: 30%; }
   .tpl-thumb .line.short { width: 65%; }
   .tpl-thumb .line.mid { width: 85%; }
   .tpl-thumb .divider {
@@ -499,8 +504,7 @@
   .insight-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 2px solid var(--accent);
-    border-radius: var(--radius);
+    border-radius: var(--r-window);
     padding: 20px 22px;
     margin-bottom: 36px;
     max-width: 780px;
@@ -508,22 +512,16 @@
   .insight-card .eyebrow {
     font-family: var(--font-sans);
     font-size: 11px;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    color: var(--label-3);
+      letter-spacing: 0.06em;
     margin-bottom: 8px;
     display: flex; align-items: center; gap: 6px;
   }
   .insight-card .eyebrow .dot {
     width: 6px; height: 6px;
     border-radius: 50%;
-    background: var(--accent);
-    animation: pulse 1.6s infinite;
-  }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(0, 100, 225, 0.45); }
-    70% { box-shadow: 0 0 0 6px rgba(0, 100, 225, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 100, 225, 0); }
+    /* 静态语义 dot：无限循环仅限 running 态 border beam，扩散脉冲已清除 */
+    background: var(--label-3);
   }
   .insight-card h3 {
     font-family: var(--font-sans);
@@ -551,7 +549,7 @@
   *::-webkit-scrollbar { width: 8px; height: 8px; }
   *::-webkit-scrollbar-track { background: transparent; }
   *::-webkit-scrollbar-thumb {
-    background: #c2c5cd;
-    border-radius: 4px;
+    background: var(--border-2);
+    border-radius: 4px; /* 装饰细件：滚动条 thumb，不入圆角坡道 */
     border: 2px solid var(--bg);
   }

@@ -1,257 +1,332 @@
 import type { SVGProps } from "react";
 
+/**
+ * 图标唯一载体。
+ *
+ * 图标源：**Phosphor Icons regular 2.1.1 官方 path 内联**（256 网格、fill 式）。
+ * 与 frost-design skill 的 ICONOGRAPHY 一节对齐：单一 regular 权重，不混
+ * bold / fill / duotone，不手绘几何。
+ *
+ * 新增图标必须从官方资产取 path，**禁止手绘**：
+ *   curl -s https://unpkg.com/@phosphor-icons/core@2.1.1/assets/regular/{name}.svg
+ * 取出其中的 d="…" 原样落成下面的 P_* 常量，再用 phosphorIcon() 包一层导出。
+ *
+ * 四个备案例外（不走 Phosphor，见 .scratch/frost-compliance/README.md）：
+ *   BrandMark / ProseBotIcon —— 品牌 app icon 与其拟人化身；
+ *   WechatWorkIcon / DingtalkIcon —— 第三方品牌标识，须保留官方字形。
+ */
+
 type IconProps = SVGProps<SVGSVGElement>;
 
-const stroke: Partial<IconProps> = {
-  fill: "none",
-  stroke: "currentColor",
-};
+/** 把一条 Phosphor regular 的 path 包成组件：256 网格、fill 式、props 全量透传。 */
+function phosphorIcon(d: string) {
+  return function PhosphorIcon(props: IconProps) {
+    return (
+      <svg viewBox="0 0 256 256" fill="currentColor" {...props}>
+        <path d={d} />
+      </svg>
+    );
+  };
+}
 
-export function SearchIcon(props: IconProps) {
+const P_ArrowClockwise =
+  "M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64l-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,85.8V56a8,8,0,1,1,16,0Z";
+const P_ArrowCounterClockwise =
+  "M224,128a96,96,0,0,1-94.71,96H128A95.38,95.38,0,0,1,62.1,197.8a8,8,0,0,1,11-11.63A80,80,0,1,0,71.43,71.39a3.07,3.07,0,0,1-.26.25L44.59,96H72a8,8,0,0,1,0,16H24a8,8,0,0,1-8-8V56a8,8,0,0,1,16,0V85.8L60.25,60A96,96,0,0,1,224,128Z";
+const P_ArrowElbowDownLeft =
+  "M200,32V176a8,8,0,0,1-8,8H67.31l34.35,34.34a8,8,0,0,1-11.32,11.32l-48-48a8,8,0,0,1,0-11.32l48-48a8,8,0,0,1,11.32,11.32L67.31,168H184V32a8,8,0,0,1,16,0Z";
+const P_ArrowRight =
+  "M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z";
+const P_ArrowUp =
+  "M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z";
+const P_ArrowsMerge =
+  "M192,40v64a8,8,0,0,1-2.34,5.66L136,163.31v49.38l18.34-18.35a8,8,0,0,1,11.32,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L120,212.69V163.31L66.34,109.66A8,8,0,0,1,64,104V40a8,8,0,0,1,16,0v60.69l48,48,48-48V40a8,8,0,0,1,16,0Z";
+const P_Bell =
+  "M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z";
+const P_BracketsCurly =
+  "M43.18,128a29.78,29.78,0,0,1,8,10.26c4.8,9.9,4.8,22,4.8,33.74,0,24.31,1,36,24,36a8,8,0,0,1,0,16c-17.48,0-29.32-6.14-35.2-18.26-4.8-9.9-4.8-22-4.8-33.74,0-24.31-1-36-24-36a8,8,0,0,1,0-16c23,0,24-11.69,24-36,0-11.72,0-23.84,4.8-33.74C50.68,38.14,62.52,32,80,32a8,8,0,0,1,0,16C57,48,56,59.69,56,84c0,11.72,0,23.84-4.8,33.74A29.78,29.78,0,0,1,43.18,128ZM240,120c-23,0-24-11.69-24-36,0-11.72,0-23.84-4.8-33.74C205.32,38.14,193.48,32,176,32a8,8,0,0,0,0,16c23,0,24,11.69,24,36,0,11.72,0,23.84,4.8,33.74a29.78,29.78,0,0,0,8,10.26,29.78,29.78,0,0,0-8,10.26c-4.8,9.9-4.8,22-4.8,33.74,0,24.31-1,36-24,36a8,8,0,0,0,0,16c17.48,0,29.32-6.14,35.2-18.26,4.8-9.9,4.8-22,4.8-33.74,0-24.31,1-36,24-36a8,8,0,0,0,0-16Z";
+const P_Briefcase =
+  "M216,56H176V48a24,24,0,0,0-24-24H104A24,24,0,0,0,80,48v8H40A16,16,0,0,0,24,72V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V72A16,16,0,0,0,216,56ZM96,48a8,8,0,0,1,8-8h48a8,8,0,0,1,8,8v8H96ZM216,72v41.61A184,184,0,0,1,128,136a184.07,184.07,0,0,1-88-22.38V72Zm0,128H40V131.64A200.19,200.19,0,0,0,128,152a200.25,200.25,0,0,0,88-20.37V200ZM104,112a8,8,0,0,1,8-8h32a8,8,0,0,1,0,16H112A8,8,0,0,1,104,112Z";
+const P_Browser =
+  "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V88H40V56Zm0,144H40V104H216v96Z";
+const P_Buildings =
+  "M240,208H224V96a16,16,0,0,0-16-16H144V32a16,16,0,0,0-24.88-13.32L39.12,72A16,16,0,0,0,32,85.34V208H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM208,96V208H144V96ZM48,85.34,128,32V208H48ZM112,112v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm-32,0v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm0,56v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Zm32,0v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Z";
+const P_CaretDown =
+  "M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z";
+const P_CaretLeft =
+  "M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z";
+const P_CaretRight =
+  "M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z";
+const P_ChartBar =
+  "M224,200h-8V40a8,8,0,0,0-8-8H152a8,8,0,0,0-8,8V80H96a8,8,0,0,0-8,8v40H48a8,8,0,0,0-8,8v64H32a8,8,0,0,0,0,16H224a8,8,0,0,0,0-16ZM160,48h40V200H160ZM104,96h40V200H104ZM56,144H88v56H56Z";
+const P_ChartLine =
+  "M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V48a8,8,0,0,1,16,0v94.37L90.73,98a8,8,0,0,1,10.07-.38l58.81,44.11L218.73,90a8,8,0,1,1,10.54,12l-64,56a8,8,0,0,1-10.07.38L96.39,114.29,40,163.63V200H224A8,8,0,0,1,232,208Z";
+const P_ChatCircle =
+  "M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z";
+const P_Check =
+  "M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z";
+const P_CheckCircle =
+  "M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z";
+const P_CircleDashed =
+  "M96.26,37.05A8,8,0,0,1,102,27.29a104.11,104.11,0,0,1,52,0,8,8,0,0,1-2,15.75,8.15,8.15,0,0,1-2-.26,88.09,88.09,0,0,0-44,0A8,8,0,0,1,96.26,37.05ZM53.79,55.14a104.05,104.05,0,0,0-26,45,8,8,0,0,0,15.42,4.27,88,88,0,0,1,22-38.09A8,8,0,0,0,53.79,55.14ZM43.21,151.55a8,8,0,1,0-15.42,4.28,104.12,104.12,0,0,0,26,45,8,8,0,0,0,11.41-11.22A88.14,88.14,0,0,1,43.21,151.55ZM150,213.22a88,88,0,0,1-44,0,8,8,0,1,0-4,15.49,104.11,104.11,0,0,0,52,0,8,8,0,0,0-4-15.49ZM222.65,146a8,8,0,0,0-9.85,5.58,87.91,87.91,0,0,1-22,38.08,8,8,0,1,0,11.42,11.21,104,104,0,0,0,26-45A8,8,0,0,0,222.65,146Zm-9.86-41.54a8,8,0,0,0,15.42-4.28,104,104,0,0,0-26-45,8,8,0,1,0-11.41,11.22A88,88,0,0,1,212.79,104.45Z";
+const P_CircleHalf =
+  "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,16.37a86.4,86.4,0,0,1,16,3V212.67a86.4,86.4,0,0,1-16,3Zm32,9.26a87.81,87.81,0,0,1,16,10.54V195.83a87.81,87.81,0,0,1-16,10.54ZM40,128a88.11,88.11,0,0,1,80-87.63V215.63A88.11,88.11,0,0,1,40,128Zm160,50.54V77.46a87.82,87.82,0,0,1,0,101.08Z";
+const P_CircleNotch =
+  "M232,128a104,104,0,0,1-208,0c0-41,23.81-78.36,60.66-95.27a8,8,0,0,1,6.68,14.54C60.15,61.59,40,93.27,40,128a88,88,0,0,0,176,0c0-34.73-20.15-66.41-51.34-80.73a8,8,0,0,1,6.68-14.54C208.19,49.64,232,87,232,128Z";
+const P_Clock =
+  "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z";
+const P_ClockCounterClockwise =
+  "M136,80v43.47l36.12,21.67a8,8,0,0,1-8.24,13.72l-40-24A8,8,0,0,1,120,128V80a8,8,0,0,1,16,0Zm-8-48A95.44,95.44,0,0,0,60.08,60.15C52.81,67.51,46.35,74.59,40,82V64a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H72a8,8,0,0,0,0-16H49c7.15-8.42,14.27-16.35,22.39-24.57a80,80,0,1,1,1.66,114.75,8,8,0,1,0-11,11.64A96,96,0,1,0,128,32Z";
+const P_Copy =
+  "M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z";
+const P_CornersIn =
+  "M152,96V48a8,8,0,0,1,16,0V88h40a8,8,0,0,1,0,16H160A8,8,0,0,1,152,96ZM96,152H48a8,8,0,0,0,0,16H88v40a8,8,0,0,0,16,0V160A8,8,0,0,0,96,152Zm112,0H160a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V168h40a8,8,0,0,0,0-16ZM96,40a8,8,0,0,0-8,8V88H48a8,8,0,0,0,0,16H96a8,8,0,0,0,8-8V48A8,8,0,0,0,96,40Z";
+const P_CornersOut =
+  "M216,48V88a8,8,0,0,1-16,0V56H168a8,8,0,0,1,0-16h40A8,8,0,0,1,216,48ZM88,200H56V168a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H88a8,8,0,0,0,0-16Zm120-40a8,8,0,0,0-8,8v32H168a8,8,0,0,0,0,16h40a8,8,0,0,0,8-8V168A8,8,0,0,0,208,160ZM88,40H48a8,8,0,0,0-8,8V88a8,8,0,0,0,16,0V56H88a8,8,0,0,0,0-16Z";
+const P_DotsThree =
+  "M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z";
+const P_DownloadSimple =
+  "M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0Zm-101.66,5.66a8,8,0,0,0,11.32,0l40-40a8,8,0,0,0-11.32-11.32L136,124.69V32a8,8,0,0,0-16,0v92.69L93.66,98.34a8,8,0,0,0-11.32,11.32Z";
+const P_Export =
+  "M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96H80a8,8,0,0,1,0,16H56v96H200V112H176a8,8,0,0,1,0-16h24A16,16,0,0,1,216,112ZM93.66,69.66,120,43.31V136a8,8,0,0,0,16,0V43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66Z";
+const P_Eye =
+  "M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.47,133.47,0,0,1,25,128,133.33,133.33,0,0,1,48.07,97.25C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.25A133.46,133.46,0,0,1,231.05,128C223.84,141.46,192.43,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z";
+const P_EyeSlash =
+  "M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208a127.11,127.11,0,0,0,52.07-10.83l22,24.21a8,8,0,1,0,11.84-10.76Zm47.33,75.84,41.67,45.85a32,32,0,0,1-41.67-45.85ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.16,133.16,0,0,1,25,128c4.69-8.79,19.66-33.39,47.35-49.38l18,19.75a48,48,0,0,0,63.66,70l14.73,16.2A112,112,0,0,1,128,192Zm6-95.43a8,8,0,0,1,3-15.72,48.16,48.16,0,0,1,38.77,42.64,8,8,0,0,1-7.22,8.71,6.39,6.39,0,0,1-.75,0,8,8,0,0,1-8-7.26A32.09,32.09,0,0,0,134,96.57Zm113.28,34.69c-.42.94-10.55,23.37-33.36,43.8a8,8,0,1,1-10.67-11.92A132.77,132.77,0,0,0,231.05,128a133.15,133.15,0,0,0-23.12-30.77C185.67,75.19,158.78,64,128,64a118.37,118.37,0,0,0-19.36,1.57A8,8,0,1,1,106,49.79,134,134,0,0,1,128,48c34.88,0,66.57,13.26,91.66,38.35,18.83,18.83,27.3,37.62,27.65,38.41A8,8,0,0,1,247.31,131.26Z";
+const P_File =
+  "M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z";
+const P_FileText =
+  "M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z";
+const P_Files =
+  "M213.66,66.34l-40-40A8,8,0,0,0,168,24H88A16,16,0,0,0,72,40V56H56A16,16,0,0,0,40,72V216a16,16,0,0,0,16,16H168a16,16,0,0,0,16-16V200h16a16,16,0,0,0,16-16V72A8,8,0,0,0,213.66,66.34ZM168,216H56V72h76.69L168,107.31v84.53c0,.06,0,.11,0,.16s0,.1,0,.16V216Zm32-32H184V104a8,8,0,0,0-2.34-5.66l-40-40A8,8,0,0,0,136,56H88V40h76.69L200,75.31Zm-56-32a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h48A8,8,0,0,1,144,152Zm0,32a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h48A8,8,0,0,1,144,184Z";
+const P_FolderSimple =
+  "M216,72H130.67L102.93,51.2a16.12,16.12,0,0,0-9.6-3.2H40A16,16,0,0,0,24,64V200a16,16,0,0,0,16,16H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72Zm0,128H40V64H93.33L123.2,86.4A8,8,0,0,0,128,88h88Z";
+const P_FrameCorners =
+  "M200,80v32a8,8,0,0,1-16,0V88H160a8,8,0,0,1,0-16h32A8,8,0,0,1,200,80ZM96,168H72V144a8,8,0,0,0-16,0v32a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16ZM232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z";
+const P_GearSix =
+  "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm109.94-52.79a8,8,0,0,0-3.89-5.4l-29.83-17-.12-33.62a8,8,0,0,0-2.83-6.08,111.91,111.91,0,0,0-36.72-20.67,8,8,0,0,0-6.46.59L128,41.85,97.88,25a8,8,0,0,0-6.47-.6A112.1,112.1,0,0,0,54.73,45.15a8,8,0,0,0-2.83,6.07l-.15,33.65-29.83,17a8,8,0,0,0-3.89,5.4,106.47,106.47,0,0,0,0,41.56,8,8,0,0,0,3.89,5.4l29.83,17,.12,33.62a8,8,0,0,0,2.83,6.08,111.91,111.91,0,0,0,36.72,20.67,8,8,0,0,0,6.46-.59L128,214.15,158.12,231a7.91,7.91,0,0,0,3.9,1,8.09,8.09,0,0,0,2.57-.42,112.1,112.1,0,0,0,36.68-20.73,8,8,0,0,0,2.83-6.07l.15-33.65,29.83-17a8,8,0,0,0,3.89-5.4A106.47,106.47,0,0,0,237.94,107.21Zm-15,34.91-28.57,16.25a8,8,0,0,0-3,3c-.58,1-1.19,2.06-1.81,3.06a7.94,7.94,0,0,0-1.22,4.21l-.15,32.25a95.89,95.89,0,0,1-25.37,14.3L134,199.13a8,8,0,0,0-3.91-1h-.19c-1.21,0-2.43,0-3.64,0a8.08,8.08,0,0,0-4.1,1l-28.84,16.1A96,96,0,0,1,67.88,201l-.11-32.2a8,8,0,0,0-1.22-4.22c-.62-1-1.23-2-1.8-3.06a8.09,8.09,0,0,0-3-3.06l-28.6-16.29a90.49,90.49,0,0,1,0-28.26L61.67,97.63a8,8,0,0,0,3-3c.58-1,1.19-2.06,1.81-3.06a7.94,7.94,0,0,0,1.22-4.21l.15-32.25a95.89,95.89,0,0,1,25.37-14.3L122,56.87a8,8,0,0,0,4.1,1c1.21,0,2.43,0,3.64,0a8.08,8.08,0,0,0,4.1-1l28.84-16.1A96,96,0,0,1,188.12,55l.11,32.2a8,8,0,0,0,1.22,4.22c.62,1,1.23,2,1.8,3.06a8.09,8.09,0,0,0,3,3.06l28.6,16.29A90.49,90.49,0,0,1,222.9,142.12Z";
+const P_GridFour =
+  "M200,40H56A16,16,0,0,0,40,56V200a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,80H136V56h64ZM120,56v64H56V56ZM56,136h64v64H56Zm144,64H136V136h64v64Z";
+const P_IdentificationCard =
+  "M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z";
+const P_Layout =
+  "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,16V96H40V56ZM40,112H96v88H40Zm176,88H112V112H216v88Z";
+const P_ListDashes =
+  "M88,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H96A8,8,0,0,1,88,64Zm128,56H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,64H96a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM56,56H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Zm0,64H40a8,8,0,0,0,0,16H56a8,8,0,0,0,0-16Z";
+const P_MagnifyingGlass =
+  "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z";
+const P_MagnifyingGlassMinus =
+  "M152,112a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16h64A8,8,0,0,1,152,112Zm77.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88.11,88.11,0,1,1,11.31-11.31l50.07,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z";
+const P_MagnifyingGlassPlus =
+  "M152,112a8,8,0,0,1-8,8H120v24a8,8,0,0,1-16,0V120H80a8,8,0,0,1,0-16h24V80a8,8,0,0,1,16,0v24h24A8,8,0,0,1,152,112Zm77.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88.11,88.11,0,1,1,11.31-11.31l50.07,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z";
+const P_Moon =
+  "M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z";
+const P_Minus =
+  "M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128Z";
+const P_PaperPlaneTilt =
+  "M227.32,28.68a16,16,0,0,0-15.66-4.08l-.15,0L19.57,82.84a16,16,0,0,0-2.49,29.8L102,154l41.3,84.87A15.86,15.86,0,0,0,157.74,248q.69,0,1.38-.06a15.88,15.88,0,0,0,14-11.51l58.2-191.94c0-.05,0-.1,0-.15A16,16,0,0,0,227.32,28.68ZM157.83,231.85l-.05.14,0-.07-40.06-82.3,48-48a8,8,0,0,0-11.31-11.31l-48,48L24.08,98.25l-.07,0,.14,0L216,40Z";
+const P_Paperclip =
+  "M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,35.73a40,40,0,1,1,56.61,56.55L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,81A24,24,0,1,0,159,47L59.76,147.68a40,40,0,1,0,56.53,56.62l82.06-82A8,8,0,0,1,209.66,122.34Z";
+const P_Pause =
+  "M200,32H160a16,16,0,0,0-16,16V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,200,32Zm0,176H160V48h40ZM96,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V48A16,16,0,0,0,96,32Zm0,176H56V48H96Z";
+const P_PencilLine =
+  "M227.32,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H216a8,8,0,0,0,0-16H115.32l112-112A16,16,0,0,0,227.32,73.37ZM136,75.31,152.69,92,68,176.69,51.31,160ZM48,208V179.31L76.69,208Zm48-3.31L79.32,188,164,103.31,180.69,120Zm96-96L147.32,64l24-24L216,84.69Z";
+const P_PencilSimple =
+  "M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z";
+const P_Plus =
+  "M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z";
+const P_PlusCircle =
+  "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm48-88a8,8,0,0,1-8,8H136v32a8,8,0,0,1-16,0V136H88a8,8,0,0,1,0-16h32V88a8,8,0,0,1,16,0v32h32A8,8,0,0,1,176,128Z";
+const P_Prohibit =
+  "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z";
+const P_Question =
+  "M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z";
+const P_Rows =
+  "M208,136H48a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,56H48V152H208v40Zm0-144H48A16,16,0,0,0,32,64v40a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V64A16,16,0,0,0,208,48Zm0,56H48V64H208v40Z";
+const P_ShieldCheck =
+  "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z";
+const P_SidebarSimple =
+  "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,56H80V200H40ZM216,200H96V56H216V200Z";
+const P_Sparkle =
+  "M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z";
+const P_Stack =
+  "M230.91,172A8,8,0,0,1,228,182.91l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,36,169.09l92,53.65,92-53.65A8,8,0,0,1,230.91,172ZM220,121.09l-92,53.65L36,121.09A8,8,0,0,0,28,134.91l96,56a8,8,0,0,0,8.06,0l96-56A8,8,0,1,0,220,121.09ZM24,80a8,8,0,0,1,4-6.91l96-56a8,8,0,0,1,8.06,0l96,56a8,8,0,0,1,0,13.82l-96,56a8,8,0,0,1-8.06,0l-96-56A8,8,0,0,1,24,80Zm23.88,0L128,126.74,208.12,80,128,33.26Z";
+const P_Sun =
+  "M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z";
+const P_Table =
+  "M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48ZM40,112H80v32H40Zm56,0H216v32H96ZM216,64V96H40V64ZM40,160H80v32H40Zm176,32H96V160H216v32Z";
+const P_TreeStructure =
+  "M160,112h48a16,16,0,0,0,16-16V48a16,16,0,0,0-16-16H160a16,16,0,0,0-16,16V64H128a24,24,0,0,0-24,24v32H72v-8A16,16,0,0,0,56,96H24A16,16,0,0,0,8,112v32a16,16,0,0,0,16,16H56a16,16,0,0,0,16-16v-8h32v32a24,24,0,0,0,24,24h16v16a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V160a16,16,0,0,0-16-16H160a16,16,0,0,0-16,16v16H128a8,8,0,0,1-8-8V88a8,8,0,0,1,8-8h16V96A16,16,0,0,0,160,112ZM56,144H24V112H56v32Zm104,16h48v48H160Zm0-112h48V96H160Z";
+const P_UploadSimple =
+  "M224,144v64a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V144a8,8,0,0,1,16,0v56H208V144a8,8,0,0,1,16,0ZM93.66,77.66,120,51.31V144a8,8,0,0,0,16,0V51.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,77.66Z";
+const P_Users =
+  "M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z";
+const P_Warning =
+  "M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z";
+const P_Wrench =
+  "M226.76,69a8,8,0,0,0-12.84-2.88l-40.3,37.19-17.23-3.7-3.7-17.23,37.19-40.3A8,8,0,0,0,187,29.24,72,72,0,0,0,88,96,72.34,72.34,0,0,0,94,124.94L33.79,177c-.15.12-.29.26-.43.39a32,32,0,0,0,45.26,45.26c.13-.13.27-.28.39-.42L131.06,162A72,72,0,0,0,232,96,71.56,71.56,0,0,0,226.76,69ZM160,152a56.14,56.14,0,0,1-27.07-7,8,8,0,0,0-9.92,1.77L67.11,211.51a16,16,0,0,1-22.62-22.62L109.18,133a8,8,0,0,0,1.77-9.93,56,56,0,0,1,58.36-82.31l-31.2,33.81a8,8,0,0,0-1.94,7.1L141.83,108a8,8,0,0,0,6.14,6.14l26.35,5.66a8,8,0,0,0,7.1-1.94l33.81-31.2A56.06,56.06,0,0,1,160,152Z";
+const P_X =
+  "M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z";
+
+
+/** 搜索（phosphor: magnifying-glass） */
+export const SearchIcon = phosphorIcon(P_MagnifyingGlass);
+/** 通知（phosphor: bell） */
+export const BellIcon = phosphorIcon(P_Bell);
+/** 暂停（phosphor: pause） */
+export const PauseIcon = phosphorIcon(P_Pause);
+/** 复制（phosphor: copy） */
+export const CopyIcon = phosphorIcon(P_Copy);
+/** 新建 / 放大（phosphor: plus） */
+export const PlusIcon = phosphorIcon(P_Plus);
+/** 缩小（phosphor: minus） */
+export const MinusIcon = phosphorIcon(P_Minus);
+/** 上传（phosphor: upload-simple） */
+export const UploadIcon = phosphorIcon(P_UploadSimple);
+/** 下载（phosphor: download-simple） */
+export const DownloadIcon = phosphorIcon(P_DownloadSimple);
+/** 分享 / 导出（phosphor: export） */
+export const ShareIcon = phosphorIcon(P_Export);
+/** 编辑（Phosphor 同名导出）（phosphor: pencil-simple） */
+export const PencilSimpleIcon = phosphorIcon(P_PencilSimple);
+/** 编写规范（phosphor: pencil-line） */
+export const PenIcon = phosphorIcon(P_PencilLine);
+/** 结果徽标（窗口卡片）（phosphor: browser） */
+export const ResultBadgeIcon = phosphorIcon(P_Browser);
+/** 宫格视图（phosphor: grid-four） */
+export const GridIcon = phosphorIcon(P_GridFour);
+/** 宫格（Phosphor 同名导出）（phosphor: grid-four） */
+export const GridFourIcon = phosphorIcon(P_GridFour);
+/** 文档（phosphor: file） */
+export const FileIcon = phosphorIcon(P_File);
+/** 带正文的文档（phosphor: file-text） */
+export const FileTextIcon = phosphorIcon(P_FileText);
+/** 多文档 / 成稿（phosphor: files） */
+export const FilesIcon = phosphorIcon(P_Files);
+/** 文件夹（phosphor: folder-simple） */
+export const FolderSimpleIcon = phosphorIcon(P_FolderSimple);
+/** 商务 / 业绩案例（phosphor: briefcase） */
+export const CasesIcon = phosphorIcon(P_Briefcase);
+/** 资质核验（phosphor: check-circle） */
+export const CredCheckIcon = phosphorIcon(P_CheckCircle);
+/** 模板（phosphor: layout） */
+export const TemplateIcon = phosphorIcon(P_Layout);
+/** 人员 / 团队（phosphor: users） */
+export const UsersIcon = phosphorIcon(P_Users);
+/** 时间（phosphor: clock） */
+export const ClockIcon = phosphorIcon(P_Clock);
+/** 历史记录（phosphor: clock-counter-clockwise） */
+export const ClockCounterClockwiseIcon = phosphorIcon(P_ClockCounterClockwise);
+/** 知识库素材（层叠）（phosphor: stack） */
+export const LayersIcon = phosphorIcon(P_Stack);
+/** 前往（phosphor: arrow-right） */
+export const ArrowRightIcon = phosphorIcon(P_ArrowRight);
+/** composer 发送（上箭头）（phosphor: arrow-up） */
+export const ArrowUpIcon = phosphorIcon(P_ArrowUp);
+/** 展开箭头（朝下）（phosphor: caret-down） */
+export const ChevronIcon = phosphorIcon(P_CaretDown);
+/** 向左（phosphor: caret-left） */
+export const ChevronLeftIcon = phosphorIcon(P_CaretLeft);
+/** 向右（phosphor: caret-right） */
+export const ChevronRightIcon = phosphorIcon(P_CaretRight);
+/** 侧栏开关（左侧）（phosphor: sidebar-simple） */
+export const SidebarSimpleIcon = phosphorIcon(P_SidebarSimple);
+/** 可见（phosphor: eye） */
+export const EyeIcon = phosphorIcon(P_Eye);
+/** 隐藏（phosphor: eye-slash） */
+export const EyeSlashIcon = phosphorIcon(P_EyeSlash);
+/** SSO 登录（phosphor: shield-check） */
+export const SsoIcon = phosphorIcon(P_ShieldCheck);
+/** 工具调用块头图标；激活态由外层 .cm-tools-spark.is-active 的 CSS 提供（phosphor: wrench） */
+export const WrenchIcon = phosphorIcon(P_Wrench);
+/** 结构化数据（phosphor: brackets-curly） */
+export const BracesIcon = phosphorIcon(P_BracketsCurly);
+/** 缩放-适应（取景框）（phosphor: frame-corners） */
+export const FrameIcon = phosphorIcon(P_FrameCorners);
+/** 消息浮窗放大（phosphor: corners-out） */
+export const CornersOutIcon = phosphorIcon(P_CornersOut);
+/** 消息浮窗还原（phosphor: corners-in） */
+export const CornersInIcon = phosphorIcon(P_CornersIn);
+/** HUD 合成（两支汇流）（phosphor: arrows-merge） */
+export const MergeIcon = phosphorIcon(P_ArrowsMerge);
+/** 评分维度（柱状图）（phosphor: chart-bar） */
+export const ChartBarIcon = phosphorIcon(P_ChartBar);
+/** 趋势（折线图）（phosphor: chart-line） */
+export const ChartLineIcon = phosphorIcon(P_ChartLine);
+/** 设置（Phosphor 同名导出）（phosphor: gear-six） */
+export const GearSixIcon = phosphorIcon(P_GearSix);
+/** 技术需求清单（phosphor: list-dashes） */
+export const ListDashesIcon = phosphorIcon(P_ListDashes);
+/** 应答矩阵（表格）（phosphor: table） */
+export const TableIcon = phosphorIcon(P_Table);
+/** 技术偏差表（双行）（phosphor: rows） */
+export const RowsIcon = phosphorIcon(P_Rows);
+/** 投标大纲（组织树）（phosphor: tree-structure） */
+export const TreeStructureIcon = phosphorIcon(P_TreeStructure);
+/** 重置画布（逆时针）（phosphor: arrow-counter-clockwise） */
+export const RefreshCcwIcon = phosphorIcon(P_ArrowCounterClockwise);
+/** 重新生成（顺时针）（phosphor: arrow-clockwise） */
+export const RefreshIcon = phosphorIcon(P_ArrowClockwise);
+/** 关闭（phosphor: x） */
+export const XIcon = phosphorIcon(P_X);
+/** 更多（横向三点）（phosphor: dots-three） */
+export const DotsThreeIcon = phosphorIcon(P_DotsThree);
+/** 添加招标文件（回形针）（phosphor: paperclip） */
+export const PaperclipIcon = phosphorIcon(P_Paperclip);
+/** 资质证照（phosphor: identification-card） */
+export const IdCardIcon = phosphorIcon(P_IdentificationCard);
+/** 业绩案例（楼宇）（phosphor: buildings） */
+export const BuildingsIcon = phosphorIcon(P_Buildings);
+/** 否决项：不满足即废标的通过性条款，详情里唯一的红色图形（phosphor: prohibit） */
+export const ProhibitIcon = phosphorIcon(P_Prohibit);
+/** 警示：提取质量、解析失败等「需要注意但不致命」的提示（phosphor: warning） */
+export const WarningIcon = phosphorIcon(P_Warning);
+/** 成稿章节：进行中（半填充圆）（phosphor: circle-half） */
+export const CircleHalfIcon = phosphorIcon(P_CircleHalf);
+/** 成稿章节：待补（虚线圆）（phosphor: circle-dashed） */
+export const CircleDashedIcon = phosphorIcon(P_CircleDashed);
+/** 完成 / 勾选（phosphor: check） */
+export const CheckIcon = phosphorIcon(P_Check);
+/** 载入中（phosphor: circle-notch）——静态字形，旋转与否由消费方决定 */
+export const SpinnerIcon = phosphorIcon(P_CircleNotch);
+/** 发送（phosphor: paper-plane-tilt） */
+export const PaperPlaneTiltIcon = phosphorIcon(P_PaperPlaneTilt);
+/** 回车提交（phosphor: arrow-elbow-down-left） */
+export const ArrowElbowDownLeftIcon = phosphorIcon(P_ArrowElbowDownLeft);
+/** 放大（phosphor: magnifying-glass-plus） */
+export const MagnifyingGlassPlusIcon = phosphorIcon(P_MagnifyingGlassPlus);
+/** 缩小（phosphor: magnifying-glass-minus） */
+export const MagnifyingGlassMinusIcon = phosphorIcon(P_MagnifyingGlassMinus);
+/** 外观 / 亮色（phosphor: sun） */
+export const SunIcon = phosphorIcon(P_Sun);
+/** 深色外观（phosphor: moon） */
+export const MoonIcon = phosphorIcon(P_Moon);
+/** 智能体动作（phosphor: sparkle） */
+export const SparkleIcon = phosphorIcon(P_Sparkle);
+/** 帮助（phosphor: question） */
+export const QuestionIcon = phosphorIcon(P_Question);
+/** 对话（phosphor: chat-circle） */
+export const ChatCircleIcon = phosphorIcon(P_ChatCircle);
+/** 新增（圆形）（phosphor: plus-circle） */
+export const PlusCircleIcon = phosphorIcon(P_PlusCircle);
+
+
+/**
+ * 智能体徽标（历史名 SparkIcon）：几何已统一为 Phosphor sparkle。
+ * 兼容旧签名保留 animated prop 但不再渲染 SMIL 轨道动画（规范：无限循环
+ * 动画仅限 running 态 border beam；激活态请用外层 CSS 表达，如
+ * .cm-tools-spark.is-active）。
+ */
+export function SparkIcon({ animated, ...props }: IconProps & { animated?: boolean }) {
+  void animated; // 兼容旧签名：Phosphor 填充式图标不再承载 SMIL 动画
   return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <circle cx="11" cy="11" r="7" />
-      <path d="M21 21l-4.35-4.35" />
+    <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" {...props}>
+      <path d={P_Sparkle} />
     </svg>
   );
 }
 
-export function BellIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  );
-}
-
-export function PauseIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <rect x="6" y="5" width="4" height="14" rx="1" />
-      <rect x="14" y="5" width="4" height="14" rx="1" />
-    </svg>
-  );
-}
-
-export function CopyIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
-
-export function PlusIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} {...props}>
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-export function UploadIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-    </svg>
-  );
-}
-
-export function ShareIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <path d="M16 6l-4-4-4 4M12 2v13" />
-    </svg>
-  );
-}
-
-export function DownloadIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} {...props}>
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-    </svg>
-  );
-}
-
-export function EditIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.5} {...props}>
-      <path d="M11 2l3 3-8 8H3v-3l8-8z" />
-    </svg>
-  );
-}
-
-export function CopySmallIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.5} {...props}>
-      <rect x="5" y="5" width="9" height="9" rx="1.5" />
-      <path d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2" />
-    </svg>
-  );
-}
-
-export function ResultBadgeIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M2 4h12v9H2zM2 7h12" />
-    </svg>
-  );
-}
-
-export function GridIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <rect x="3" y="3" width="7" height="7" />
-      <rect x="14" y="3" width="7" height="7" />
-      <rect x="3" y="14" width="7" height="7" />
-      <rect x="14" y="14" width="7" height="7" />
-    </svg>
-  );
-}
-
-export function FileIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6" />
-    </svg>
-  );
-}
-
-export function CasesIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M20 7h-9M14 17H5M5 7a3 3 0 1 0 6 0 3 3 0 0 0-6 0zM13 17a3 3 0 1 0 6 0 3 3 0 0 0-6 0z" />
-    </svg>
-  );
-}
-
-export function CredCheckIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3" />
-    </svg>
-  );
-}
-
-export function PenIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-    </svg>
-  );
-}
-
-export function TemplateIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M9 3v18M3 9h18" />
-    </svg>
-  );
-}
-
-export function UsersIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-export function ClockIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 3" />
-    </svg>
-  );
-}
-
-export function LayersIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-    </svg>
-  );
-}
-
-export function ArrowRightIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} {...props}>
-      <path d="M5 12h14M13 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-export function ChevronIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 12 12" {...stroke} strokeWidth={1.8} {...props}>
-      <path d="M3 4.5l3 3 3-3" />
-    </svg>
-  );
-}
-
-export function ChevronLeftIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M10 3l-5 5 5 5" />
-    </svg>
-  );
-}
-
-export function ChevronRightIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M6 3l5 5-5 5" />
-    </svg>
-  );
-}
-
-// 右侧面板收起：边框 + 实心右栏 + 箭头指向右（收起方向）。
-export function PanelRightCloseIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M15 4v16" />
-      <path d="M10 9l3 3-3 3" />
-    </svg>
-  );
-}
-
-// 右侧面板展开：箭头指向左（展开方向）。
-export function PanelRightOpenIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M15 4v16" />
-      <path d="M13 9l-3 3 3 3" />
-    </svg>
-  );
-}
-
-export function EyeIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.4} {...props}>
-      <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
-      <circle cx="8" cy="8" r="2" />
-    </svg>
-  );
-}
-
-export function EyeOffIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.4} {...props}>
-      <path d="M6.5 3.7A6.6 6.6 0 0 1 8 3.5C12 3.5 14.5 8 14.5 8a12 12 0 0 1-2 2.6M3.5 5.4A12.5 12.5 0 0 0 1.5 8S4 12.5 8 12.5c.6 0 1.2-.07 1.7-.2" />
-      <path d="M6.6 6.6a2 2 0 0 0 2.8 2.8" />
-      <path d="M2 2l12 12" />
-    </svg>
-  );
-}
+// ===== 品牌 / 第三方标（备案例外，不走 Phosphor）=====
 
 export function WechatWorkIcon(props: IconProps) {
   return (
@@ -270,320 +345,16 @@ export function DingtalkIcon(props: IconProps) {
   );
 }
 
-export function SsoIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.4} {...props}>
-      <path d="M8 1.5l5.5 2.5v4.5c0 3-2.2 5.5-5.5 6-3.3-.5-5.5-3-5.5-6V4l5.5-2.5z" />
-      <path d="M5.5 8l2 2 3-3.5" />
-    </svg>
-  );
-}
-
-// 工具调用块的头图标：开口扳手。与 SparkIcon 同尺寸（viewBox 32），
-// 静态 SVG；激活态由外层 `.cm-tools-spark.is-active` 的 CSS pulse 提供。
-export function WrenchIcon(props: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M22.2 6.4a5.2 5.2 0 0 0-6.8 6.8L7 21.6a1.6 1.6 0 0 0 0 2.26l1.14 1.14a1.6 1.6 0 0 0 2.26 0l8.4-8.4a5.2 5.2 0 0 0 6.8-6.8l-2.94 2.94-2.66-.34-.34-2.66z" />
-    </svg>
-  );
-}
-
-// `animated` 控制是否渲染 SMIL `<animate>` 子元素。SMIL 动画无法用 CSS 暂停，
-// 所以「静态」靠直接不渲染动画元素实现——图标定格为静态原子图形（轨道虚线 + 电子停在起点）。
-// 默认 true：不传 prop 的调用方（如登录页 logo）行为不变；思考块按需传 animated={active}。
-export function SparkIcon({ animated = true, ...props }: IconProps & { animated?: boolean }) {
-  const orbit = (rx: number, dash: string, opacity: number, dur: string, to: string) => (
-    <ellipse
-      cx="16"
-      cy="16"
-      rx={rx}
-      ry="4.2"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      strokeLinecap="round"
-      pathLength={100}
-      strokeDasharray={dash}
-      opacity={opacity}
-    >
-      {animated && (
-        <animate attributeName="stroke-dashoffset" dur={dur} from="0" to={to} repeatCount="indefinite" />
-      )}
-    </ellipse>
-  );
-  return (
-    <svg viewBox="0 0 32 32" fill="none" {...props}>
-      <g transform="rotate(28 16 16)">
-        {orbit(11.5, "55 45", 0.15, "1.2s", "-100")}
-        {orbit(11.5, "28 72", 0.35, "1.2s", "-100")}
-        {orbit(11.5, "8 92", 0.75, "1.2s", "-100")}
-        <circle r="1.5" fill="currentColor" cx={animated ? undefined : 27.5} cy={animated ? undefined : 16}>
-          {animated && (
-            <animateMotion
-              dur="1.2s"
-              begin="-0.096s"
-              repeatCount="indefinite"
-              path="M 27.5 16 A 11.5 4.2 0 1 1 4.5 16 A 11.5 4.2 0 1 1 27.5 16"
-            />
-          )}
-        </circle>
-      </g>
-      <g transform="rotate(-28 16 16)">
-        {orbit(11.5, "55 45", 0.15, "1.6s", "100")}
-        {orbit(11.5, "28 72", 0.35, "1.6s", "100")}
-        {orbit(11.5, "8 92", 0.75, "1.6s", "100")}
-        <circle r="1.5" fill="currentColor" cx={animated ? undefined : 4.5} cy={animated ? undefined : 16}>
-          {animated && (
-            <animateMotion
-              dur="1.6s"
-              begin="-1.504s"
-              repeatCount="indefinite"
-              path="M 4.5 16 A 11.5 4.2 0 1 0 27.5 16 A 11.5 4.2 0 1 0 4.5 16"
-            />
-          )}
-        </circle>
-      </g>
-      <circle cx="16" cy="16" r="5" fill="currentColor" />
-    </svg>
-  );
-}
-
-export function BracesIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} {...props}>
-      <path d="M8 4H7a2 2 0 0 0-2 2v3.5c0 1-.6 2-1.8 2.5 1.2.5 1.8 1.5 1.8 2.5V18a2 2 0 0 0 2 2h1" />
-      <path d="M16 4h1a2 2 0 0 1 2 2v3.5c0 1 .6 2 1.8 2.5-1.2.5-1.8 1.5-1.8 2.5V18a2 2 0 0 1-2 2h-1" />
-    </svg>
-  );
-}
-
-export function MinusIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} {...props}>
-      <path d="M5 12h14" />
-    </svg>
-  );
-}
-
-// 缩放-适应：四角取景框。
-export function FrameIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
-    </svg>
-  );
-}
-
-// 消息浮窗「放大」：四角向外（对照 Phosphor corners-out）。
-export function CornersOutIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" />
-    </svg>
-  );
-}
-
-// 消息浮窗「还原」：四角向内（对照 Phosphor corners-in）。
-export function CornersInIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M20 10h-6V4M14 10l7-7M4 14h6v6M10 14l-7 7" />
-    </svg>
-  );
-}
-
-// HUD「合成」：两支汇流向下。
-export function MergeIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M5 4v5a4 4 0 0 0 4 4h6M19 4v5a4 4 0 0 1-4 4M12 13v7M9 17l3 3 3-3" />
-    </svg>
-  );
-}
-
-// 评分维度：柱状图。
-export function ChartBarIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 21h18M6 21V11M11 21V6M16 21V14" />
-    </svg>
-  );
-}
-
-// 技术维度：齿轮。
-export function GearIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
-// ===== 工作台画布（大纲视图）专用图标 =====
-
-// 制品卡：技术需求清单（带项目符号的清单）
-export function ListDashesIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M8 6h13M8 12h13M8 18h13" />
-      <path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01" />
-    </svg>
-  );
-}
-
-// 制品卡：应答矩阵（表格）
-export function TableIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M3 9.5h18M3 14.5h18M9 4v16" />
-    </svg>
-  );
-}
-
-// 制品卡：技术偏差表（双行）
-export function RowsIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="4.5" width="18" height="6.5" rx="1.5" />
-      <rect x="3" y="13" width="18" height="6.5" rx="1.5" />
-    </svg>
-  );
-}
-
-// 制品卡 / 主轴：投标大纲（组织树）
-export function TreeStructureIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="8.5" y="3" width="7" height="5" rx="1.5" />
-      <rect x="2" y="16" width="7" height="5" rx="1.5" />
-      <rect x="15" y="16" width="7" height="5" rx="1.5" />
-      <path d="M12 8v3M5.5 16v-2.5a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1V16" />
-    </svg>
-  );
-}
-
-// 制品卡：投标文件·成稿（多文档）
-export function FilesIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M16 5h1a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-1" />
-      <rect x="3" y="3" width="11" height="14" rx="2" />
-    </svg>
-  );
-}
-
-// 工具栏：重置画布（逆时针）
-export function RefreshCcwIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" />
-      <path d="M3 3v5h5" />
-    </svg>
-  );
-}
-
-// 抽屉：重新生成（顺时针双箭头）
-export function RefreshIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8" />
-      <path d="M21 3v5h-5" />
-    </svg>
-  );
-}
-
-// 抽屉 / 原文面板：关闭（X）
-export function XIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.7} strokeLinecap="round" {...props}>
-      <path d="M6 6l12 12M18 6L6 18" />
-    </svg>
-  );
-}
-
-// 抽屉：更多（横向三点）
-export function DotsThreeIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
-      <circle cx="5" cy="12" r="1.6" />
-      <circle cx="12" cy="12" r="1.6" />
-      <circle cx="19" cy="12" r="1.6" />
-    </svg>
-  );
-}
-
-// 首页统一入口：添加招标文件（回形针）
-export function PaperclipIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M17.6 8l-7.2 7.2a2.1 2.1 0 003 3l7.3-7.4a4.5 4.5 0 00-6.4-6.4l-7.3 7.4a6.9 6.9 0 009.7 9.7l5.5-5.5" />
-    </svg>
-  );
-}
-
-// 画布底部 composer：发送（上箭头）
-export function ArrowUpIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M12 19V5M6 11l6-6 6 6" />
-    </svg>
-  );
-}
-
-// 知识库素材：资质证照
-export function IdCardIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <circle cx="8" cy="11" r="2" />
-      <path d="M5 16c0-1.7 1.3-3 3-3s3 1.3 3 3" />
-      <path d="M14 10h5M14 13.5h4" />
-    </svg>
-  );
-}
-
-// 知识库素材：业绩案例（楼宇）
-export function BuildingsIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 21h18" />
-      <path d="M4 21V8h7v13M13 21V3h7v18" />
-      <path d="M7 12h.01M7 15.5h.01M16 7h.01M16 11h.01M16 15h.01" />
-    </svg>
-  );
-}
-
-// 成稿章节：进行中（半填充圆）
-export function CircleHalfIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-// 成稿章节：待补（虚线圆）
-export function CircleDashedIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.6} strokeDasharray="3 3.4" {...props}>
-      <circle cx="12" cy="12" r="9" />
-    </svg>
-  );
-}
-
-/** Frost 品牌标：三页层叠玻璃纸 squircle（多色填充，不走 currentColor） */
-export function BrandMark(props: IconProps) {
+/**
+ * Frost 品牌标：三页层叠玻璃纸 squircle（多色填充，不走 currentColor）。
+ * 与 skill assets/frost-icon.svg 逐 rect 对齐（同一 120 视口坐标系）：
+ * 渐变三停 #5FB0FF→#1670EC→#0A3FA8 固定不旋转，圆角 22.4%（120×0.224≈27）。
+ * ≤16px（传 small 或数值尺寸 ≤16）按规范去掉底页与正文线，只留双轮廓。
+ */
+export function BrandMark({ small, ...props }: IconProps & { small?: boolean }) {
+  const sizeHint =
+    typeof props.width === "number" ? props.width : typeof props.height === "number" ? props.height : undefined;
+  const compact = small ?? (sizeHint !== undefined && sizeHint <= 16);
   return (
     <svg viewBox="0 0 120 120" aria-hidden="true" {...props}>
       <defs>
@@ -594,11 +365,62 @@ export function BrandMark(props: IconProps) {
         </linearGradient>
       </defs>
       <rect width="120" height="120" rx="27" fill="url(#frost-mark-grad)" />
+      {!compact && <rect x="30" y="46" width="60" height="44" rx="8" fill="#ffffff" opacity=".28" />}
       <rect x="26" y="36" width="68" height="48" rx="8" fill="#ffffff" opacity=".5" />
       <rect x="22" y="25" width="76" height="52" rx="9" fill="#ffffff" />
-      <rect x="34" y="38" width="40" height="5" rx="2.5" fill="#1670ec" />
-      <rect x="34" y="50" width="52" height="4" rx="2" fill="#9cc4f5" />
-      <rect x="34" y="60" width="46" height="4" rx="2" fill="#9cc4f5" />
+      {!compact && (
+        <>
+          <rect x="34" y="38" width="40" height="5" rx="2.5" fill="#1670ec" />
+          <rect x="34" y="50" width="52" height="4" rx="2" fill="#9cc4f5" />
+          <rect x="34" y="60" width="46" height="4" rx="2" fill="#9cc4f5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/**
+ * Prose Bot —— 画布消息窗的常驻形象（占位版，正式形象后续单独设计）。
+ *
+ * 是 app icon 的拟人化身：同一枚品牌超椭圆（22.4% 圆角）、同一条固定渐变，
+ * 三页玻璃纸换成一双眼睛。眼睛带 .cv-bot-eye 类，动效在 globals.css：
+ * 待命静止 / hover 眨一次 / 输出中收成扫描缝左右巡视。
+ *
+ * 注意：待命是一双**圆眼**，不是瘦长竖条——竖条会被读成暂停图标。
+ *
+ * 子代理沿用同一枚品牌形象：Frost 只有一个强调色，装饰不消耗彩色，
+ * 子代理之间靠任务描述与状态文字区分，不靠色相。
+ */
+export function ProseBotIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 36 36" {...props}>
+      <defs>
+        <linearGradient id="prose-bot-face" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#5fb0ff" />
+          <stop offset=".55" stopColor="#1670ec" />
+          <stop offset="1" stopColor="#0a3fa8" />
+        </linearGradient>
+        <linearGradient id="prose-bot-gloss" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffffff" stopOpacity=".55" />
+          <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <rect width="36" height="36" rx="8.06" fill="url(#prose-bot-face)" />
+      <rect width="36" height="17" rx="8.06" fill="url(#prose-bot-gloss)" />
+      <rect
+        x=".6"
+        y=".6"
+        width="34.8"
+        height="34.8"
+        rx="7.7"
+        fill="none"
+        stroke="#ffffff"
+        strokeOpacity=".38"
+      />
+      <g fill="#ffffff">
+        <rect className="cv-bot-eye" x="10.4" y="14.8" width="5.2" height="6.4" rx="2.6" />
+        <rect className="cv-bot-eye" x="20.4" y="14.8" width="5.2" height="6.4" rx="2.6" />
+      </g>
     </svg>
   );
 }

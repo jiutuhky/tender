@@ -180,6 +180,32 @@ export function asSourceRefs(v: unknown): SourceRef[] {
   });
 }
 
+/** 从 Money 里榨出一个数值:amount 优先;没有就从 text 原文抽第一个数字,并按其后紧跟的
+ *  「万 / 亿」单位放大。LLM 写的 text 形如「2,700,000.00 元,贰佰柒拾万元整;最高限价…」,
+ *  大写中文数字不认,只认阿拉伯数字。抽不出返回 null。 */
+export function moneyAmount(money: Money | undefined | null): number | null {
+  if (!money) return null;
+  const n = num(money.amount);
+  if (n !== null && n > 0) return n;
+  const m = money.text?.match(/(\d[\d,]*(?:\.\d+)?)\s*([万亿])?/);
+  if (!m || !m[1]) return null;
+  const base = Number(m[1].replace(/,/g, ""));
+  if (!Number.isFinite(base) || base <= 0) return null;
+  return base * (m[2] === "亿" ? 1e8 : m[2] === "万" ? 1e4 : 1);
+}
+
+/** 紧凑金额(卡面用):「270」+「万元」/「1.2」+「亿元」/「8,500」+「元」。
+ *  卡面 232px 放不下带小数与大写的完整原文,完整原文留给抽屉详情。抽不出数值返回 null。 */
+export function fmtMoneyCompact(money: Money | undefined | null): { value: string; unit: string } | null {
+  const n = moneyAmount(money);
+  if (n === null) return null;
+  const trim = (x: number, digits: number) =>
+    x.toLocaleString("zh-CN", { maximumFractionDigits: digits });
+  if (n >= 1e8) return { value: trim(n / 1e8, 2), unit: "亿元" };
+  if (n >= 1e4) return { value: trim(n / 1e4, n >= 1e6 ? 1 : 2), unit: "万元" };
+  return { value: trim(n, 0), unit: "元" };
+}
+
 /** 金额:优先 Money.text 原文,否则「2,700,000 元」;缺失显示「—」 */
 export function fmtMoney(money: Money | undefined | null): string {
   if (!money) return "—";

@@ -86,7 +86,7 @@ export function useTraceState(enabled: boolean): {
         setRegistryStatus("ready");
       })
       .catch((err: unknown) => {
-        console.warn("溯源预览:文档注册表载入失败", err);
+        console.warn("溯源预览：文档注册表载入失败", err);
         if (alive) setRegistryStatus("failed");
       });
     return () => {

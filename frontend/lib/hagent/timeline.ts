@@ -91,9 +91,11 @@ function enrichSubagentRun(call: ToolCall, children: ChatMsg[] = []): SubagentRu
   return {
     call,
     status: call.status,
-    description: args.description?.trim() || "Subagent task",
+    // 产品面恒为简体中文：Agent 的 args 是流式的，未闭合前 parseAgentArgs 返回 {}，
+    // 这两个兜底会持续渲染到执行流与子代理看板上，不能落英文技术标识。
+    description: args.description?.trim() || "子任务准备中",
     prompt: args.prompt?.trim() || "",
-    subagentType: args.subagent_type?.trim() || "general-purpose",
+    subagentType: args.subagent_type?.trim() || "通用子代理",
     children,
   };
 }
@@ -254,7 +256,7 @@ function reduceIntoList(msgs: ChatMsg[], ev: ChatStreamEvent): ChatMsg[] {
 
   if (ev.event === "error") {
     const d = ev.data as { message?: string };
-    return [...msgs, { id: newId("e"), role: "error", content: d.message ?? "unknown error" }];
+    return [...msgs, { id: newId("e"), role: "error", content: d.message ?? "执行过程中出现未知错误。" }];
   }
 
   return msgs;
