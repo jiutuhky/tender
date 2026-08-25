@@ -30,3 +30,14 @@ def test_format_skills_catalog_empty_registry_is_short() -> None:
     registry = load_skills_from_sources([])
 
     assert format_skills_catalog(registry) == ""
+
+
+def test_format_skills_catalog_can_omit_host_path_for_sandbox(tmp_path: Path) -> None:
+    _skill(tmp_path, "review", "Review code.")
+    registry = load_skills_from_sources([(tmp_path, "Project Claude")])
+
+    catalog = format_skills_catalog(registry, include_source_path=False)
+
+    assert "- review: Review code." in catalog
+    assert "-> Source: Project Claude" in catalog
+    assert str(tmp_path) not in catalog

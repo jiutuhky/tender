@@ -19,7 +19,13 @@ def _description(skill: SkillMetadata) -> str:
     return text
 
 
-def format_skills_catalog(registry: SkillRegistry) -> str:
+def format_skills_catalog(registry: SkillRegistry, *, include_source_path: bool = True) -> str:
+    """渲染注入 system prompt 的 skills 目录。
+
+    include_source_path=False 用于 sandbox 模式：SKILL.md 的宿主绝对路径在容器内不可达，
+    列出来只会诱导模型绕过 `Skill` 直接 Read 而失败；正确的容器内路径由 `Skill` 调用后的
+    `Base directory for this skill:` 给出。
+    """
     skills = registry.list()
     if not skills:
         return ""
@@ -34,15 +40,19 @@ def format_skills_catalog(registry: SkillRegistry) -> str:
         hidden = " (hidden from user slash invocation)" if not skill.user_invocable else ""
         lines.append(f"- {skill.name}: {_description(skill)}{hidden}")
         lines.append(f"  -> `Skill` name: `{skill.name}`")
-        lines.append(f"  -> Source: {skill.source_label}; file: `{skill.skill_file}`")
+        if include_source_path:
+            lines.append(f"  -> Source: {skill.source_label}; file: `{skill.skill_file}`")
+        else:
+            lines.append(f"  -> Source: {skill.source_label}")
     return "\n".join(lines)
 
 
 class HagentSkillsMiddleware(AgentMiddleware):
     name = "HagentSkills"
 
-    def __init__(self, registry: SkillRegistry) -> None:
+    def __init__(self, registry: SkillRegistry, *, include_source_path: bool = True) -> None:
         self.registry = registry
+        self.include_source_path = include_source_path
 
     @staticmethod
     def _append_catalog(request: Any, catalog: str) -> Any:
@@ -54,13 +64,13 @@ class HagentSkillsMiddleware(AgentMiddleware):
         return request.override(system_message=updated)
 
     def wrap_model_call(self, request: Any, handler: Any) -> Any:
-        catalog = format_skills_catalog(self.registry)
+        catalog = format_skills_catalog(self.registry, include_source_path=self.include_source_path)
         if not catalog:
             return handler(request)
         return handler(self._append_catalog(request, catalog))
 
     async def awrap_model_call(self, request: Any, handler: Any) -> Any:
-        catalog = format_skills_catalog(self.registry)
+        catalog = format_skills_catalog(self.registry, include_source_path=self.include_source_path)
         if not catalog:
             return await handler(request)
         return await handler(self._append_catalog(request, catalog))

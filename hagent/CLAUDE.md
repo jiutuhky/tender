@@ -92,7 +92,7 @@ cd web && npm run dev                              # Web 前端（需 Server 已
 
 ### 子代理 / skills / hooks 的发现与缓存
 
-- 三者同构的三层发现：`~/.hagent/` → 项目层（**server 进程 CWD**，非 LLM workspace）→ workspace 层；`HAGENT_AGENTS_PATHS` / `HAGENT_SKILLS_PATHS` / `HAGENT_HOOKS_SETTINGS_PATHS` 环境变量**替换**默认路径。project_root 与 LLM workspace 物理分离——只认 workspace 永远扫不到仓库级配置。
+- 三者的发现路径都是 `~/.hagent/` → 项目层（**server 进程 CWD**，非 LLM workspace），后者覆盖前者；只有 subagents 额外多一个 workspace 层（`<workspace>/agents`、`<workspace>/.hagent/agents`），skills 与 hooks 没有。sandbox 模式下 workspace 是 VM 内路径，宿主进程扫不到，所以 workspace 层实际只在 host 模式生效；`HAGENT_AGENTS_PATHS` / `HAGENT_SKILLS_PATHS` / `HAGENT_HOOKS_SETTINGS_PATHS` 环境变量**替换**默认路径。project_root 与 LLM workspace 物理分离——只认 workspace 永远扫不到仓库级配置。
 - 子代理按 session 编译缓存：**改 agent 文件后需新建 session**，老 session 不热加载。
 - frontmatter 解析对齐 CC 且更宽容（strict YAML → 加引号重试 → 宽松回退），实现在 `subagents/loader.py`——改前先读源码与测试。
 - hooks 行为对齐基准是 `docs/cc-recovered-main`（CC 恢复源码）+ spec `2026-07-06-hagent-hooks-design.md`；middleware 钩子必须 **sync + async 成对实现**（SSE 走 async 路径）；hook 永远在宿主执行。使用指南见 `docs/hooks/README.md`。

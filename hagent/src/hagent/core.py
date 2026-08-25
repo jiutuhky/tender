@@ -351,7 +351,10 @@ def create_hagent(
         repair_invalid_tool_calls_middleware,
     ]
     if skill_registry:
-        middleware.insert(0, HagentSkillsMiddleware(skill_registry))
+        # sandbox 模式下 SKILL.md 宿主路径在容器内不可达，catalog 不列出
+        middleware.insert(
+            0, HagentSkillsMiddleware(skill_registry, include_source_path=sandbox is None)
+        )
     if hook_runner is not None:
         # 头部注入 = 最外层包裹（PreToolUse 先于一切工具逻辑）
         middleware.insert(0, HagentHooksMiddleware(hook_runner))
