@@ -33,6 +33,14 @@
   --d-label-3:   #6e6e78;
   --d-separator: rgba(255, 255, 255, .10);
   --d-blue:      #409cff;
+  /* Semantic TEXT pairs need a dark counterpart of their own. The light values are
+     darkened for legibility on tint; on the #1e1e22 surface they fall to ~3:1 and
+     break the ≥4.5:1 floor. Dark lifts them instead of darkening — the same move the
+     accent makes (#0064E1 → #409CFF). Graphic values are fills, not text, so they
+     stay put. Measured on --d-surface: red 4.9:1, orange 8.1:1, green 8.2:1. */
+  --d-green-text:  #30d158;
+  --d-orange-text: #ff9f0a;
+  --d-red-text:    #ff453a;
 
   /* macOS window traffic-light dots */
   --traffic-close: #ff5f57;
@@ -54,5 +62,8 @@
   --blue:       var(--d-blue);
   --blue-press: #1f7fe0;
   --blue-soft:  rgba(64, 156, 255, .16);
+  --green-text:  var(--d-green-text);
+  --orange-text: var(--d-orange-text);
+  --red-text:    var(--d-red-text);
   color-scheme: dark;
 }

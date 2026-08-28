@@ -11,7 +11,7 @@
    Thickness (thin / regular / thick) drives blur radius, lens strength and the
    shadow stack together. Optical stack, bottom → top:
      ⑤ shadow → ① tint + lens (backdrop-filter) → ② illumination (static top
-     light + pointer specular) → ③ content → ④ rim (1.5px ring, 135°).
+     light + pointer specular) → ③ content → ④ rim (1px 解析式描边 + 135° 两段光).
 
    Web approximation of Apple Liquid Glass / HyperOS 4 柔光玻璃 — not an official
    implementation. Refraction needs Chromium + assets/frost-lens.js (injects the
@@ -45,13 +45,13 @@
   --glass-blur-thick:   24px;  --glass-lens-thick:   84;   /* panels, windows             @kind other */
   --glass-blur-soft:    30px;                               /* 霜 is constant */
 
-  /* --- ④ Rim: 1.5px ring; top-left catches the light, bottom-right is the
-         internal reflection, the flanks keep a thread --- */
-  --glass-rim: linear-gradient(135deg,
-      rgba(255, 255, 255, .95) 0%,  rgba(255, 255, 255, .72) 12%,
-      rgba(255, 255, 255, .16) 38%, rgba(255, 255, 255, .10) 56%,
-      rgba(255, 255, 255, .42) 80%, rgba(255, 255, 255, .90) 100%); /* @kind other */
-  --glass-rim-inner: 0 0 0 .5px rgba(255, 255, 255, .55) inset; /* @kind shadow */
+  /* --- ④ Rim: 1px 环 + 135° 的两段光。三条 inset 阴影解析式描边（Skia 按圆角矩形
+         直接抗锯齿），不再用 mask 挖环 —— 1px 的挖环带在弧段上覆盖率忽高忽低，
+         圆角处会读成锯齿。base 是整圈的棱，catch 是左上迎光段，echo 是右下内反射。 --- */
+  --glass-rim-w:     1px;                        /* @kind spacing */
+  --glass-rim-base:  rgba(255, 255, 255, .50);   /* @kind color */
+  --glass-rim-catch: rgba(255, 255, 255, .92);   /* @kind color */
+  --glass-rim-echo:  rgba(255, 255, 255, .55);   /* @kind color */
 
   /* --- ② Illumination: a fixed top light, plus a specular spot that follows
          the pointer (alpha multiplied by the interactive state) --- */
@@ -87,11 +87,9 @@
     linear-gradient(160deg, #17181c 0%, #171c26 50%, #142744 100%); /* @kind other */
   --glass-tint-lens: rgba(20, 22, 28, .10);
   --glass-tint-soft: rgba(34, 36, 42, .64);
-  --glass-rim: linear-gradient(135deg,
-      rgba(255, 255, 255, .55) 0%,  rgba(255, 255, 255, .36) 12%,
-      rgba(255, 255, 255, .08) 38%, rgba(255, 255, 255, .05) 56%,
-      rgba(255, 255, 255, .20) 80%, rgba(255, 255, 255, .48) 100%); /* @kind other */
-  --glass-rim-inner: 0 0 0 .5px rgba(255, 255, 255, .18) inset; /* @kind shadow */
+  --glass-rim-base:  rgba(255, 255, 255, .09);
+  --glass-rim-catch: rgba(255, 255, 255, .34);
+  --glass-rim-echo:  rgba(255, 255, 255, .20);
   --glass-illum: linear-gradient(180deg, rgba(255, 255, 255, .10) 0%, rgba(255, 255, 255, 0) 42%); /* @kind other */
   --glass-spot-alpha: .16; /* @kind other */
   --glass-shadow-thin:
@@ -128,6 +126,10 @@
 
 .frost-glass {
   position: relative;
+  /* 玻璃不描边：边由 ④ rim 与 ⑤ 接触环承担。写在这里是因为 <button> 一旦不显式
+     写 border，UA 默认的 `2px outset ButtonBorder` 就会画一圈实白边，把整层光学栈
+     压成一枚白框贴片（活动条曾如此）。 */
+  border: 0;
   border-radius: var(--r-card);
   color: var(--label);
   --_tint:   var(--glass-tint-lens);
@@ -150,17 +152,15 @@
 .frost-glass[data-thick="thin"]  { --_blur: var(--glass-blur-thin);  --_lens: url(#frost-lens-thin);  --_shadow: var(--glass-shadow-thin); }
 .frost-glass[data-thick="thick"] { --_blur: var(--glass-blur-thick); --_lens: url(#frost-lens-thick); --_shadow: var(--glass-shadow-thick); }
 
-/* ④ rim */
+/* ④ rim —— 三条 inset 阴影：整圈的棱 + 左上迎光段 + 右下内反射段。
+   偏移 1.5px、负扩张 .5px 让后两条只在对应的一侧露出一段新月形，弧上连续无级差。 */
 .frost-glass::after {
   content: "";
   position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  padding: 1.5px;
-  background: var(--glass-rim);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  box-shadow: var(--glass-rim-inner);
+  box-shadow:
+    inset 0 0 0 var(--glass-rim-w) var(--glass-rim-base),
+    inset 1.5px 1.5px 0 -.5px var(--glass-rim-catch),
+    inset -1.5px -1.5px 0 -.5px var(--glass-rim-echo);
 }
 
 /* 凝: the bend. Chromium only (backdrop-filter: url()); the same element also
@@ -177,14 +177,10 @@ html[data-glass="soft"] .frost-glass--lens {
   --_tint: var(--glass-tint-soft);
   --_blur: var(--glass-blur-soft);
 }
+/* 霜的棱是均匀细线：不折射就没有迎光/内反射之分，只留整圈的 base。 */
 .frost-glass--soft::after,
 html[data-glass="soft"] .frost-glass--lens::after {
-  background: none;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .45) inset;
-}
-[data-appearance="dark"] .frost-glass--soft::after,
-html[data-glass="soft"][data-appearance="dark"] .frost-glass--lens::after {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .10) inset;
+  box-shadow: inset 0 0 0 var(--glass-rim-w) var(--glass-rim-base);
 }
 
 /* Embedded chrome (top bar, sidebar): no float, no ring; the consumer adds the

@@ -7,9 +7,17 @@ import { DUR_FLOAT } from "./traceMotion";
 import { LiquidGlass } from "../LiquidGlass";
 import { collectSubagentRuns, isRunning } from "../runStatus";
 
+/** callId → 色相：字符串 hash × 黄金角(137.5°)铺满色轮。伪随机但稳定——同一
+ *  子代理重渲不变色（rAF 批帧下不闪），不同子代理均匀散开不扎堆。 */
+function hashHue(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  return ((h < 0 ? ~h + 1 : h) * 137.508) % 360;
+}
+
 // 画布右上角的子代理状态看板：主智能体每派发一个子代理，这里长出一行——Bot 头像
-// （与左上消息窗同一形象，同一条品牌渐变：Frost 只有一个强调色，子代理靠任务
-// 描述与状态文字区分，不靠色相）+ 任务描述 + 最近动作摘要。
+// （与左上消息窗同一形象，按 callId 派生一枚身份色，见 hashHue）+ 任务描述 +
+// 最近动作摘要。
 //
 // 结构约束（同 .cv-msgwin 的备案）：玻璃面禁不起在壳/玻璃上做 opacity 动画——
 // opacity 会把子树隔离成 backdrop root，玻璃只看见自己、塌成透明板。所以进出场
@@ -111,6 +119,7 @@ interface AgentRowProps {
 }
 
 const AgentRow = memo(function AgentRow({
+  callId,
   description,
   summary,
   running,
@@ -128,7 +137,7 @@ const AgentRow = memo(function AgentRow({
       style={{ "--i": index, "--depth": Math.min(depth, 2) } as CSSProperties}
     >
       <span className="cv-agentboard-avatar" aria-hidden="true">
-        <ProseBotIcon width={24} height={24} />
+        <ProseBotIcon hue={hashHue(callId)} width={24} height={24} />
       </span>
       <span className="cv-agentboard-main">
         <span className="cv-agentboard-line1">

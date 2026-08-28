@@ -384,14 +384,55 @@ export function BrandMark({ small, ...props }: IconProps & { small?: boolean }) 
  *
  * 是 app icon 的拟人化身：同一枚品牌超椭圆（22.4% 圆角）、同一条固定渐变，
  * 三页玻璃纸换成一双眼睛。眼睛带 .cv-bot-eye 类，动效在 globals.css：
- * 待命静止 / hover 眨一次 / 输出中收成扫描缝左右巡视。
+ * 待命静止 / hover 眨一次 / 运行中左右张望并眨眼。
  *
  * 注意：待命是一双**圆眼**，不是瘦长竖条——竖条会被读成暂停图标。
  *
- * 子代理沿用同一枚品牌形象：Frost 只有一个强调色，装饰不消耗彩色，
- * 子代理之间靠任务描述与状态文字区分，不靠色相。
+ * hue：按色相派生同款形象（子代理看板用）。缺省渲染品牌蓝原件（id 与色值都不动）；
+ * 传入时三段渐变保持原 S/L 与 +0/+5/+10 的色相差（品牌蓝即 210→220），只旋转色相——
+ * 白 gloss / 白描边 / 白眼是消色差的，不受影响，立体模型与主 Bot 完全一致。
+ *
+ * 这是**身份色**不是装饰色：并行的子代理靠它一眼分辨，色只落在超椭圆之内，行底 /
+ * 边线 / 文字 / 状态点一律保持中性与系统蓝（见 frost-design「Color · 角色豁免」）。
+ * 渐变 id 必须随 hue 变化：SVG 渐变 id 全文档共享，同名会互相覆盖。
  */
-export function ProseBotIcon(props: IconProps) {
+export function ProseBotIcon({ hue, ...props }: IconProps & { hue?: number }) {
+  if (hue !== undefined) {
+    const h = ((Math.round(hue) % 360) + 360) % 360;
+    const faceId = `prose-bot-face-h${h}`;
+    const glossId = `prose-bot-gloss-h${h}`;
+    return (
+      <svg viewBox="0 0 36 36" {...props}>
+        <defs>
+          <linearGradient id={faceId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor={`hsl(${h} 100% 69%)`} />
+            <stop offset=".55" stopColor={`hsl(${h + 5} 85% 51%)`} />
+            <stop offset="1" stopColor={`hsl(${h + 10} 89% 35%)`} />
+          </linearGradient>
+          <linearGradient id={glossId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#ffffff" stopOpacity=".55" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <rect width="36" height="36" rx="8.06" fill={`url(#${faceId})`} />
+        <rect width="36" height="17" rx="8.06" fill={`url(#${glossId})`} />
+        <rect
+          x=".6"
+          y=".6"
+          width="34.8"
+          height="34.8"
+          rx="7.7"
+          fill="none"
+          stroke="#ffffff"
+          strokeOpacity=".38"
+        />
+        <g fill="#ffffff">
+          <rect className="cv-bot-eye" x="10.4" y="14.8" width="5.2" height="6.4" rx="2.6" />
+          <rect className="cv-bot-eye" x="20.4" y="14.8" width="5.2" height="6.4" rx="2.6" />
+        </g>
+      </svg>
+    );
+  }
   return (
     <svg viewBox="0 0 36 36" {...props}>
       <defs>

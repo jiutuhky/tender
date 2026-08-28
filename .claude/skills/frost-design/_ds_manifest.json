@@ -883,15 +883,27 @@
       "definedIn": "tokens/materials.css"
     },
     {
-      "name": "--glass-rim",
-      "value": "linear-gradient(135deg, rgba(255, 255, 255, .95) 0%, rgba(255, 255, 255, .72) 12%, rgba(255, 255, 255, .16) 38%, rgba(255, 255, 255, .10) 56%, rgba(255, 255, 255, .42) 80%, rgba(255, 255, 255, .90) 100%)",
-      "kind": "other",
+      "name": "--glass-rim-w",
+      "value": "1px",
+      "kind": "spacing",
       "definedIn": "tokens/materials.css"
     },
     {
-      "name": "--glass-rim-inner",
-      "value": "0 0 0 .5px rgba(255, 255, 255, .55) inset",
-      "kind": "shadow",
+      "name": "--glass-rim-base",
+      "value": "rgba(255, 255, 255, .50)",
+      "kind": "color",
+      "definedIn": "tokens/materials.css"
+    },
+    {
+      "name": "--glass-rim-catch",
+      "value": "rgba(255, 255, 255, .92)",
+      "kind": "color",
+      "definedIn": "tokens/materials.css"
+    },
+    {
+      "name": "--glass-rim-echo",
+      "value": "rgba(255, 255, 255, .55)",
+      "kind": "color",
       "definedIn": "tokens/materials.css"
     },
     {
@@ -961,15 +973,21 @@
       "definedIn": "tokens/materials.css"
     },
     {
-      "name": "--glass-rim",
-      "value": "linear-gradient(135deg, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, .36) 12%, rgba(255, 255, 255, .08) 38%, rgba(255, 255, 255, .05) 56%, rgba(255, 255, 255, .20) 80%, rgba(255, 255, 255, .48) 100%)",
-      "kind": "other",
+      "name": "--glass-rim-base",
+      "value": "rgba(255, 255, 255, .09)",
+      "kind": "color",
       "definedIn": "tokens/materials.css"
     },
     {
-      "name": "--glass-rim-inner",
-      "value": "0 0 0 .5px rgba(255, 255, 255, .18) inset",
-      "kind": "shadow",
+      "name": "--glass-rim-catch",
+      "value": "rgba(255, 255, 255, .34)",
+      "kind": "color",
+      "definedIn": "tokens/materials.css"
+    },
+    {
+      "name": "--glass-rim-echo",
+      "value": "rgba(255, 255, 255, .20)",
+      "kind": "color",
       "definedIn": "tokens/materials.css"
     },
     {

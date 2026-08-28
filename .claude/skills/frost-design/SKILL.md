@@ -18,9 +18,9 @@ If the user invokes this skill without any other guidance, ask them what they wa
 - The full product surface is in `ui_kits/prose/` — copy it as the starting point for any Prose app view.
 
 ## Non-negotiables
-- One accent: system blue, for *interactive* and *in-progress* only. Light (rim, illumination, specular) is white — it never spends the accent.
+- One accent: system blue, for *interactive* and *in-progress* only. Light (rim, illumination, specular) is white — it never spends the accent. *Character exception:* a delegated subagent's Bot avatar carries an identity hue derived from its call id — inside the superellipse only, never on the surface, edge, label or status dot around it.
 - Material is hierarchy — glass is the control layer floating over the cold-blue wallpaper; content surfaces (documents, matrices, the composer) are solid and brightest. Never blur content; never stack glass on glass; at most three lens faces per screen, the rest is soft.
-- Light is state: the specular follows the pointer, press brightens, running state gets the border beam. Event-driven only — no loops.
+- Light is state: the specular follows the pointer, press brightens, running state gets the border beam. Event-driven only — no loops, with one sanctioned family beyond the beam: the **Prose Bot character's vital signs** (halo, glance, breathe), bound to the running state and confined to the avatar itself.
 - Depth (3 shadow steps for solids, 5-part stacks for glass) replaces strokes. Continuous-corner radius ramp (control 7 → panel 18, lens panel 20; icon 22.4%); nested corners are concentric (inner = outer − padding).
 - Text on glass stays ≥ 4.5:1; `prefers-reduced-transparency` (or the user's 柔和 mode) turns every lens face soft and every soft face solid.
 - Product copy is Simplified Chinese in a formal procurement register; the agent narrates status-first (已… / 正在…). No emoji, no hype.

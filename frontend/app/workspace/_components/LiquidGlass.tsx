@@ -30,9 +30,8 @@ import { LIQUID_GLASS_MAPS, type LiquidGlassMode } from "./canvas/liquidGlassMap
  *      "怎么都到不了原版效果"的原因。Firefox / Safari 不支持 backdrop-filter 里的 url()，
  *      按 UA 退成 blur()+saturate() 的纯毛玻璃（与上游一致：它们本来就没有位移）。
  *   2. children —— 内容层。
- *   3. 边缘光（`.lg-rim`）：1.5px 的环（mask 挖空），沿 135° 走一道两端亮、中段暗的白色渐变——
- *      模拟一块有厚度的玻璃在顶光下的棱：迎光的左上沿与对角的右下沿各亮一段（右下是内部
- *      反射），两侧腰线只剩一丝。再压一圈 .5px 的内侧白线把棱勾实。上游是两条环
+ *   3. 边缘光（`.lg-rim`）：三条 inset 阴影——整圈 1px 的棱，加左上迎光段与右下内反射段
+ *      两枚新月，模拟一块有厚度的玻璃在顶光下的棱，两侧腰线只剩一丝。上游是两条环
  *      （screen + overlay 混合），这里**必须**用普通合成：任何一个 mix-blend-mode 都会让最近
  *      的祖先 stacking context（.cv-msgwin，它靠 z-index 浮在画布上）被隔离成一个 group，
  *      而 backdrop-filter 只能看见到最近 backdrop root 为止的画面——于是玻璃只见到自己，
@@ -40,8 +39,8 @@ import { LIQUID_GLASS_MAPS, type LiquidGlassMode } from "./canvas/liquidGlassMap
  *
  * 只在 Chromium 上是完整效果（Safari 无位移、Firefox 无位移），与上游一致。
  *
- * Frost 2 规范光学栈对齐（合规治理 2026-08）：④ rim 与内环直接取 --glass-rim /
- * --glass-rim-inner token；②/① 由 .lg-illum 层承担（--glass-illum 顶光 + --glass-tint-lens
+ * Frost 2 规范光学栈对齐（合规治理 2026-08）：④ rim 直接取 --glass-rim-base /
+ * -catch / -echo token；②/① 由 .lg-illum 层承担（--glass-illum 顶光 + --glass-tint-lens
  * 基底）；⑤ shadow 由外部 CSS 按 --glass-shadow-* 配置。指针 specular 只属交互玻璃，
  * 此固定面板依规范不做。
  */
@@ -66,19 +65,17 @@ export interface LiquidGlassProps {
   children?: ReactNode;
 }
 
-/** 边缘光的环：mask 只留外沿 1.5px；内侧再勾一圈 .5px 白线把棱勾实。 */
-const RIM_MASK: CSSProperties = {
-  padding: "1.5px",
-  WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-  WebkitMaskComposite: "xor",
-  maskComposite: "exclude",
-  boxShadow: "var(--glass-rim-inner)",
+/** 顶光下厚玻璃的棱：整圈 1px 的 base，左上迎光段最亮（catch），右下是内反射的
+ *  第二亮段（echo），两侧腰线只剩一丝。三条 inset 阴影由 Skia 按圆角矩形解析式描边，
+ *  弧段上抗锯齿连续——旧版用 mask 挖 1.5px 的环，1px 级的覆盖率在圆角处忽高忽低，
+ *  边看起来是锯齿状的。颜色取 frost-materials.css 的 rim token，暗色下自动换挡。 */
+const RIM_SHADOW: CSSProperties = {
+  boxShadow: [
+    "inset 0 0 0 var(--glass-rim-w) var(--glass-rim-base)",
+    "inset 1.5px 1.5px 0 -.5px var(--glass-rim-catch)",
+    "inset -1.5px -1.5px 0 -.5px var(--glass-rim-echo)",
+  ].join(", "),
 };
-
-/** 顶光下厚玻璃的棱：左上迎光段最亮，右下是内反射的第二亮段，两侧腰线只剩一丝。
- *  直接消费 frost-materials.css 的 --glass-rim（135°，停靠点 0/12/38/56/80/100），
- *  与设计系统单源同步，暗色外观下 token 自动换挡。 */
-const RIM_LIGHT = "var(--glass-rim)";
 
 const subscribeNoop = () => () => {};
 const getFalse = () => false;
@@ -266,12 +263,11 @@ export function LiquidGlass({
         className="lg-rim"
         aria-hidden="true"
         style={{
-          ...RIM_MASK,
+          ...RIM_SHADOW,
           position: "absolute",
           inset: 0,
           borderRadius: radius,
           pointerEvents: "none",
-          background: RIM_LIGHT,
         }}
       />
     </div>

@@ -35,6 +35,14 @@
     --d-label-3:   #6e6e78;
     --d-separator: rgba(255, 255, 255, .10);
     --d-blue:      #409cff;
+    /* 语义「文字」色的暗色对位。浅色那三个值是为在浅色 tint 上可读而压暗的，
+       放到 #1e1e22 的暗色面上只剩约 3:1，跌破规范的 ≥4.5:1 下限。
+       暗色下改为提亮而非压暗 —— 与强调色 #0064E1 → #409CFF 同一手法。
+       graphic 三色是填充不是文字，不受此限，保持不动。
+       实测（衬 --d-surface）：红 4.9:1、橙 8.1:1、绿 8.2:1。 */
+    --d-green-text:  #30d158;
+    --d-orange-text: #ff9f0a;
+    --d-red-text:    #ff453a;
 
     /* macOS 红绿灯 */
     --traffic-close: #ff5f57;
@@ -131,6 +139,9 @@
     --blue-press: #1f7fe0;
     --blue-soft:  rgba(64, 156, 255, .16);
     --border-2:   rgba(255, 255, 255, .18);
+    --green-text:  var(--d-green-text);
+    --orange-text: var(--d-orange-text);
+    --red-text:    var(--d-red-text);
     color-scheme: dark;
   }
 
@@ -2279,10 +2290,26 @@ body {
   --cv-grid-y: 0px;
   --cv-grid-size: var(--cv-grid-gap);
   --cv-grid-dot: color-mix(in srgb, var(--label-3) 16%, transparent);
+  /* 画布地 = 实底 + 一层低频光场。规范第三条「环境即上下文」：玻璃要有东西可折射，
+     一块绝对均匀的实底会把浮层（消息浮窗 / 活动条 / 坞上的 chips）读成描边贴片。
+     光场比 --wallpaper 弱一个量级——这里是工作台不是桌面，卡片实底仍须是最亮的一层。 */
+  --cv-ground:
+    radial-gradient(920px 640px at 10% -12%, rgba(255, 255, 255, .62), rgba(255, 255, 255, 0) 62%),
+    radial-gradient(820px 560px at 94% 110%, rgba(0, 100, 225, .07), rgba(0, 100, 225, 0) 60%),
+    radial-gradient(700px 520px at 78% 4%, rgba(96, 152, 232, .06), rgba(96, 152, 232, 0) 58%);
   background-color: var(--surface-2);
-  background-image: radial-gradient(circle, var(--cv-grid-dot) 1px, transparent 1.5px);
-  background-size: var(--cv-grid-size) var(--cv-grid-size);
-  background-position: var(--cv-grid-x) var(--cv-grid-y);
+  background-image:
+    radial-gradient(circle, var(--cv-grid-dot) 1px, transparent 1.5px),
+    var(--cv-ground);
+  background-size: var(--cv-grid-size) var(--cv-grid-size), auto, auto, auto;
+  background-position: var(--cv-grid-x) var(--cv-grid-y), 0 0, 0 0, 0 0;
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+}
+[data-appearance="dark"] .canvas-viewport {
+  --cv-ground:
+    radial-gradient(920px 640px at 10% -12%, rgba(255, 255, 255, .055), rgba(255, 255, 255, 0) 62%),
+    radial-gradient(820px 560px at 94% 110%, rgba(64, 156, 255, .13), rgba(64, 156, 255, 0) 60%),
+    radial-gradient(700px 520px at 78% 4%, rgba(120, 170, 255, .06), rgba(120, 170, 255, 0) 58%);
 }
 
 /* ---- 顶部工具栏（玻璃） ---- */
@@ -2993,22 +3020,28 @@ body {
   outline: 2px solid var(--blue);
   outline-offset: 3px;
 }
-/* 运行中：一圈静态蓝环。规范只授予 running 态 border beam 一条循环动画
-   （见 .cv-msgwin-beam），Bot 侧不再另起第二条脉动——蓝色本身即「进行中」。 */
+/* 运行中：一圈向外化开的白光，2.4s 一拍（与光束 2.6s 不整除，避免打成节拍器）。
+   环本身是常驻的 box-shadow，动的只有 transform / opacity——规范只许这两者进补间。
+   光是白的：蓝色的光只授予 border beam。 */
 .cv-msgwin-bot::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--blue) 0%, transparent);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);
+  opacity: 0;
   pointer-events: none;
-  transition: box-shadow var(--t-float) var(--ease-std);
+  transition: opacity var(--t-float) var(--ease-std);
 }
 .cv-msgwin[data-busy="1"] .cv-msgwin-bot::after {
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);   /* 光是白的：蓝色的光只授予 border beam */
+  opacity: 1;
+  animation: cv-bot-halo 2.4s var(--ease-out) infinite;
 }
-/* 眼睛：待命静止（规范：循环动画只授予进行中状态），hover 眨一次，
-   运行中收成一条扫描缝并左右巡视。 */
+@keyframes cv-bot-halo {
+  0%        { transform: scale(1);    opacity: .62; }
+  70%, 100% { transform: scale(1.26); opacity: 0; }
+}
+/* 眼睛：待命静止（循环只授予进行中状态），hover 眨一次，运行中左右张望并眨眼。 */
 .cv-bot-eye {
   transform-box: fill-box;
   transform-origin: center;
@@ -3016,10 +3049,28 @@ body {
 }
 .cv-msgwin-bot:hover .cv-bot-eye { animation: cv-bot-blink var(--t-panel) var(--ease-std); }
 @keyframes cv-bot-blink { 40%, 60% { transform: scaleY(.18); } }
-/* 运行中的眼神：收成一条静态扫描缝——状态由形态表达，不靠循环。
-   规范：无限循环仅授予 running 态 border beam，其余一律事件驱动。 */
+/* 运行中的眼神：左看一眼、停一拍、右看一眼、回正时眨一下——像在认真翻资料。
+   关键帧里有大段 hold（8%→14%、36%→42%）：眼球是跳视不是平移，匀速滑动会像机器。 */
 .cv-msgwin[data-busy="1"] .cv-bot-eye {
-  transform: scaleY(.4);
+  animation: cv-bot-glance 4.2s var(--ease-std) infinite;
+}
+@keyframes cv-bot-glance {
+  0%, 8%    { transform: translateX(0) scaleY(1); }
+  14%, 36%  { transform: translateX(-1.4px) scaleY(1); }
+  42%, 64%  { transform: translateX(1.4px) scaleY(1); }
+  70%       { transform: translateX(0) scaleY(1); }
+  74%       { transform: translateX(0) scaleY(.12); }
+  78%, 100% { transform: translateX(0) scaleY(1); }
+}
+/* 身体：极轻的上下浮 + 半度歪头，周期与眼神（4.2s）、光晕（2.4s）互不整除。
+   挂在 svg 而不是 button：button 的 transform 留给 hover/active 反馈。 */
+.cv-msgwin[data-busy="1"] .cv-msgwin-bot svg {
+  animation: cv-bot-bob 3.1s var(--ease-std) infinite;
+  transform-origin: 50% 60%;
+}
+@keyframes cv-bot-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-1.2px) rotate(-1.5deg); }
 }
 
 /* ---- min 档：一行滚动播报 ----
@@ -3223,8 +3274,9 @@ body {
   color: var(--label-2);
   font-size: 12.5px;
   /* 材质、rim、投影、hover 指针高光与 press 全部交给
-     .frost-glass--soft.frost-glass--interactive（类挂在 ActivityBar.tsx）；
-     此处不写 background / border / box-shadow，否则会压掉工具类的光学栈。 */
+     .frost-glass--lens.frost-glass--interactive（类挂在 ActivityBar.tsx）；
+     此处不写 background / border / box-shadow，否则会压掉工具类的光学栈。
+     （border 由 .frost-glass 统一归零——<button> 的 UA 默认边是 2px outset 实白。） */
 }
 .cv-actbar-text {
   min-width: 0;
@@ -3243,7 +3295,7 @@ body {
    [data-state="open"][data-busy="1"]，状态一结束立即停止。
    活动条与子代理看板的运行态改由静态形态与状态文案表达，不再另起循环。 */
 
-/* 活动条的运行态：边由 .frost-glass--soft 的规范 rim 承担（--glass-rim / --glass-rim-inner），
+/* 活动条的运行态：边由 .frost-glass--lens 的规范 rim 承担（--glass-rim-base / -catch / -echo），
    不再叠第二套自造光带——光学栈固定五层，rim 的唯一来源是材质 token。 */
 
 .cv-shimmer {
@@ -3368,12 +3420,18 @@ body {
 .cv-agentboard-avatar svg { display: block; transform-origin: 50% 62%; }
 /* 运行中的子代理：身体做「呼吸式」挤压（横宽纵扁再回弹，像在使劲），眼睛沿用主 Bot
    的张望+眨眼。每行用 --i 给负延迟把相位错开——四个一起点头会像节拍器。
-   动效只在 .is-running 行：终态行头像静止（规范：循环动画只授予进行中状态）。 */
+   动效只在 .is-running 行：终态行头像静止（循环只授予进行中状态）。 */
 .cv-agentboard-row.is-running .cv-agentboard-avatar svg {
-  /* 循环呼吸已撤：子代理行运行态由静态蓝点/文字表达。 */
+  animation: cv-agent-breathe 2.3s var(--ease-std) infinite;
+  animation-delay: calc(var(--i, 0) * -0.55s);
+}
+@keyframes cv-agent-breathe {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50%      { transform: translateY(-1px) scale(1.05, .95); }
 }
 .cv-agentboard-row.is-running .cv-bot-eye {
-  transform: scaleY(.4);   /* 运行态静态扫描缝，与主 Bot 同构 */
+  animation: cv-bot-glance 4.2s var(--ease-std) infinite;
+  animation-delay: calc(var(--i, 0) * -1.3s);
 }
 /* 完成：眼睛眯成一道弯——「满意地合上」，只播一次，停在终态。 */
 .cv-agentboard-row.is-done .cv-bot-eye {
@@ -3440,9 +3498,10 @@ body {
 /* 减弱动态：全部退化为静态。文字流光与状态涟漪已在常态下即静态，此处只撤光带与光束。 */
 @media (prefers-reduced-motion: reduce) {
   /* 光束整层撤掉：全局那条 iteration-count:1 只会让它跑完一圈定格，
-     留下一段静止的亮弧——那比不画更奇怪。Bot 的光晕/扫描眼同理。 */
+     留下一段静止的亮弧——那比不画更奇怪。Bot 的生命体征退化为静止形态：
+     光晕停在贴边的一圈白环（状态仍在，只是不再化开），眼神与身体归位。 */
   .cv-msgwin-beam { display: none; }
-  .cv-msgwin-bot::after { display: none; }
+  .cv-msgwin-bot::after { animation: none !important; }
   .cv-bot-eye { animation: none !important; }
   .cv-msgwin-bot svg,
   .cv-agentboard-avatar svg { animation: none !important; }

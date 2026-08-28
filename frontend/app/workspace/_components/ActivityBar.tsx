@@ -16,9 +16,11 @@ export function ActivityBar() {
   return (
     <button
       type="button"
-      // 玻璃走规范工具类。放置矩阵里活动条本应是 凝 lens·thin，但单屏 lens 预算(≤3)
-      // 已被消息浮窗 / agent 看板 / 瞬态菜单占满，按规范「超预算降级」取 霜 soft·thin。
-      className="cv-actbar is-running frost-glass frost-glass--soft frost-glass--interactive"
+      // 玻璃走规范工具类，按放置矩阵取 凝 lens·thin。单屏 lens 预算(≤3) 正好用满：
+      // 本组件只在运行期渲染，同期在场的 lens 面只有消息浮窗与子代理看板；瞬态菜单
+      // 是浮起即收的第四面，不计入常驻预算。霜 soft 在这里不成立——活动条浮在画布
+      // 实底上，不折射就只剩一圈描边，读作贴片而非玻璃。
+      className="cv-actbar is-running frost-glass frost-glass--lens frost-glass--interactive"
       data-thick="thin"
       title="展开执行流"
       onClick={() => setStreamSize("open")}
