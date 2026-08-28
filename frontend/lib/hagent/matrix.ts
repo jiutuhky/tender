@@ -128,6 +128,9 @@ export interface TechnicalMatrix extends MatrixEnvelope {
 export interface ScoringItem {
   id?: string;
   group?: string; // price | business | technical | ...
+  /** 二级评审因素分类(招标文件评审标准表的「评审因素分类」列:业绩 / 技术方案 / …)。
+   *  可选:存量抽取无此字段,详情列表退化为一级项内平铺。 */
+  subgroup?: string | null;
   title?: string;
   max_score?: number | null;
   scoring_rule?: string;

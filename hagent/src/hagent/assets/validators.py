@@ -282,6 +282,15 @@ def _check_item_shape(matrix_type: str, item: MatrixItem, issues: list[Validatio
                 f"max_score 必须是数字或 null，得到 {max_score!r}",
                 hint="用 update_matrix_item 修正 max_score",
             ))
+        # subgroup 是二级评审因素分类（评审标准表「评审因素分类」列的原文用词）。
+        # 可选字段：存量抽取没有它，不进 REQUIRED_FIELDS；只在给了值时核类型。
+        subgroup = payload.get("subgroup")
+        if subgroup is not None and not isinstance(subgroup, str):
+            issues.append(_error(
+                "structure", target, "invalid_subgroup",
+                f"subgroup 必须是字符串或 null，得到 {subgroup!r}",
+                hint="用 update_matrix_item 修正 subgroup",
+            ))
     _check_source_refs(target, payload.get("source_refs"), issues)
 
 

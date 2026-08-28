@@ -4549,35 +4549,132 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* 评分详情否决项:与实质性条款同级致命,置于详情最顶部。
+/* 分值构成环形图 + 当前一级项读数(2026-08 重做,替代原堆叠条 + 图例)。
    ---------------------------------------------------------------------------
+   原来的堆叠条只是一张静态图,与下方列表各说各话;现在环 / 读数 / 分段控件是同一
+   状态的三个面 —— 环报构成、读数报当前项的事实、滑块负责切换,所以不再另立图例
+   (滑块上已经带着分值,图例就是把同一件事说第三遍)。
+   孔里放总分:省掉「总分 100」那行字,数字本身就是标题。 */
+.cv-det-struct {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 2px 0 12px;
+}
+.cv-det-donut { flex: 0 0 auto; }
+/* 段色走中性灰阶:分值结构是构成关系,不是四种状态,不该动用四档蓝
+   (蓝在 Frost 只归可交互 / 进行中)。深→浅按名次,与卡面结构条同一套语汇。
+   选中段提到实色 --label、其余压暗 —— 选中态靠明度而非色相,与分段控件
+   「白底浮起、不动用系统蓝」同源。 */
+.cv-det-arc {
+  fill: none;
+  stroke-linecap: butt;
+  transition: stroke var(--t-micro) var(--ease-std), opacity var(--t-micro) var(--ease-std);
+}
+.cv-det-arc.is-pickable { cursor: pointer; }
+.cv-det-arc.is-rank1 { stroke: color-mix(in srgb, var(--label) 52%, transparent); }
+.cv-det-arc.is-rank2 { stroke: color-mix(in srgb, var(--label) 34%, transparent); }
+.cv-det-arc.is-rank3 { stroke: color-mix(in srgb, var(--label) 22%, transparent); }
+.cv-det-arc.is-rank4,
+.cv-det-arc.is-other { stroke: color-mix(in srgb, var(--label) 10%, transparent); }
+.cv-det-arc.is-dim { opacity: .38; }
+.cv-det-arc.is-on { stroke: var(--label); opacity: 1; }
+.cv-det-donut:hover .cv-det-arc.is-dim.is-pickable { opacity: .58; }
+.cv-det-donut-num {
+  font-size: 25px;
+  font-weight: 700;
+  fill: var(--label);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+}
+.cv-det-donut-cap { font-size: 10px; font-weight: 500; fill: var(--label-3); letter-spacing: .04em; }
+
+.cv-det-readout { flex: 1; min-width: 0; }
+.cv-det-ro-name { font-size: 12px; font-weight: 700; color: var(--label); letter-spacing: -.005em; }
+.cv-det-ro-line { display: flex; align-items: baseline; gap: 7px; margin-top: 3px; }
+.cv-det-ro-big {
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -.022em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.cv-det-ro-unit { font-size: 12px; font-weight: 600; color: var(--label-2); }
+.cv-det-ro-pct { margin-left: auto; font-size: 11.5px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.cv-det-ro-meta { margin-top: 5px; font-size: 11.5px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+.cv-det-ro-hint {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid var(--separator);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--label-2);
+}
+.cv-det-ro-hint b { font-weight: 600; color: var(--label); }
+
+/* 评分详情否决项:折叠带,排在分值构成之后。
+   ---------------------------------------------------------------------------
+   它是「读一次就不再看」的信息,分值构成才需要反复参照 —— 所以让环形图占住顶部,
+   否决项收成一条恒定高度的带排在其后。折叠态高度不随条数变化,9 条与 20 条一个样,
+   环形图不会被挤出首屏(这正是旧版把红区顶在最上时的毛病:条数一多,构成图就出屏了)。
+   折叠不等于藏起来:条数报在标题行,最要命的第一条报在下面一行。
+
    不做彩色填充块、不立彩色边线 —— 那是便利贴,不是提示。语义色只落在**图标与
    标题**上(destructive 的通行做法:iOS 的破坏性操作、macOS 系统设置的危险区
    都只染字与符号,不染面积),条文本身用主色照常读,分区交给 hairline 与留白。
-   「最该先看」由位置(排最前)、字重与那枚红图标承担;条文前的中性序号让五条
-   否决项读作一份清单,而不是一堆警告。 */
+   「最该先看」由那枚红图标与红标题字承担 —— 在一片灰阶环形图旁边,红反而更跳;
+   条文前的中性序号让否决项读作一份清单,而不是一堆警告。 */
 .cv-det-veto {
-  margin: 0 0 18px;
-  padding-bottom: 2px;
-  border-bottom: 1px solid var(--separator);
+  margin: 0 0 4px;
+  padding: 12px 0;
+  border-top: 1px solid var(--separator);
 }
-.cv-det-veto-title {
+.cv-det-veto-btn {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 2px 0 8px;
+  width: calc(100% + 12px);
+  margin: 0 -6px;
+  padding: 3px 6px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-control);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: -.005em;
   color: var(--red-text);
+  transition: background-color var(--t-micro) var(--ease-std);
 }
-.cv-det-veto-title > svg { flex: 0 0 auto; }
+.cv-det-veto-btn:hover { background: var(--surface-2); }
+.cv-det-veto-btn:active { transform: scale(.99); }
+.cv-det-veto-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.cv-det-veto-btn > svg { flex: 0 0 auto; }
 .cv-det-veto-count {
   margin-left: auto;
   font-size: 11px;
   font-weight: 600;
   color: var(--label-3);
   font-variant-numeric: tabular-nums;
+}
+.cv-det-veto-caret {
+  flex: 0 0 auto;
+  color: var(--label-3);
+  transition: transform var(--t-micro) var(--ease-std);
+}
+.cv-det-veto-caret.is-open { transform: rotate(180deg); }
+/* 折叠态的一行摘要:与标题行的图标对齐(15px 图标 + 7px 间距) */
+.cv-det-veto-peek {
+  margin-top: 5px;
+  padding-left: 22px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--label-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cv-det-veto-row {
   display: flex;
@@ -4590,6 +4687,7 @@ body {
   color: var(--label);
   overflow-wrap: anywhere;
 }
+.cv-det-veto-row:first-of-type { margin-top: 8px; }
 .cv-det-veto-no {
   flex: 0 0 auto;
   min-width: 15px;
@@ -4610,7 +4708,7 @@ body {
   padding: 10px 0;
   border-top: 1px solid var(--separator);
 }
-.cv-det-srow:first-of-type { border-top: 0; }
+.cv-det-srow.is-first { border-top: 0; }
 .cv-det-srow-main { flex: 1; min-width: 0; }
 .cv-det-srow-title {
   display: flex;
@@ -4626,49 +4724,83 @@ body {
   line-height: 1.7;
   color: var(--label-3);
 }
+/* 规则默认两行:真实招标文件一条评分规则 100～200 字,几十项全展开时
+   列表会长到没人愿意滚。与条目详情的 .cv-det-item-text.is-clamped 同一套办法。 */
+.cv-det-srow-rule.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 分值列:数字 + 一条正比微条。一列数字读成一条形状,0.5 分与 13 分的差距
+   不必逐个比对数字就能看见。
+   带 track:满分跨度大时(13 分 vs 0.5 分)裸条只剩三四个像素,悬在右边读作渲染杂点
+   而不是数据 —— 极浅的空槽既给出「相对于谁」的参照,也让短条读作有意为之。 */
+.cv-det-srow-cell { flex: 0 0 auto; width: 46px; text-align: right; }
+.cv-det-srow-track {
+  display: block;
+  height: 3px;
+  margin-top: 5px;
+  border-radius: 999px;   /* 装饰细件，坡道外 */
+  background: color-mix(in srgb, var(--label) 8%, transparent);
+  overflow: hidden;
+}
 .cv-det-srow-score {
-  flex: 0 0 auto;
-  min-width: 30px;
-  text-align: right;
   font-size: 15px;
   font-weight: 600;
   color: var(--label);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.cv-det-srow-bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;   /* 装饰细件，坡道外 */
+  background: color-mix(in srgb, var(--label) 40%, transparent);
 }
 .cv-det-srow.is-total { border-top-width: 1px; }
 .cv-det-srow.is-total .cv-det-srow-title { font-weight: 700; }
 .cv-det-srow.is-total .cv-det-srow-score { font-weight: 700; }
+/* 展开 / 收起:与来源签同处次行,走无框文本钮(签已经占了描边那一档) */
+.cv-det-more {
+  border: 0;
+  background: transparent;
+  padding: 2.5px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--label-3);
+  border-radius: var(--r-control);
+  cursor: pointer;
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
+}
+.cv-det-more:hover { color: var(--blue); background: var(--blue-soft); }
+.cv-det-more:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
-/* 分值结构堆叠条:段色按名次走中性灰阶,图例同色对应 */
-.cv-det-scorebar {
-  display: flex;
-  gap: 2px;
-  height: 10px;
-  border-radius: 999px;
-  overflow: hidden;
-}
-.cv-det-scorebar i { display: block; height: 100%; min-width: 3px; }
-/* 段色走中性灰阶:分值结构是构成关系,不是四种状态,不该动用四档蓝
-   (蓝在 Frost 只归可交互 / 进行中)。深→浅按名次,与卡面结构条同一套语汇。 */
-.cv-det-scorebar .is-rank1,
-.cv-det-scorelegend .is-rank1 { background: color-mix(in srgb, var(--label) 52%, transparent); }
-.cv-det-scorebar .is-rank2,
-.cv-det-scorelegend .is-rank2 { background: color-mix(in srgb, var(--label) 34%, transparent); }
-.cv-det-scorebar .is-rank3,
-.cv-det-scorelegend .is-rank3 { background: color-mix(in srgb, var(--label) 22%, transparent); }
-.cv-det-scorebar .is-other,
-.cv-det-scorelegend .is-other { background: color-mix(in srgb, var(--label) 10%, transparent); }
-.cv-det-scorelegend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 14px;
-  margin-top: 8px;
+/* 一级项分段控件上的分值:比标签轻一档,读作注脚而不是第二个标签 */
+.cv-det-seg-n { margin-left: 4px; font-weight: 600; color: var(--label-3); }
+.cv-det-seg button.is-active .cv-det-seg-n { color: var(--label-2); }
+/* 排序切换:吸顶条右端的无框文本钮,不与左侧分段控件抢层级 */
+.cv-det-sort {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 4px 7px;
+  border-radius: var(--r-control);
   font-size: 11.5px;
-  color: var(--label-2);
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--label-3);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
 }
-.cv-det-scorelegend > span { display: inline-flex; align-items: center; gap: 5px; }
-.cv-det-scorelegend i { width: 8px; height: 8px; border-radius: 3px;   /* 装饰细件，坡道外 */ flex: 0 0 auto; }
+.cv-det-sort:hover { background: var(--surface-2); color: var(--label); }
+.cv-det-sort:active { transform: scale(.97); }
+.cv-det-sort:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.cv-det-sort > svg { flex: 0 0 auto; }
 
 /* ---- 降级：减少透明度时实底化玻璃 ----
    .cv-toolbar / .cv-dock-chip / .cv-viewport-hint / .cv-actbar 已改用 .frost-glass 工具类，
@@ -4729,6 +4861,11 @@ body {
   .workspace .cv-det-seg button.is-active:hover { color: var(--label); }
   .workspace .cv-det-anchor:hover { background: var(--surface-2); color: var(--label-2); }
   .workspace .cv-det-anchor:hover .cv-det-anchor-n { color: var(--label-3); }
+  /* 评分详情的三处无框钮：粗指针上取消 hover 洗色，按压反馈仍由 :active 承担 */
+  .workspace .cv-det-veto-btn:hover { background: transparent; }
+  .workspace .cv-det-sort:hover { background: transparent; color: var(--label-3); }
+  .workspace .cv-det-more:hover { background: transparent; color: var(--label-3); }
+  .workspace .cv-det-donut:hover .cv-det-arc.is-dim.is-pickable { opacity: .38; }
   /* 玻璃面的 hover 是光（--_spot-a），不是底色：粗指针设备上取消高光即可，
      不要给玻璃写半透明白底——那会替换掉整层光学栈。 */
   .workspace .cv-dock-chip:hover,

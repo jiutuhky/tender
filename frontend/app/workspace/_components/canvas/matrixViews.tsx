@@ -24,7 +24,14 @@ import {
   type TimelineEvent,
 } from "@/lib/hagent/matrix";
 import { assessSourceRef } from "@/lib/trace/refs";
-import { CheckIcon, ClockIcon, ProhibitIcon, WarningIcon } from "@/components/ui/icons";
+import {
+  ArrowsDownUpIcon,
+  CheckIcon,
+  ChevronIcon,
+  ClockIcon,
+  ProhibitIcon,
+  WarningIcon,
+} from "@/components/ui/icons";
 import { isSlotInterrupted } from "./cardMeta";
 import { useTrace, type TraceClaim } from "./traceContext";
 import {
@@ -1033,14 +1040,212 @@ function vetoRuleText(r: unknown): string {
   return r == null ? "" : String(r);
 }
 
+/** 分值构成环形图:三段(+「其他」)按名次走中性灰阶,与卡面结构条同一套语汇。
+ *  段色不动用四档蓝 —— 分值结构是构成关系,不是四种状态。选中段提到实色 --label、
+ *  其余压暗,选中态靠明度而非色相,与分段控件「白底浮起、不动用系统蓝」同源。
+ *  孔里放总分:省掉「总分 100」那行字,数字本身就是标题。 */
+function ScoreDonut({
+  parts,
+  base,
+  activeKey,
+  onPick,
+}: {
+  parts: ScorePart[];
+  base: number;
+  activeKey: string | null;
+  onPick: (key: string) => void;
+}) {
+  const R = 46;
+  const C = 2 * Math.PI * R;
+  // 段间留白:沿用堆叠条的 2px 缝,换算成弧长
+  const GAP = 3.4;
+  let acc = 0;
+  const arcs = parts.map((p) => {
+    const len = (C * p.score) / base;
+    const draw = Math.max(len - GAP, 1);
+    const arc = { part: p, dash: `${draw.toFixed(2)} ${(C - draw).toFixed(2)}`, deg: -90 + (acc / C) * 360 };
+    acc += len;
+    return arc;
+  });
+  return (
+    <svg className="cv-det-donut" width="124" height="124" viewBox="0 0 124 124" role="img" aria-label="分值构成">
+      {arcs.map(({ part, dash, deg }) => {
+        const on = part.key === activeKey;
+        // 不可切换的段(「其他」= 总分差值,没有对应条目)不接事件,也不给指针
+        const pickable = part.pickable;
+        return (
+          <circle
+            key={part.key}
+            className={`cv-det-arc ${part.cls}${on ? " is-on" : " is-dim"}${pickable ? " is-pickable" : ""}`}
+            cx="62"
+            cy="62"
+            r={R}
+            strokeWidth="13"
+            strokeDasharray={dash}
+            transform={`rotate(${deg.toFixed(2)} 62 62)`}
+            onClick={pickable ? () => onPick(part.key) : undefined}
+          >
+            <title>{`${part.label} ${fmtScore(part.score)} 分`}</title>
+          </circle>
+        );
+      })}
+      <text className="cv-det-donut-num" x="62" y="60" textAnchor="middle" dominantBaseline="middle">
+        {fmtScore(base)}
+      </text>
+      <text className="cv-det-donut-cap" x="62" y="79" textAnchor="middle" dominantBaseline="middle">
+        总分
+      </text>
+    </svg>
+  );
+}
+
+/** 否决项折叠带:它是「读一次就不再看」的信息,分值构成才需要反复参照 ——
+ *  所以让环形图占住顶部,否决项收成一条恒定高度的带排在其后。折叠态高度不随条数变化,
+ *  9 条与 20 条一个样,环形图不会被挤出首屏。
+ *  折叠不等于藏起来:条数报在标题行,最要命的第一条报在下面一行。
+ *  仍不做彩色填充块 / 彩色左边线 —— 语义色只落图标与标题字。 */
+function VetoBand({ rules }: { rules: VetoRule[] }) {
+  const [open, setOpen] = useState(false);
+  if (rules.length === 0) return null;
+  return (
+    <section className="cv-det-veto">
+      <button
+        type="button"
+        className="cv-det-veto-btn"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <ProhibitIcon width={15} height={15} />
+        否决项 / 通过性条款
+        <span className="cv-det-veto-count">{rules.length} 条</span>
+        <ChevronIcon width={13} height={13} className={open ? "cv-det-veto-caret is-open" : "cv-det-veto-caret"} />
+      </button>
+      {open ? (
+        rules.map((v, i) => (
+          <div key={i} className="cv-det-veto-row">
+            <span className="cv-det-veto-no" aria-hidden>
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <span>{v.text}</span>
+              <SourceRow
+                refs={v.refs}
+                itemKey={`veto:${v.id ?? i}`}
+                claim={{
+                  matrixType: "scoring",
+                  itemId: null,
+                  label: `否决项 ${v.id ?? i + 1}`,
+                  title: "否决项 / 通过性条款",
+                  requirementText: v.text,
+                  highRisk: true,
+                }}
+              />
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="cv-det-veto-peek">{rules[0]?.text}</div>
+      )}
+    </section>
+  );
+}
+
+/** 评分项行:标题在左、分值靠右成一条数字轴,规则与来源退到次行。
+ *  两处降负担 ——
+ *  规则默认两行截断(沿用条目详情的 .is-clamped:真实招标文件一条规则 100～200 字,
+ *  几十条全展开时列表长到没人愿意滚);
+ *  分值下加一条正比微条,一列数字读成一条形状,0.5 分与 13 分的差距一眼可见。 */
+function ScoringRow({
+  item,
+  itemKey,
+  first,
+  barPct,
+  open,
+  onToggle,
+}: {
+  item: ScoringItem;
+  itemKey: string;
+  first: boolean;
+  barPct: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const rule = item.scoring_rule?.trim();
+  const refs = item.source_refs ?? [];
+  return (
+    <div className={first ? "cv-det-srow is-first" : "cv-det-srow"}>
+      <div className="cv-det-srow-main">
+        <div className="cv-det-srow-title">
+          {item.mandatory_gate && <RiskMark label="否决" />}
+          {item.title || "未命名评分项"}
+        </div>
+        {rule && <p className={open ? "cv-det-srow-rule" : "cv-det-srow-rule is-clamped"}>{rule}</p>}
+        {(refs.length > 0 || rule) && (
+          <div className="cv-det-foot">
+            {refs.length > 0 && (
+              <SourceChips
+                refs={refs}
+                itemKey={itemKey}
+                compact
+                claim={{
+                  matrixType: "scoring",
+                  itemId: null,
+                  label: `评分项 ${item.id ?? itemKey}`,
+                  title: item.title || "未命名评分项",
+                  requirementText: rule || "",
+                  highRisk: !!item.mandatory_gate,
+                }}
+              />
+            )}
+            {rule && (
+              <button type="button" className="cv-det-more" aria-expanded={open} onClick={onToggle}>
+                {open ? "收起" : "展开"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <span className="cv-det-srow-cell">
+        <span className="cv-det-srow-score">{item.max_score ?? "—"}</span>
+        {barPct > 0 && (
+          <i className="cv-det-srow-track" aria-hidden>
+            <i className="cv-det-srow-bar" style={{ width: `${barPct}%` }} />
+          </i>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/** 分值段:一级项(价格/商务/技术…)或总分差值推得的「其他」 */
+interface ScorePart {
+  key: string;
+  label: string;
+  score: number;
+  cls: string;
+  /** 「其他」没有对应条目,不可切换 */
+  pickable: boolean;
+}
+
+interface VetoRule {
+  text: string;
+  refs: SourceRef[];
+  id: string | null;
+}
+
 function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
+  // 一级项切换 / 排序 / 展开中的规则。hooks 必须先于 SlotFallback 的提前返回。
+  const [cat, setCat] = useState<string | null>(null);
+  const [byScore, setByScore] = useState(false);
+  const [openRule, setOpenRule] = useState<string | null>(null);
+  const anchorBase = useId();
+
   if (slot.status !== "ready" || !slot.data) return <SlotFallback slot={slot} />;
   const d = slot.data;
   const ev = d.evaluation ?? {};
 
-  // 否决项红区:与实质性条款同级致命,置于详情最顶部。
-  // 带合法 source_refs 的条目给来源签(票04,同一套签组件);无 refs 的无签、无兜底。
-  const vetoRules = (ev.pass_fail_rules ?? [])
+  // 否决项:带合法 source_refs 的条目给来源签(票04,同一套签组件);无 refs 的无签、无兜底。
+  const vetoRules: VetoRule[] = (ev.pass_fail_rules ?? [])
     .map((r) => {
       const rec = asRec(r);
       return {
@@ -1052,28 +1257,10 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
     })
     .filter((v) => v.text);
 
-  // 分值结构:价格/商务/技术取评分办法标称分,其他 = 总分与三格之和的差值(>0 才画);
-  // 段色按名次走中性灰阶(.is-rank1..3 / .is-other),TSX 不写色值
-  const ranked = ([
-    ["价格", ev.price_score],
-    ["商务", ev.business_score],
-    ["技术", ev.technical_score],
-  ] as Array<[string, number | null | undefined]>)
-    .filter((x): x is [string, number] => typeof x[1] === "number" && x[1] > 0)
-    .sort((a, b) => b[1] - a[1]);
-  const parts: Array<{ label: string; score: number; cls: string }> = ranked.map(([label, score], i) => ({
-    label,
-    score,
-    cls: `is-rank${i + 1}`,
-  }));
-  const known = parts.reduce((acc, p) => acc + p.score, 0);
-  const total = typeof ev.total_score === "number" && ev.total_score > 0 ? ev.total_score : null;
-  if (total !== null && total - known > 0) parts.push({ label: "其他", score: total - known, cls: "is-other" });
-  const base = total ?? known;
-
-  // 评分项分组 + 小计
   const itemsAll = d.items ?? [];
   const items = itemsAll.slice(0, 300);
+
+  // 一级项分组(渲染序 = SCORE_GROUP_ORDER,未知分组按出现序垫底)
   const gmap = new Map<string, ScoringItem[]>();
   for (const it of items) {
     const k = it.group || "other";
@@ -1086,103 +1273,192 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
     ...[...gmap.keys()].filter((k) => !SCORE_GROUP_ORDER.includes(k)),
   ];
 
+  // 分值结构:一级项实得分优先取条目小计(与列表所报一致);条目全无分值时回落到
+  // 评分办法的标称分,两者都没有则该段不画。
+  const nominal: Record<string, number | null | undefined> = {
+    price: ev.price_score,
+    business: ev.business_score,
+    technical: ev.technical_score,
+  };
+  const catScore = (k: string): number => {
+    const sum = (gmap.get(k) ?? []).reduce((a, it) => a + (typeof it.max_score === "number" ? it.max_score : 0), 0);
+    if (sum > 0) return sum;
+    const nom = nominal[k];
+    return typeof nom === "number" && nom > 0 ? nom : 0;
+  };
+  // 标称分里有、条目里没有的一级项(如只报了 price_score 却没抽到价格条目)也要进环
+  const partKeys = [
+    ...orderedKeys,
+    ...SCORE_GROUP_ORDER.filter((k) => !gmap.has(k) && typeof nominal[k] === "number" && (nominal[k] ?? 0) > 0),
+  ];
+  const scored = partKeys.map((k) => ({ key: k, score: catScore(k) })).filter((x) => x.score > 0);
+  // 段色按名次:深→浅,与卡面结构条同一套语汇
+  const rankOf = new Map(
+    scored
+      .slice()
+      .sort((a, b) => b.score - a.score)
+      .map((x, i) => [x.key, i]),
+  );
+  const parts: ScorePart[] = scored.map((x) => ({
+    key: x.key,
+    label: zh(SCORE_GROUP, x.key),
+    score: x.score,
+    cls: `is-rank${Math.min((rankOf.get(x.key) ?? 0) + 1, 4)}`,
+    pickable: gmap.has(x.key),
+  }));
+  const known = parts.reduce((a, p) => a + p.score, 0);
+  const total = typeof ev.total_score === "number" && ev.total_score > 0 ? ev.total_score : null;
+  if (total !== null && total - known > 0.005)
+    parts.push({ key: "__other", label: "其他", score: total - known, cls: "is-other", pickable: false });
+  const base = total ?? known;
+
+  // 当前一级项:默认落在分值最高的那个(它最值得先读);数据换了就重新落位。
+  // 落位与切换都走 orderedKeys(有条目的一级项)而非 parts —— 分值全缺的一级项画不出弧,
+  // 但它的条目仍要够得着,否则整组条目从详情里凭空消失。
+  const fallbackKey =
+    orderedKeys.slice().sort((a, b) => catScore(b) - catScore(a))[0] ?? null;
+  const activeKey = cat && gmap.has(cat) ? cat : fallbackKey;
+  const activeItems = activeKey ? (gmap.get(activeKey) ?? []) : [];
+  const activeScore = activeKey ? catScore(activeKey) : 0;
+  const topItem = activeItems.reduce((m, it) => Math.max(m, typeof it.max_score === "number" ? it.max_score : 0), 0);
+
+  // 二级评审因素分组(招标文件评审标准表的「评审因素分类」列)。
+  // 存量抽取无 subgroup 字段 —— 此时不立分组眉,列表退化为一级项内平铺。
+  const subs = new Map<string, Array<{ it: ScoringItem; i: number }>>();
+  activeItems.forEach((it, i) => {
+    const k = (it.subgroup ?? "").trim();
+    if (!k) return;
+    const arr = subs.get(k);
+    if (arr) arr.push({ it, i });
+    else subs.set(k, [{ it, i }]);
+  });
+  const covered = [...subs.values()].reduce((a, v) => a + v.length, 0);
+  // 立分组眉的两个前提:每一项都归了组(部分归组会让未归组的条目凭空消失),
+  // 且分组数少于条目数(一项一组的分组眉只是噪声)。
+  const hasSubs = covered === activeItems.length && subs.size > 0 && subs.size < activeItems.length;
+  const subScore = (arr: Array<{ it: ScoringItem }>) =>
+    arr.reduce((a, x) => a + (typeof x.it.max_score === "number" ? x.it.max_score : 0), 0);
+  const hotSub = hasSubs
+    ? [...subs.entries()].sort((a, b) => subScore(b[1]) - subScore(a[1]))[0]
+    : undefined;
+
+  const keyOf = (it: ScoringItem, i: number) => `score:${it.id ?? `${activeKey}#${i}`}`;
+  const barPct = (it: ScoringItem) =>
+    topItem > 0 && typeof it.max_score === "number" && it.max_score > 0
+      ? Math.max((it.max_score / topItem) * 100, 4)
+      : 0;
+
+  // 分值序把二级分组拉平成一张排行榜 —— 分组眉在分值序里已不成立
+  const flat = byScore
+    ? activeItems
+        .map((it, i) => ({ it, i }))
+        .slice()
+        .sort((a, b) => (b.it.max_score ?? 0) - (a.it.max_score ?? 0))
+    : null;
+
+  const renderRow = (it: ScoringItem, i: number, first: boolean) => {
+    const k = keyOf(it, i);
+    return (
+      <ScoringRow
+        key={k}
+        item={it}
+        itemKey={k}
+        first={first}
+        barPct={barPct(it)}
+        open={openRule === k}
+        onToggle={() => setOpenRule((cur) => (cur === k ? null : k))}
+      />
+    );
+  };
+
   return (
     <div>
       <SummaryStrip data={d} />
-      {vetoRules.length > 0 && (
-        <section className="cv-det-veto">
-          <div className="cv-det-veto-title">
-            <ProhibitIcon width={15} height={15} />
-            否决项 / 通过性条款
-            <span className="cv-det-veto-count">{vetoRules.length} 条</span>
-          </div>
-          {vetoRules.map((v, i) => (
-            <div key={i} className="cv-det-veto-row">
-              <span className="cv-det-veto-no" aria-hidden>
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <span>{v.text}</span>
-                <SourceRow
-                  refs={v.refs}
-                  itemKey={`veto:${v.id ?? i}`}
-                  claim={{
-                    matrixType: "scoring",
-                    itemId: null,
-                    label: `否决项 ${v.id ?? i + 1}`,
-                    title: "否决项 / 通过性条款",
-                    requirementText: v.text,
-                    highRisk: true,
-                  }}
-                />
-              </div>
+
+      {base > 0 && parts.length > 0 && (
+        <section className="cv-det-struct">
+          <ScoreDonut parts={parts} base={base} activeKey={activeKey} onPick={(k) => { setCat(k); setOpenRule(null); }} />
+          <div className="cv-det-readout">
+            <div className="cv-det-ro-name">{activeKey ? zh(SCORE_GROUP, activeKey) : "评分构成"}</div>
+            {/* 分值缺失时报「—」而不是 0:0 分是评审结论,没抽到不是 */}
+            <div className="cv-det-ro-line">
+              <span className="cv-det-ro-big">{activeScore > 0 ? fmtScore(activeScore) : "—"}</span>
+              <span className="cv-det-ro-unit">分</span>
+              {activeScore > 0 && (
+                <span className="cv-det-ro-pct">占总分 {Math.round((activeScore / base) * 100)}%</span>
+              )}
             </div>
-          ))}
+            <div className="cv-det-ro-meta">
+              {activeItems.length} 项评分项
+              {topItem > 0 && ` · 单项最高 ${fmtScore(topItem)} 分`}
+            </div>
+            {hotSub && (
+              <div className="cv-det-ro-hint">
+                分值集中在 <b>{hotSub[0]}</b>，共 {fmtScore(subScore(hotSub[1]))} 分。
+              </div>
+            )}
+          </div>
         </section>
       )}
-      {base > 0 && parts.length > 0 && (
-        <div style={{ marginBottom: 18 }}>
-          <div className="cv-det-scorebar">
-            {parts.map((p) => (
-              <i key={p.label} className={p.cls} style={{ width: `${(p.score / base) * 100}%` }} />
-            ))}
-          </div>
-          <div className="cv-det-scorelegend">
-            {parts.map((p) => (
-              <span key={p.label}>
-                <i className={p.cls} aria-hidden />
-                {p.label} {fmtScore(p.score)} · {Math.round((p.score / base) * 100)}%
-              </span>
-            ))}
-          </div>
+
+      <VetoBand rules={vetoRules} />
+
+      {/* 一级项切换吸顶:滚到几百项深处仍可即点即切。只有一个一级项时不立滑块 —— 单段控件是噪声。 */}
+      {(orderedKeys.length > 1 || activeItems.length > 1) && (
+        <div className="cv-det-head">
+          {orderedKeys.length > 1 && (
+            <div className="cv-det-seg" role="group" aria-label="一级评审项">
+              {orderedKeys.map((k) => {
+                const s = catScore(k);
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    className={k === activeKey ? "is-active" : undefined}
+                    aria-pressed={k === activeKey}
+                    // 可访问名里补上单位:视觉上「价格 25」靠间距分开,读屏会连成「价格25」
+                    aria-label={s > 0 ? `${zh(SCORE_GROUP, k)} ${fmtScore(s)} 分` : zh(SCORE_GROUP, k)}
+                    onClick={() => {
+                      setCat(k);
+                      setOpenRule(null);
+                    }}
+                  >
+                    {zh(SCORE_GROUP, k)}
+                    {/* 分值全缺的一级项不挂 0 分 —— 那是「没抽到分值」,不是「零分」 */}
+                    {s > 0 && <span className="cv-det-seg-n">{fmtScore(s)}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {activeItems.length > 1 && (
+            <button type="button" className="cv-det-sort" onClick={() => setByScore((v) => !v)}>
+              <ArrowsDownUpIcon width={13} height={13} />
+              {byScore ? "原文顺序" : "按分值排序"}
+            </button>
+          )}
         </div>
       )}
-      {orderedKeys.length > 0 ? (
-        orderedKeys.map((key) => {
-          const arr = gmap.get(key) ?? [];
-          const subtotal = arr.reduce((acc, it) => acc + (typeof it.max_score === "number" ? it.max_score : 0), 0);
-          return (
-            <GroupCard
-              key={key}
-              title={zh(SCORE_GROUP, key)}
-              count={arr.length}
-              unit="项"
-              extra={<span className="cv-det-group-note">{fmtScore(subtotal)} 分</span>}
-            >
-              {arr.map((it, i) => (
-                <div key={it.id ?? i} className="cv-det-srow">
-                  <div className="cv-det-srow-main">
-                    <div className="cv-det-srow-title">
-                      {it.mandatory_gate && <RiskMark label="否决" />}
-                      {it.title || `评分项 ${i + 1}`}
-                    </div>
-                    {it.scoring_rule && <p className="cv-det-srow-rule">{it.scoring_rule}</p>}
-                    {(it.source_refs?.length ?? 0) > 0 && (
-                      <div className="cv-det-foot">
-                        <SourceChips
-                          refs={it.source_refs ?? []}
-                          itemKey={`score:${it.id ?? `${key}#${i}`}`}
-                          compact
-                          claim={{
-                            matrixType: "scoring",
-                            itemId: null,
-                            label: `评分项 ${it.id ?? i + 1}`,
-                            title: it.title || `评分项 ${i + 1}`,
-                            requirementText: it.scoring_rule || "",
-                            highRisk: !!it.mandatory_gate,
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <span className="cv-det-srow-score">{it.max_score ?? "—"}</span>
-                </div>
-              ))}
-            </GroupCard>
-          );
-        })
-      ) : (
+
+      {activeItems.length === 0 ? (
         <EmptyNote text="未提取到评分项" />
+      ) : flat ? (
+        flat.map(({ it, i }, n) => renderRow(it, i, n === 0))
+      ) : hasSubs ? (
+        [...subs.entries()].map(([name, arr]) => (
+          <GroupCard
+            key={name}
+            id={`${anchorBase}-${name}`}
+            title={name}
+            count={arr.length}
+            unit="项"
+            extra={<span className="cv-det-group-note">{fmtScore(subScore(arr))} 分</span>}
+          >
+            {arr.map(({ it, i }, n) => renderRow(it, i, n === 0))}
+          </GroupCard>
+        ))
+      ) : (
+        activeItems.map((it, i) => renderRow(it, i, i === 0))
       )}
       <TruncNote rest={itemsAll.length - items.length} unit="项" />
     </div>

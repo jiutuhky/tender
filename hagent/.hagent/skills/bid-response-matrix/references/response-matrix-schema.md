@@ -174,6 +174,7 @@ meta 在公共 envelope 外增加 `evaluation` 标量结构（`pass_fail_rules` 
 {
   "id": "SCORE-001",
   "group": "technical",
+  "subgroup": "技术方案",
   "title": "技术方案评分",
   "max_score": null,
   "scoring_rule": "",
@@ -188,6 +189,8 @@ meta 在公共 envelope 外增加 `evaluation` 标量结构（`pass_fail_rules` 
 ```
 
 `group`：`price` / `business` / `technical` / `service` / `policy` / `other`。
+
+`subgroup`（可选，字符串或 `null`）：评审标准表「评审因素分类」列的原文用词（业绩 / 技术方案 / 一般技术指标评审 …），不归一化、不翻译。它是 `group` 之下的二级分类，前端评分详情据此立分组眉；缺省或部分缺省时列表退化为一级项内平铺，不报错。存量抽取无此字段，故不列入必填。
 
 `scoring_method`：`objective` / `subjective` / `formula` / `pass_fail` / `mixed`。
 

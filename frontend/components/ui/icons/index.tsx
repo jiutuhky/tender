@@ -39,6 +39,8 @@ const P_ArrowRight =
   "M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z";
 const P_ArrowUp =
   "M205.66,117.66a8,8,0,0,1-11.32,0L136,59.31V216a8,8,0,0,1-16,0V59.31L61.66,117.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0l72,72A8,8,0,0,1,205.66,117.66Z";
+const P_ArrowsDownUp =
+  "M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z";
 const P_ArrowsMerge =
   "M192,40v64a8,8,0,0,1-2.34,5.66L136,163.31v49.38l18.34-18.35a8,8,0,0,1,11.32,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L120,212.69V163.31L66.34,109.66A8,8,0,0,1,64,104V40a8,8,0,0,1,16,0v60.69l48,48,48-48V40a8,8,0,0,1,16,0Z";
 const P_Bell =
@@ -223,6 +225,8 @@ export const LayersIcon = phosphorIcon(P_Stack);
 export const ArrowRightIcon = phosphorIcon(P_ArrowRight);
 /** composer 发送（上箭头）（phosphor: arrow-up） */
 export const ArrowUpIcon = phosphorIcon(P_ArrowUp);
+
+export const ArrowsDownUpIcon = phosphorIcon(P_ArrowsDownUp);
 /** 展开箭头（朝下）（phosphor: caret-down） */
 export const ChevronIcon = phosphorIcon(P_CaretDown);
 /** 向左（phosphor: caret-left） */
