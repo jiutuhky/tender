@@ -1,0 +1,455 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    a { color: #0064e1; } a:hover { color: #0052bc; }
+
+    .wrap {
+      --surface: #ffffff; --surface-2: #f5f6f8; --surface-3: #eceef1;
+      --label: #1d1d1f; --label-2: #55555e; --label-3: #6b6b76;
+      --separator: rgba(60, 60, 67, .12);
+      --blue: #0064e1; --blue-press: #0052bc; --blue-soft: rgba(0, 100, 225, .10);
+      --green: #34c759; --green-text: #1d8f45;
+      --orange: #ff9500; --orange-text: #b25e00;
+      --red: #ff3b30; --red-text: #d70015;
+      --r-control: 7px; --r-field: 9px; --r-window: 12px; --r-card: 14px; --r-panel: 18px;
+      --elev-1: 0 1px 2px rgba(18, 24, 38, .10), 0 0 0 .5px rgba(18, 24, 38, .07);
+      --t-micro: 120ms; --ease-std: cubic-bezier(.32, .72, 0, 1);
+      --pad: 20px;
+
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      background: var(--surface);
+      color: var(--label);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap[data-appearance="dark"] {
+      --surface: #1e1e22; --surface-2: #2a2a30; --surface-3: #33333a;
+      --label: #f5f5f7; --label-2: #a8a8b3; --label-3: #8a8a95;
+      --separator: rgba(255, 255, 255, .10);
+      --blue: #409cff; --blue-press: #1f7fe0; --blue-soft: rgba(64, 156, 255, .16);
+      --green-text: #30d158; --orange-text: #ff9f0a; --red-text: #ff6961;
+      --elev-1: 0 1px 2px rgba(0, 0, 0, .40), 0 0 0 .5px rgba(255, 255, 255, .08);
+      color-scheme: dark;
+    }
+
+    /* ---- 抽屉头（沿用 .cv-drawer-head 度量） ---- */
+    .head { display: flex; align-items: center; gap: 11px; padding: 16px 18px; box-shadow: inset 0 -.5px 0 var(--separator); flex: 0 0 auto; }
+    .head > svg { flex: 0 0 auto; color: var(--label-3); }
+    .titlebox { flex: 1; min-width: 0; }
+    .title { font-size: 14.5px; font-weight: 700; letter-spacing: -.005em; }
+    .sub { font-size: 11px; color: var(--label-3); margin-top: 1px; font-variant-numeric: tabular-nums; }
+    .close { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 auto; border: 0; background: var(--surface-2); color: var(--label-2); border-radius: var(--r-control); cursor: pointer; }
+    .close:hover { background: var(--surface-3); color: var(--label); }
+
+    .body { flex: 1; min-height: 0; overflow: auto; padding: 18px var(--pad); }
+
+    /* ---- 否决项：折叠带，排在概览带之后 ----
+       它是「读一次就不再看」的信息，而分值构成要反复参照 —— 所以否决项收成一条恒定高度的
+       带，条数再多也不会把环形图挤出首屏。折叠态仍报出条数与最要命的一条，不是零信息。
+       仍然不做彩色填充块 / 彩色左边线：语义色只落图标与标题字。 */
+    .veto { margin: 0 0 4px; padding: 12px 0; border-top: 1px solid var(--separator); }
+    .veto-btn { display: flex; align-items: center; gap: 7px; width: calc(100% + 12px); margin: 0 -6px; padding: 3px 6px; border: 0; background: transparent; border-radius: var(--r-control); cursor: pointer; text-align: left; font-size: 12.5px; font-weight: 700; letter-spacing: -.005em; color: var(--red-text); font-family: inherit; transition: background-color var(--t-micro) var(--ease-std); }
+    .veto-btn:hover { background: var(--surface-2); }
+    .veto-btn > svg { flex: 0 0 auto; }
+    .veto-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--label-3); font-variant-numeric: tabular-nums; }
+    .vcaret { flex: 0 0 auto; color: var(--label-3); transition: transform var(--t-micro) var(--ease-std); }
+    .vcaret.is-open { transform: rotate(180deg); }
+    .veto-peek { margin-top: 5px; padding-left: 22px; font-size: 12px; line-height: 1.6; color: var(--label-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .veto-row { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border-top: 1px solid var(--separator); font-size: 12.5px; line-height: 1.75; overflow-wrap: anywhere; }
+    .veto-row.is-first { margin-top: 8px; }
+    .veto-no { flex: 0 0 auto; min-width: 15px; font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+
+    /* ---- 分值结构：环形图 + 当前一级项读数 ---- */
+    .struct { display: flex; align-items: center; gap: 18px; padding: 2px 0 12px; }
+    .donut { flex: 0 0 auto; }
+    .arc { fill: none; stroke-linecap: butt; cursor: pointer; transition: stroke var(--t-micro) var(--ease-std), opacity var(--t-micro) var(--ease-std); }
+    .arc.a1 { stroke: color-mix(in srgb, var(--label) 52%, transparent); }
+    .arc.a2 { stroke: color-mix(in srgb, var(--label) 34%, transparent); }
+    .arc.a3 { stroke: color-mix(in srgb, var(--label) 22%, transparent); }
+    .arc.a4 { stroke: color-mix(in srgb, var(--label) 10%, transparent); }
+    .arc.is-dim { opacity: .38; }
+    .arc.is-on { stroke: var(--label); opacity: 1; }
+    .donut:hover .arc.is-dim { opacity: .55; }
+    .dnum { font-size: 25px; font-weight: 700; fill: var(--label); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+    .dcap { font-size: 10px; font-weight: 500; fill: var(--label-3); letter-spacing: .04em; }
+
+    .readout { flex: 1; min-width: 0; }
+    .ro-name { font-size: 12px; font-weight: 700; color: var(--label); letter-spacing: -.005em; }
+    .ro-line { display: flex; align-items: baseline; gap: 7px; margin-top: 3px; }
+    .ro-big { font-size: 27px; font-weight: 700; letter-spacing: -.022em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .ro-unit { font-size: 12px; color: var(--label-2); font-weight: 600; }
+    .ro-pct { margin-left: auto; font-size: 11.5px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+    .ro-meta { margin-top: 5px; font-size: 11.5px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+    .ro-hint { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--separator); font-size: 11.5px; line-height: 1.6; color: var(--label-2); }
+    .ro-hint b { font-weight: 600; color: var(--label); }
+
+    /* ---- 吸顶切换条（沿用 .cv-det-head / .cv-det-seg） ---- */
+    .navbar { position: sticky; top: -18px; z-index: 4; display: flex; align-items: center; gap: 10px; margin: 0 calc(-1 * var(--pad)) 2px; padding: 10px var(--pad); background: var(--surface); border-bottom: 1px solid var(--separator); }
+    .seg { display: flex; gap: 2px; width: max-content; max-width: 100%; padding: 2px; border-radius: var(--r-field); background: color-mix(in srgb, var(--separator) 67%, transparent); }
+    .seg button { border: 0; background: transparent; font-size: 12px; font-weight: 600; color: var(--label-2); padding: 4px 11px; border-radius: var(--r-control); cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std); }
+    .seg button:hover { color: var(--label); }
+    .seg button:active { transform: scale(.97); }
+    .seg button.is-active { background: var(--surface); color: var(--label); box-shadow: var(--elev-1); }
+    .seg .s-n { color: var(--label-3); font-weight: 600; margin-left: 4px; }
+    .seg button.is-active .s-n { color: var(--label-2); }
+    .sortbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--label-3); font-size: 11.5px; font-weight: 600; padding: 4px 7px; border-radius: var(--r-control); cursor: pointer; white-space: nowrap; }
+    .sortbtn:hover { background: var(--surface-2); color: var(--label); }
+    .sortbtn:active { transform: scale(.97); }
+
+    /* ---- 分组眉 + 评分项行 ---- */
+    .gh { display: flex; align-items: baseline; gap: 8px; padding: 18px 0 5px; }
+    .gh b { font-size: 12px; font-weight: 700; letter-spacing: -.005em; }
+    .gh .n { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+    .gh .g-s { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--label-3); font-variant-numeric: tabular-nums; }
+
+    .srow { display: flex; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid var(--separator); }
+    .srow.is-first { border-top: 0; }
+    .smain { flex: 1; min-width: 0; }
+    .stitle { display: flex; align-items: baseline; gap: 7px; font-size: 12.5px; font-weight: 500; color: var(--label); }
+    .srule { margin: 3px 0 0; font-size: 12px; line-height: 1.7; color: var(--label-3); }
+    .srule.is-clamped { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .sfoot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-top: 6px; }
+    .chip { display: inline-flex; align-items: center; border: 0; font-size: 10.5px; font-weight: 600; color: var(--label-3); background: transparent; box-shadow: inset 0 0 0 .5px var(--separator); padding: 2.5px 9px; border-radius: 999px; white-space: nowrap; cursor: pointer; font-variant-numeric: tabular-nums; transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std); }
+    .chip:hover { background: var(--blue-soft); color: var(--blue); box-shadow: none; }
+    .more { border: 0; background: transparent; padding: 2.5px 4px; font-size: 10.5px; font-weight: 600; color: var(--label-3); cursor: pointer; border-radius: var(--r-control); }
+    .more:hover { color: var(--blue); background: var(--blue-soft); }
+
+    .scell { flex: 0 0 auto; width: 46px; text-align: right; }
+    .snum { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+    .sbar { display: block; height: 3px; border-radius: 999px; margin: 4px 0 0 auto; background: color-mix(in srgb, var(--label) 34%, transparent); }
+
+    .mark { display: inline-flex; align-items: baseline; gap: 5px; font-size: 11px; color: var(--label-2); white-space: nowrap; }
+    .mark::before { content: ""; width: 5px; height: 5px; border-radius: 999px; background: var(--red); flex: 0 0 auto; transform: translateY(-2px); }
+    .hide { display: none !important; }
+
+    .tail { padding: 16px 0 26px; font-size: 11.5px; color: var(--label-3); text-align: center; }
+  </style>
+</helmet>
+
+<div class="wrap" data-appearance="{{mode}}">
+
+  <div class="head">
+    <svg width="17" height="17" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M128 24a104 104 0 1 0 104 104"></path>
+      <path d="M128 24v104h104A104 104 0 0 0 128 24Z"></path>
+    </svg>
+    <div class="titlebox">
+      <div class="title">评分办法</div>
+      <div class="sub">综合评分法 · 总分 100 · 30 项评分项</div>
+    </div>
+    <button type="button" class="close" aria-label="关闭">
+      <svg width="15" height="15" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M200 56 56 200"></path><path d="M200 200 56 56"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div class="body">
+
+    <section class="struct">
+      <svg class="donut" width="124" height="124" viewBox="0 0 124 124" role="img" aria-label="分值结构">
+        <sc-for list="{{arcs}}" as="a" hint-placeholder-count="3">
+          <circle class="{{a.cls}}" cx="62" cy="62" r="46" stroke-width="13"
+                  stroke-dasharray="{{a.dash}}" transform="{{a.rot}}"
+                  onClick="{{a.pick}}"></circle>
+        </sc-for>
+        <text class="dnum" x="62" y="60" text-anchor="middle" dominant-baseline="middle">{{total}}</text>
+        <text class="dcap" x="62" y="79" text-anchor="middle" dominant-baseline="middle">总分</text>
+      </svg>
+      <div class="readout">
+        <div class="ro-name">{{cur.full}}</div>
+        <div class="ro-line">
+          <span class="ro-big">{{cur.score}}</span>
+          <span class="ro-unit">分</span>
+          <span class="ro-pct">占总分 {{cur.pct}}%</span>
+        </div>
+        <div class="ro-meta">{{cur.count}} 项评分项 · 单项最高 {{cur.top}} 分</div>
+        <div class="ro-hint">分值集中在 <b>{{cur.hot}}</b>，共 {{cur.hotScore}} 分。</div>
+      </div>
+    </section>
+
+    <section class="veto">
+      <button type="button" class="veto-btn" aria-expanded="{{vetoOpen}}" onClick="{{toggleVeto}}">
+        <svg width="15" height="15" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="128" cy="128" r="96"></circle><path d="M60.1 60.1 195.9 195.9"></path>
+        </svg>
+        否决项 / 通过性条款
+        <span class="veto-count">{{vetoCount}} 条</span>
+        <svg class="{{vcaretCls}}" width="13" height="13" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M208 96l-80 80-80-80"></path>
+        </svg>
+      </button>
+      <div class="{{vetoPeekCls}}">{{vetoPeek}}</div>
+      <div class="{{vetoListCls}}">
+        <sc-for list="{{vetoRules}}" as="v" hint-placeholder-count="4">
+          <div class="{{v.cls}}">
+            <span class="veto-no">{{v.no}}</span>
+            <div style="min-width:0">
+              {{v.text}}
+              <div class="sfoot"><button type="button" class="chip">行 {{v.line}}</button></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <div class="navbar">
+      <div class="seg" role="group" aria-label="一级评审项">
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="3">
+          <button type="button" class="{{c.cls}}" aria-pressed="{{c.on}}" onClick="{{c.pick}}">
+            {{c.name}}<span class="s-n">{{c.score}}</span>
+          </button>
+        </sc-for>
+      </div>
+      <button type="button" class="sortbtn" onClick="{{toggleSort}}">
+        <svg width="13" height="13" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M80 200V56"></path><path d="M40 160l40 40 40-40"></path>
+          <path d="M176 56v144"></path><path d="M216 96l-40-40-40 40"></path>
+        </svg>
+        {{sortLabel}}
+      </button>
+    </div>
+
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+      <sc-if value="{{r.isHead}}" hint-placeholder-val="{{true}}">
+        <div class="gh"><b>{{r.name}}</b><span class="n">{{r.count}} 项</span><span class="g-s">{{r.score}} 分</span></div>
+      </sc-if>
+      <sc-if value="{{r.isItem}}" hint-placeholder-val="{{true}}">
+        <div class="{{r.rowCls}}">
+          <div class="smain">
+            <div class="stitle">
+              <span class="{{r.markCls}}">否决</span>
+              <span>{{r.t}}</span>
+            </div>
+            <p class="{{r.ruleCls}}">{{r.rule}}</p>
+            <div class="sfoot">
+              <button type="button" class="chip">行 {{r.line}}</button>
+              <button type="button" class="more" onClick="{{r.toggle}}">{{r.moreLabel}}</button>
+            </div>
+          </div>
+          <span class="scell">
+            <span class="snum">{{r.s}}</span>
+            <i class="sbar" style="width: {{r.barW}}"></i>
+          </span>
+        </div>
+      </sc-if>
+    </sc-for>
+
+    <div class="tail">{{tail}}</div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"mode":{"editor":"enum","options":["light","dark"],"default":"light","section":"外观"},"$preview":{"width":548,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cat: "technical", sort: "doc", open: "tech-plan-4", veto: false };
+  }
+
+  /** 否决项 / 通过性条款：招标文件第 38 条（资格性 5 条 + 符合性 4 条） */
+  vetoData() {
+    return [
+      { t: "不具备招标文件中规定的资格性要求的，按照无效投标处理。", line: "453" },
+      { t: "法定代表人授权不符合要求的，按照无效投标处理。", line: "455" },
+      { t: "属于禁止参加投标供应商的，按照无效投标处理。", line: "457" },
+      { t: "未按照规定交纳投标保证金的，按照无效投标处理。", line: "459" },
+      { t: "不符合国家和军队法律法规规定的资格性要求的，按照无效投标处理。", line: "461" },
+      { t: "未按照招标文件要求签署、盖章的，按照无效投标处理。", line: "465" },
+      { t: "投标有效期不符合招标文件要求的，按照无效投标处理。", line: "467" },
+      { t: "技术和商务的实质性条款不满足招标文件要求的，按照无效投标处理。", line: "469" },
+      { t: "其他不满足招标文件载明的符合性要求的，按照无效投标处理。", line: "471" },
+    ];
+  }
+
+  data() {
+    return [
+      {
+        key: "price", name: "价格", full: "价格评审",
+        groups: [
+          { name: "价格分", items: [
+            { id: "p1", t: "投标价格得分", s: 25, line: "1123",
+              rule: "满足招标文件要求且报价最低的为评审基准价，价格得分＝（评审基准价 / 报价）× 标准分值。评审基准价取所有通过资格性、符合性审查的有效投标报价中的最低值；报价高于全体有效投标供应商平均报价 40% 以上的，不得推荐为预中标供应商。" },
+          ] },
+        ],
+      },
+      {
+        key: "business", name: "商务", full: "商务评审",
+        groups: [
+          { name: "业绩", items: [
+            { id: "b1", t: "近三年同类项目合同数量", s: 4, line: "1087",
+              rule: "比较合同签订时间在投标截止时间前 3 年以内（截止时间前三个月内不计）投标供应商承担过同类项目的数量，最多提供 5 份合同。以提供同类项目销售合同复印件和不低于合同金额 30% 的相关银行收款进账凭证复印件为准，每提供一份金额 270 万元以上的合同得标准分值的 20%，最多得标准分值。时间或类别不符合要求、总金额或数量不清晰、无相关银行进账凭证的合同均无效。" },
+            { id: "b2", t: "近一年同类项目合同金额", s: 4, line: "1088",
+              rule: "基准业绩＝投标供应商提供的同类项目合计最高金额；业绩得分＝同类项目业绩 / 基准业绩 × 标准分值。最多提供 5 份合同，每份合同只计算一次。" },
+          ] },
+          { name: "企业规模", items: [
+            { id: "b3", t: "上年度纳税总金额排序", s: 1, line: "1090",
+              rule: "根据投标供应商上年度纳税总金额由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20% 递减，最低分为 0 分。认定税种不包括个人所得税。" },
+            { id: "b4", t: "近三年平均净资产总额排序", s: 1, line: "1091",
+              rule: "以第三方会计师事务所出具的近三年财务审计报告数据为准，由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20% 递减，平均净资产总额为负值的得 0 分。" },
+            { id: "b5", t: "近三年平均资产总额排序", s: 1, line: "1092",
+              rule: "以第三方会计师事务所出具的近三年财务审计报告数据为准，由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20% 递减，平均资产总额为负值的得 0 分。" },
+          ] },
+          { name: "财务状况", items: [
+            { id: "b6", t: "近三年平均净利润排序", s: 1, line: "1093",
+              rule: "由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20% 递减，净利润为负值的得 0 分。" },
+            { id: "b7", t: "近三年平均资产负债率", s: 1, line: "1094",
+              rule: "近三年平均资产负债率低于 50%（含）的得标准分值，50%～70%（含）得标准分值的 50%，70% 以上的为 0 分。" },
+            { id: "b8", t: "近三年平均营业收入排序", s: 2, line: "1095",
+              rule: "由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20% 递减，最低分为 0 分。" },
+          ] },
+          { name: "企业信誉", items: [
+            { id: "b9", t: "近三年纳税信用 A 级评价", s: 2, line: "1096",
+              rule: "近三年连续取得税务部门颁发的企业纳税信用 A 级评价证书的得标准分值，取得过两次的得标准分值的 50%，取得过一次的得 25%，没有或无效的为 0 分。" },
+            { id: "b10", t: "近三年未列入军队采购失信名单", s: 2, line: "1097",
+              rule: "以采购机构查询军队采购网内网处罚截止日期为准，未被列入的得标准分值，否则不得分。不论做出处罚决定的为哪一级采购管理部门，凡纳入军队采购失信名单的均有效。" },
+          ] },
+        ],
+      },
+      {
+        key: "technical", name: "技术", full: "技术评审",
+        groups: [
+          { name: "技术力量", items: [
+            { id: "t1", t: "ISO 9001 / GJB 9001 质量管理体系", s: 1, line: "1113", rule: "取得且处于有效期内的 ISO9001 或 GB/T19001 或 GJB9001 质量管理体系认证证书的得标准分值，没有或无效的为 0 分。" },
+            { id: "t2", t: "ISO 27001 信息安全管理体系", s: 1, line: "1113", rule: "取得且处于有效期内的 ISO27001 或 GB/T22080 信息安全管理体系认证证书的得标准分值，没有或无效的为 0 分。" },
+            { id: "t3", t: "ISO 20000 信息技术服务管理体系", s: 1, line: "1113", rule: "取得且处于有效期内的 ISO20000 或 GB/T24405 信息技术服务管理体系认证证书的得标准分值，没有或无效的为 0 分。" },
+            { id: "t4", t: "GJB 5000 软件能力成熟度等级", s: 1, line: "1113", rule: "GJB5000 五级认证证书得标准分值，四级得标准分值的 60%，三级得 30%，否则为 0 分。" },
+            { id: "t5", t: "项目负责人信息系统项目管理师", s: 1, line: "1114", rule: "拟派项目负责人取得信息系统项目管理师证书的得标准分值。项目负责人需为投标供应商正式员工，须提供身份证复印件、证书复印件或网上查询截图，以及投标前 4 个月内连续 3 个月由投标供应商缴纳社保的证明材料（代缴社保不予认可）。" },
+          ] },
+          { name: "技术方案", items: [
+            { id: "tech-plan-1", t: "需求分析的全面性、准确性、充分性", s: 3, line: "1115", rule: "根据投标供应商技术方案内容及介绍进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。技术方案应对采购文件技术要求全面响应。" },
+            { id: "tech-plan-2", t: "系统架构设计的合理性、针对性", s: 3, line: "1116", rule: "根据投标供应商技术方案内容及介绍进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。" },
+            { id: "tech-plan-3", t: "系统功能描述与接口设计", s: 3, line: "1117", rule: "根据系统功能描述全面、准确、接口设计合理情况进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。" },
+            { id: "tech-plan-4", t: "集成和实施方案的合理性、完整性、可靠性", s: 4, line: "1118", rule: "根据投标供应商技术方案内容及介绍进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。技术方案应对采购文件技术要求全面响应。" },
+            { id: "tech-plan-5", t: "系统安全保密方案", s: 3, line: "1119", rule: "根据系统安全保密方案的全面性、合理性、可操作性进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。" },
+            { id: "tech-plan-6", t: "试验验证方案", s: 4, line: "1120", rule: "根据试验验证方案全面性、合理性、可操作性进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。" },
+          ] },
+          { name: "一般技术指标评审", items: [
+            { id: "t12", t: "一般技术指标正偏离评分", s: 10, line: "1121", rule: "按数量评分：设基准分值为 0 分，在基准分值的基础上，正偏离一项加 2 分，最高为标准分值。以技术指标参数响应偏离表为准。" },
+            { id: "t13", t: "一般技术指标负偏离评分", s: 13, gate: true, line: "1121", rule: "按数量评分：全部满足采购文件要求的得标准分值，负偏离一项扣 1 分，最低为 0 分。以技术指标参数响应偏离表及其他参数材料为准。" },
+          ] },
+          { name: "项目管理与实施", items: [
+            { id: "t14", t: "实施周期与进度安排", s: 0.5, line: "1122", rule: "根据项目实施周期和进度安排的合理性进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。" },
+            { id: "t15", t: "组织管理与质量保证措施", s: 0.5, line: "1122", rule: "根据项目管理组织、施工人员的管理措施、质量保证措施等的合理性与完备性进行评审，最优的得标准分值。" },
+            { id: "t16", t: "项目风险评估及控制方案", s: 0.5, line: "1122", rule: "根据风险因素分析、风险评估防范及风险控制措施等内容进行评审，最优的得标准分值。" },
+          ] },
+          { name: "培训和售后服务", items: [
+            { id: "t17", t: "培训计划方案", s: 0.5, line: "1122", rule: "根据培训计划方案进行评审，最优的得标准分值，其余依次按标准分值的 5% 递减，最低分为 0 分。" },
+            { id: "t18", t: "项目整体免费质保期", s: 4, line: "1122", rule: "在满足采购文件要求的基础上，每增加 12 个月得 1 分，最多得标准分值。" },
+            { id: "t19", t: "维修响应时间承诺", s: 2, line: "1122", rule: "根据投标供应商承诺的响应时间、到达现场时间、完成维修、更换或提供备机等服务的时间进行评审，维修响应时间综合最优的得标准分值；三分之二以上技术专家认为承诺不合理的为 0 分。" },
+          ] },
+        ],
+      },
+    ];
+  }
+
+  fmt(n) { return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+
+  renderVals() {
+    const cats = this.data();
+    const stat = cats.map((c) => {
+      const items = c.groups.reduce((a, g) => a.concat(g.items), []);
+      const score = items.reduce((a, it) => a + it.s, 0);
+      return { key: c.key, name: c.name, full: c.full, score: score, count: items.length, groups: c.groups, items: items };
+    });
+    const total = stat.reduce((a, s) => a + s.score, 0);
+
+    // 段色按名次走中性灰阶（与卡面结构条 / 现状堆叠条同一套语汇，不动用四档蓝）
+    const rank = stat.slice().sort((a, b) => b.score - a.score).map((s) => s.key);
+    const shade = (k) => "a" + Math.min(rank.indexOf(k) + 1, 4);
+
+    // 环形：按分段控件的顺序顺时针铺开，弧序即滑块序
+    const R = 46, C = 2 * Math.PI * R, GAP = 3.4;
+    let acc = 0;
+    const arcs = stat.map((s) => {
+      const len = C * s.score / total;
+      const draw = Math.max(len - GAP, 1);
+      const a = {
+        cls: "arc " + shade(s.key) + (s.key === this.state.cat ? " is-on" : " is-dim"),
+        dash: draw.toFixed(2) + " " + (C - draw).toFixed(2),
+        rot: "rotate(" + (-90 + acc / C * 360).toFixed(2) + " 62 62)",
+        pick: () => this.setState({ cat: s.key }),
+      };
+      acc += len;
+      return a;
+    });
+
+    const cur = stat.find((s) => s.key === this.state.cat) || stat[0];
+    const hot = cur.groups.slice().sort((a, b) => {
+      const bs = b.items.reduce((x, i) => x + i.s, 0), as = a.items.reduce((x, i) => x + i.s, 0);
+      return bs - as;
+    })[0];
+    const hotScore = hot.items.reduce((x, i) => x + i.s, 0);
+
+    const maxItem = cur.items.reduce((m, it) => Math.max(m, it.s), 0);
+    const mk = (it, first) => ({
+      isItem: true, isHead: false,
+      t: it.t, s: this.fmt(it.s), line: it.line, rule: it.rule,
+      rowCls: "srow" + (first ? " is-first" : ""),
+      markCls: it.gate ? "mark" : "hide",
+      ruleCls: this.state.open === it.id ? "srule" : "srule is-clamped",
+      moreLabel: this.state.open === it.id ? "收起" : "展开",
+      barW: (Math.max(it.s / maxItem, 0.045) * 100).toFixed(1) + "%",
+      toggle: () => this.setState({ open: this.state.open === it.id ? null : it.id }),
+    });
+
+    let rows = [];
+    if (this.state.sort === "score") {
+      // 分值序：拉平成一张排行榜，二级分组眉让位（分值序里它已不成立）
+      rows = cur.items.slice().sort((a, b) => b.s - a.s).map((it, i) => mk(it, i === 0));
+    } else {
+      cur.groups.forEach((g) => {
+        const gs = g.items.reduce((a, i) => a + i.s, 0);
+        rows.push({ isHead: true, isItem: false, name: g.name, count: g.items.length, score: this.fmt(gs) });
+        g.items.forEach((it, i) => rows.push(mk(it, i === 0)));
+      });
+    }
+
+    const vetos = this.vetoData();
+    const vOpen = this.state.veto;
+
+    return {
+      total: total,
+      arcs: arcs,
+      vetoOpen: vOpen,
+      vetoCount: vetos.length,
+      vetoRules: vetos.map((v, i) => ({
+        no: String(i + 1).padStart(2, "0"), text: v.t, line: v.line,
+        cls: "veto-row" + (i === 0 ? " is-first" : ""),
+      })),
+      vetoPeek: vetos[0].t,
+      vetoPeekCls: vOpen ? "hide" : "veto-peek",
+      vetoListCls: vOpen ? "" : "hide",
+      vcaretCls: vOpen ? "vcaret is-open" : "vcaret",
+      toggleVeto: () => this.setState({ veto: !this.state.veto }),
+      cats: stat.map((s) => ({
+        name: s.name, score: this.fmt(s.score),
+        cls: s.key === this.state.cat ? "is-active" : "",
+        on: s.key === this.state.cat,
+        pick: () => this.setState({ cat: s.key, open: null }),
+      })),
+      cur: {
+        full: cur.full, score: this.fmt(cur.score), count: cur.count,
+        pct: Math.round(cur.score / total * 100),
+        top: this.fmt(maxItem),
+        hot: hot.name, hotScore: this.fmt(hotScore),
+      },
+      rows: rows,
+      sortLabel: this.state.sort === "score" ? "原文顺序" : "按分值排序",
+      toggleSort: () => this.setState({ sort: this.state.sort === "score" ? "doc" : "score" }),
+      tail: cur.count + " 项已全部列出 · 共 " + this.fmt(cur.score) + " 分",
+    };
+  }
+}
+</script>
+</body>
+</html>
