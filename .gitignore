@@ -39,6 +39,10 @@ Thumbs.db
 
 # 真实招标文件语料（本地测试样本，不入仓）
 /data/
+/sample-tender.md
+
+# ZCode 本地运行时（会话计划等）
+.zcode/
 
 # 原型归档大文件（34MB 内联 base64，不入仓）
 /.design/prototype/archive/login.html
