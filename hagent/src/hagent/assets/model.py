@@ -23,7 +23,13 @@ ALLOWED_SECTIONS: dict[str, tuple[str, ...]] = {
         "unresolved_items",
     ),
     "technical": ("items", "deliverables", "acceptance_requirements", "unresolved_items"),
-    "scoring": ("items", "evaluation.pass_fail_rules", "evaluation.tie_break_rules", "unresolved_items"),
+    "scoring": (
+        "items",
+        "evaluation.pass_fail_rules",
+        "evaluation.tie_break_rules",
+        "evaluation.deviation_rules",
+        "unresolved_items",
+    ),
 }
 
 

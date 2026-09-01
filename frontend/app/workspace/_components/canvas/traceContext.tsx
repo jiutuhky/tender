@@ -23,6 +23,8 @@ export interface TraceClaim {
   title: string;
   requirementText: string;
   mandatory?: boolean;
+  /** 「参数性质」列原文符号(★/▲);对照条据此与条目列表用同一枚标记 */
+  paramNature?: "★" | "▲" | null;
   highRisk?: boolean;
   /** 该条目的全部来源,供层内步进器逐条走完 */
   refs: SourceRef[];

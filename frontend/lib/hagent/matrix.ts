@@ -96,6 +96,9 @@ export interface RequirementItem {
   title?: string;
   requirement_text?: string;
   mandatory?: boolean;
+  /** 招标文件要求表「参数性质」列的原文符号:★ 实质性(负偏离即废标) / ▲ 重要(负偏离重扣分不废标)。
+   *  与 mandatory 双写而非取代它;可选:存量抽取无此字段,标记与过滤签自动退场。 */
+  param_nature?: "★" | "▲" | null;
   response_required?: boolean;
   evidence_required?: string[];
   acceptance_criteria?: string[];
@@ -134,6 +137,8 @@ export interface ScoringItem {
   title?: string;
   max_score?: number | null;
   scoring_rule?: string;
+  /** 评审标准表「关联格式」列的原文:该评分项的材料挂载位置,决定投标文件分册。可选。 */
+  related_format?: string | null;
   /** 通过性门槛项:不满足即否决,与 pass_fail_rules 同级致命 */
   mandatory_gate?: boolean;
   source_refs?: SourceRef[];
@@ -150,6 +155,9 @@ export interface ScoringMatrix extends MatrixEnvelope {
     technical_score?: number | null;
     pass_fail_rules?: unknown[];
     tie_break_rules?: unknown[];
+    /** 偏离计分规则(正/负偏离加扣分、封顶、达 N 项清零)。与 pass_fail_rules 同口径留 unknown:
+     *  LLM 产出的行形状不保证齐整,结构化读法收在视图层的防御式 helper 里。 */
+    deviation_rules?: unknown[];
   };
   items?: ScoringItem[];
 }

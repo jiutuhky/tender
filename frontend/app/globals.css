@@ -2641,6 +2641,7 @@ body {
 }
 .cv-face-sig b { font-weight: 600; color: var(--sig); }
 .cv-face-sig .is-mand { --sig: var(--orange-text); }
+.cv-face-sig .is-imp { --sig: var(--label-2); }
 .cv-face-sig .is-fatal { --sig: var(--red-text); }
 /* 次级注解:无点、三级灰,挤不下时先截它 */
 .cv-face-sig .is-note { display: block; color: var(--label-3); overflow: hidden; text-overflow: ellipsis; }
@@ -2743,6 +2744,9 @@ body {
 .cv-mark.is-risk { --sig: var(--red); }
 .cv-mark.is-warn { --sig: var(--orange); }
 .cv-star { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--orange-text); }
+/* 重要参数 ▲:同样用原生记号,但走中性刻度 —— 橙已被 ★ 的「致命」占住,
+   再上第二种语义色只会稀释它;▲ 比一般条款重、又不废标,明度差刚好承担这一档。 */
+.cv-tri { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: var(--label-2); }
 
 /* ---- 主轴（投标大纲骨架卡） ---- */
 .cv-spine {
@@ -4302,6 +4306,7 @@ body {
 .cv-det-group-head b { font-size: 12px; font-weight: 700; color: var(--label); letter-spacing: -.005em; }
 .cv-det-group-head span { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
 .cv-det-group-head .cv-det-group-mand,
+.cv-det-group-head .cv-det-group-imp,
 .cv-det-group-head .cv-det-group-note {
   margin-left: auto;
   font-size: 11px;
@@ -4310,6 +4315,9 @@ body {
 }
 /* 实质性条款数是警示,分值小计不是——后者只是中性事实,不该借警示色 */
 .cv-det-group-head .cv-det-group-mand { color: var(--orange-text); }
+.cv-det-group-head .cv-det-group-imp { color: var(--label-2); }
+/* 两枚并排时只有第一枚吃掉剩余空间,▲ 紧随 ★ 其后 */
+.cv-det-group-head .cv-det-group-mand + .cv-det-group-imp { margin-left: 0; }
 .cv-det-group-head .cv-det-group-note { color: var(--label-3); }
 .cv-det-item {
   position: relative;
@@ -4348,6 +4356,15 @@ body {
   min-height: 20px;
 }
 .cv-det-id { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
+/* 关联格式:该评分项的材料挂载位置。它是一句索引而非强调项,压在脚注一行里 */
+.cv-det-relfmt {
+  font-size: 11px;
+  color: var(--label-3);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .cv-det-more {
   border: 0;
   background: transparent;
@@ -4698,6 +4715,18 @@ body {
 /* 清单里的来源签自明,不再挂「来源」标签 */
 .cv-det-veto .cv-src-label { display: none; }
 .cv-det-veto .cv-src-row { margin-top: 3px; }
+
+/* 偏离计分规则带:复用否决项带的骨架,只换掉那抹红——
+   它是算分规则不是废标线,占用红区会把真正的否决项冲淡。 */
+.cv-det-veto.is-dev .cv-det-veto-btn { color: var(--label); }
+/* 结构化摘要:能直接算账的一句(「负偏离 −0.3 分/项」),等宽数字让一列规则读成一张表 */
+.cv-det-dev-sum {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--label);
+}
+/* 摘要在上时,原文退作依据 */
+.cv-det-dev-text { display: block; margin-top: 2px; font-size: 12px; color: var(--label-3); }
 
 /* 评分项行式呈现:548px 的抽屉里塞四列窄表,「评分规则」列只剩两三个字的宽度。
    改成一行一项——标题在左、分值靠右成一条数字轴、规则与来源退到次行。 */

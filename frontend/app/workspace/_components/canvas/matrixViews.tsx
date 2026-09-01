@@ -15,6 +15,7 @@ import {
   type BusinessMatrix,
   type MatrixItemRow,
   type MatrixType,
+  type Rec,
   type RequirementItem,
   type ResponseStatus,
   type ScoringItem,
@@ -314,6 +315,7 @@ function SourceLine({
         title: item.title || "未命名条目",
         requirementText: item.requirement_text ?? "",
         mandatory: !!item.mandatory,
+        paramNature: item.param_nature ?? null,
         highRisk: isHighRisk(item),
       }}
     />
@@ -325,6 +327,16 @@ export function MandatoryMark({ full }: { full?: boolean }) {
   return (
     <span className="cv-star" title={full ? undefined : "实质性条款"}>
       {full ? "★ 实质性" : "★"}
+    </span>
+  );
+}
+
+/** 重要参数标记:同样沿用原生记号 ▲。它比一般条款重、又不致命 ——
+ *  故走中性刻度而非第二种语义色:★ 的橙已经占住「致命」,再上一色只会稀释它。 */
+export function ImportantMark({ full }: { full?: boolean }) {
+  return (
+    <span className="cv-tri" title={full ? undefined : "重要参数"}>
+      {full ? "▲ 重要" : "▲"}
     </span>
   );
 }
@@ -395,6 +407,10 @@ function groupByCategory(items: RequirementItem[]): Array<[string, RequirementIt
 
 const mandatoryCount = (items: RequirementItem[]): number =>
   items.filter((i) => i.mandatory).length;
+
+/** ▲ 重要参数计数:只认 param_nature,不与 mandatory 混算 —— 两者是并列的两档,不是包含关系 */
+const importantCount = (items: RequirementItem[]): number =>
+  items.filter((i) => i.param_nature === "▲").length;
 
 /* ---------- 预览:卡面紧凑视图 ---------- */
 /* 四张卡共用一套四行语法:题名(卡壳给) / 主指标 / 结构条 / 信号行。
@@ -490,12 +506,15 @@ function RequirementPreview({
   const rest = items.length - top.reduce((acc, [, arr]) => acc + arr.length, 0);
   const parts = [...top.map(([, arr]) => arr.length), ...(rest > 0 ? [rest] : [])];
   const mand = mandatoryCount(items);
+  const imp = importantCount(items);
   const risk = showRisk ? items.filter(isHighRisk).length : 0;
-  // 信号行至多两项:实质性 > 高风险 > 分类注释。两个风险信号都在时不再挤注释
+  // 信号行至多两项:实质性 > ▲ 重要 > 高风险 > 分类注释。前两项占满时不再挤注释
   const catNote = top
     .slice(0, 2)
     .map(([cat, arr]) => `${zh(categoryMap, cat)} ${arr.length}`)
     .join(" · ");
+  // 第二枚信号:▲ 优先于高风险(它来自招标文件的原生记号,高风险是抽取侧的判定)
+  const second: "imp" | "risk" | null = imp > 0 ? "imp" : risk > 0 ? "risk" : null;
   return (
     <>
       <div className="cv-face-hero">
@@ -509,12 +528,17 @@ function RequirementPreview({
             实质性 <b>{mand}</b> 项
           </span>
         )}
-        {risk > 0 && (
+        {second === "imp" && (
+          <span className="is-imp">
+            ▲ 重要 <b>{imp}</b>
+          </span>
+        )}
+        {second === "risk" && (
           <span className="is-fatal">
             高风险 <b>{risk}</b>
           </span>
         )}
-        {!(mand > 0 && risk > 0) && (
+        {!(mand > 0 && second) && (
           <span className="is-note">{mand > 0 ? catNote : `无实质性条款${catNote ? ` · ${catNote}` : ""}`}</span>
         )}
       </div>
@@ -836,14 +860,22 @@ export function ItemActions({
   );
 }
 
-type ReqFilter = "all" | "mand" | "risk";
+type ReqFilter = "all" | "mand" | "imp" | "risk";
 
 const isHighRisk = (it: RequirementItem): boolean => it.risk_level === "high";
 
-/** 过滤签定义:签面文案与筛选谓词同源,计数与筛选不会漂移 */
-const REQ_FILTERS: Array<{ k: ReqFilter; label: string; pred: (it: RequirementItem) => boolean }> = [
+/** 过滤签定义:签面文案与筛选谓词同源,计数与筛选不会漂移。
+ *  ▲ 签只在该文件确有重要参数时出现 —— 没有「参数性质」列的招标文件不该多一枚恒为 0 的签。 */
+const REQ_FILTERS: Array<{
+  k: ReqFilter;
+  label: string;
+  pred: (it: RequirementItem) => boolean;
+  /** 计数为 0 时隐藏该签 */
+  hideWhenEmpty?: boolean;
+}> = [
   { k: "all", label: "全部", pred: () => true },
   { k: "mand", label: "★ 实质性", pred: (it) => !!it.mandatory },
+  { k: "imp", label: "▲ 重要", pred: (it) => it.param_nature === "▲", hideWhenEmpty: true },
   { k: "risk", label: "高风险", pred: isHighRisk },
 ];
 
@@ -885,8 +917,14 @@ function RequirementRow({
   return (
     <div className="cv-det-item">
       <div className="cv-det-item-top">
-        {item.mandatory && <MandatoryMark />}
-        {isHighRisk(item) && !item.mandatory && <RiskMark />}
+        {/* 行首只留一枚标记:★ > ▲ > 高风险。并排两枚会让「哪个更要命」失焦 */}
+        {item.mandatory ? (
+          <MandatoryMark />
+        ) : item.param_nature === "▲" ? (
+          <ImportantMark />
+        ) : isHighRisk(item) ? (
+          <RiskMark />
+        ) : null}
         <span className="cv-det-item-title">{item.title || "未命名条目"}</span>
       </div>
       {text && (
@@ -940,8 +978,11 @@ function RequirementDetail({
   const all = d.items ?? [];
   // 行级管理状态(确认/应答状态/乐观锁版本)按业务 id 对齐条目 payload
   const rowsById = new Map((slot.itemRows ?? []).map((r) => [r.item_id, r]));
-  const filters = REQ_FILTERS.map((f) => ({ ...f, n: all.filter(f.pred).length }));
-  const active = REQ_FILTERS.find((f) => f.k === filter) ?? REQ_FILTERS[0]!;
+  const filters = REQ_FILTERS.map((f) => ({ ...f, n: all.filter(f.pred).length })).filter(
+    (f) => !f.hideWhenEmpty || f.n > 0,
+  );
+  // 从可见签里取:▲ 签因数据变化退场时,选中态自动回落「全部」而不是卡在一张点不到的签上
+  const active = filters.find((f) => f.k === filter) ?? REQ_FILTERS[0]!;
   const filtered = all.filter(active.pred);
   const items = filtered.slice(0, 300);
   const groups = groupByCategory(items);
@@ -997,8 +1038,15 @@ function RequirementDetail({
             count={arr.length}
             unit="条"
             extra={
-              mandatoryCount(arr) > 0 ? (
-                <span className="cv-det-group-mand">实质性 {mandatoryCount(arr)}</span>
+              mandatoryCount(arr) > 0 || importantCount(arr) > 0 ? (
+                <>
+                  {mandatoryCount(arr) > 0 && (
+                    <span className="cv-det-group-mand">实质性 {mandatoryCount(arr)}</span>
+                  )}
+                  {importantCount(arr) > 0 && (
+                    <span className="cv-det-group-imp">▲ {importantCount(arr)}</span>
+                  )}
+                </>
               ) : undefined
             }
           >
@@ -1150,6 +1198,93 @@ function VetoBand({ rules }: { rules: VetoRule[] }) {
   );
 }
 
+/** 偏离档位译名:★/▲ 是招标文件的原生记号,原样呈现;general 是「列为空」的一般参数,需译。 */
+const DEV_SCOPE: Record<string, string> = { "★": "★", "▲": "▲", general: "一般" };
+
+/** 偏离规则的结构化摘要:数字字段齐了才拼,缺了就返回 null 交给原文兜底 ——
+ *  「负偏离 −0.3 分/项」是能直接用来算账的一句,拼不出来时硬凑半句反而误导。 */
+function deviationSummary(rec: Rec | null): string | null {
+  if (!rec) return null;
+  // 字段承载绝对值(方向由 direction 表达);抽取侧写了负号也照样读得对
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? Math.abs(v) : null;
+  const scope = Array.isArray(rec.applies_to)
+    ? rec.applies_to
+        .map((v: unknown) => (typeof v === "string" ? (DEV_SCOPE[v] ?? v) : ""))
+        .filter(Boolean)
+        .join(" / ")
+    : "";
+  const head = scope ? `${scope} ` : "";
+  if (rec.direction === "zero_out") {
+    const n = num(rec.threshold_items);
+    if (n === null) return null;
+    const effect =
+      typeof rec.effect_text === "string" && rec.effect_text.trim()
+        ? rec.effect_text.trim()
+        : "该部分得分清零";
+    return `${head}负偏离满 ${fmtScore(n)} 项 · ${effect}`;
+  }
+  if (rec.direction !== "positive" && rec.direction !== "negative") return null;
+  const per = num(rec.delta_per_item);
+  const cap = num(rec.cap);
+  if (per === null && cap === null) return null;
+  const name = rec.direction === "positive" ? "正偏离" : "负偏离";
+  const sign = rec.direction === "positive" ? "+" : "−";
+  return (
+    head +
+    [
+      per !== null ? `${name} ${sign}${fmtScore(per)} 分/项` : name,
+      cap !== null ? `封顶 ${fmtScore(cap)} 分` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ")
+  );
+}
+
+/** 偏离计分规则带:与否决项带同一副骨架,但走中性刻度 ——
+ *  偏离是算分规则不是废标线,占用红区会把真正的否决项冲淡。 */
+function DeviationBand({ rules }: { rules: DeviationRule[] }) {
+  const [open, setOpen] = useState(false);
+  if (rules.length === 0) return null;
+  const first = rules[0];
+  return (
+    <section className="cv-det-veto is-dev">
+      <button type="button" className="cv-det-veto-btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <ArrowsDownUpIcon width={15} height={15} />
+        偏离计分规则
+        <span className="cv-det-veto-count">{rules.length} 条</span>
+        <ChevronIcon width={13} height={13} className={open ? "cv-det-veto-caret is-open" : "cv-det-veto-caret"} />
+      </button>
+      {open ? (
+        rules.map((v, i) => (
+          <div key={i} className="cv-det-veto-row">
+            <span className="cv-det-veto-no" aria-hidden>
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div style={{ minWidth: 0 }}>
+              {v.summary && <div className="cv-det-dev-sum">{v.summary}</div>}
+              <span className={v.summary ? "cv-det-dev-text" : undefined}>{v.text}</span>
+              <SourceRow
+                refs={v.refs}
+                itemKey={`dev:${v.id ?? i}`}
+                claim={{
+                  matrixType: "scoring",
+                  itemId: null,
+                  label: `偏离规则 ${v.id ?? i + 1}`,
+                  title: v.summary ?? "偏离计分规则",
+                  requirementText: v.text,
+                }}
+              />
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="cv-det-veto-peek">{first?.summary ?? first?.text}</div>
+      )}
+    </section>
+  );
+}
+
 /** 评分项行:标题在左、分值靠右成一条数字轴,规则与来源退到次行。
  *  两处降负担 ——
  *  规则默认两行截断(沿用条目详情的 .is-clamped:真实招标文件一条规则 100～200 字,
@@ -1172,6 +1307,8 @@ function ScoringRow({
 }) {
   const rule = item.scoring_rule?.trim();
   const refs = item.source_refs ?? [];
+  // 关联格式 = 该评分项的材料挂载位置(投标客户端里的格式名),决定投标文件分册
+  const relFormat = item.related_format?.trim();
   return (
     <div className={first ? "cv-det-srow is-first" : "cv-det-srow"}>
       <div className="cv-det-srow-main">
@@ -1180,8 +1317,13 @@ function ScoringRow({
           {item.title || "未命名评分项"}
         </div>
         {rule && <p className={open ? "cv-det-srow-rule" : "cv-det-srow-rule is-clamped"}>{rule}</p>}
-        {(refs.length > 0 || rule) && (
+        {(refs.length > 0 || rule || relFormat) && (
           <div className="cv-det-foot">
+            {relFormat && (
+              <span className="cv-det-relfmt" title="应答材料挂载位置">
+                格式 · {relFormat}
+              </span>
+            )}
             {refs.length > 0 && (
               <SourceChips
                 refs={refs}
@@ -1233,6 +1375,11 @@ interface VetoRule {
   id: string | null;
 }
 
+/** 偏离计分规则行:summary 是能直接算账的一句(数字齐全时才有),text 恒为原文 */
+interface DeviationRule extends VetoRule {
+  summary: string | null;
+}
+
 function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
   // 一级项切换 / 排序 / 展开中的规则。hooks 必须先于 SlotFallback 的提前返回。
   const [cat, setCat] = useState<string | null>(null);
@@ -1256,6 +1403,19 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
       };
     })
     .filter((v) => v.text);
+
+  // 偏离计分规则:与否决项同一副读法(无形状约束 + 业务 id 优先),额外拼一句结构化摘要
+  const deviationRules: DeviationRule[] = (ev.deviation_rules ?? [])
+    .map((r) => {
+      const rec = asRec(r);
+      return {
+        text: vetoRuleText(r),
+        summary: deviationSummary(rec),
+        refs: asSourceRefs(rec?.source_refs),
+        id: typeof rec?.id === "string" && rec.id ? rec.id : null,
+      };
+    })
+    .filter((v) => v.text || v.summary);
 
   const itemsAll = d.items ?? [];
   const items = itemsAll.slice(0, 300);
@@ -1402,6 +1562,7 @@ function ScoringDetail({ slot }: { slot: MatrixSlot<ScoringMatrix> }) {
       )}
 
       <VetoBand rules={vetoRules} />
+      <DeviationBand rules={deviationRules} />
 
       {/* 一级项切换吸顶:滚到几百项深处仍可即点即切。只有一个一级项时不立滑块 —— 单段控件是噪声。 */}
       {(orderedKeys.length > 1 || activeItems.length > 1) && (
@@ -1484,7 +1645,10 @@ export function useMatrixDetailSummary(type: MatrixType): string | null {
   }
   const items = (slot.data as BusinessMatrix | TechnicalMatrix).items ?? [];
   const mand = mandatoryCount(items);
-  return `共 ${items.length} 条${mand > 0 ? ` · 实质性 ${mand} 项` : ""}`;
+  const imp = importantCount(items);
+  return [`共 ${items.length} 条`, mand > 0 ? `实质性 ${mand} 项` : "", imp > 0 ? `▲ 重要 ${imp} 项` : ""]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** 抽屉详情统一入口 */

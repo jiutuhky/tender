@@ -130,6 +130,21 @@ TIMELINE_ROW = {
 QUALIFICATION_ROW = {"text": "具备独立承担民事责任的能力", "source_refs": []}
 PASS_FAIL_ROW = {"text": "未提供有效资质证明的作否决处理", "source_refs": []}
 
+
+def deviation_rule(doc) -> dict:
+    return {
+        "id": "DEVR-001",
+        "direction": "zero_out",
+        "applies_to": None,
+        "delta_per_item": None,
+        "cap": None,
+        "threshold_items": 3,
+        "effect_text": "技术指标部分得分为0分",
+        "rule_text": "非实质性技术条款负偏离3项以上的，技术指标评审总得分为0分",
+        "source_refs": [{"document_id": doc.id, "line_span": [5, 5]}],
+        "notes": None,
+    }
+
 BASIC_INFO_PROJECT = {
     "name": "示例信息化项目",
     "number": "ZB-2026-001",
@@ -181,6 +196,7 @@ def publish_all_four(service, doc, workspace, actor) -> None:
         sections=[
             ("items", [score_item(doc)]),
             ("evaluation.pass_fail_rules", [PASS_FAIL_ROW]),
+            ("evaluation.deviation_rules", [deviation_rule(doc)]),
         ],
     )
 
@@ -255,6 +271,7 @@ class TestOldContractDocuments:
         assert scoring["evaluation"]["method"] == "综合评分法"
         assert scoring["evaluation"]["total_score"] == 100
         assert scoring["evaluation"]["pass_fail_rules"] == [PASS_FAIL_ROW]
+        assert scoring["evaluation"]["deviation_rules"] == [deviation_rule(doc)]
         assert scoring["evaluation"]["tie_break_rules"] == []
 
 

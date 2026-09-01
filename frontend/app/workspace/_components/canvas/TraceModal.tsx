@@ -6,7 +6,7 @@ import { gsap } from "gsap";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import { prettyLabel } from "@/lib/hagent/naming";
 import type { DocumentRecord } from "@/lib/hagent/documents";
-import { ItemActions, MandatoryMark, RiskMark, useItemAction } from "./matrixViews";
+import { ImportantMark, ItemActions, MandatoryMark, RiskMark, useItemAction } from "./matrixViews";
 import { TracePanel } from "./TracePanel";
 import { useTrace, type TraceClaim } from "./traceContext";
 import { DUR_FLOAT, DUR_PANEL, TRACE_EASE_ENTER, prefersReducedMotion } from "./traceMotion";
@@ -48,8 +48,14 @@ function ClaimBar({ claim }: { claim: TraceClaim }) {
     <div className="cv-trace-claim">
       <div className="cv-trace-claim-head">
         <span className="cv-trace-claim-label">核验条目 · {claim.label}</span>
-        {claim.mandatory && <MandatoryMark full />}
-        {claim.highRisk && !claim.mandatory && <RiskMark />}
+        {/* 与条目行同一套互斥优先级:★ > ▲ > 高风险 */}
+        {claim.mandatory ? (
+          <MandatoryMark full />
+        ) : claim.paramNature === "▲" ? (
+          <ImportantMark full />
+        ) : claim.highRisk ? (
+          <RiskMark />
+        ) : null}
         <span className="cv-trace-claim-title">{claim.title}</span>
       </div>
 

@@ -238,6 +238,221 @@ class TestStructure:
         assert all(i.hint for i in issues)
 
 
+# —— 可选字段（给了值才核，缺省不报） ——
+
+
+class TestOptionalFields:
+    def test_param_nature_valid_values(self):
+        items = [
+            row("technical", "TECH-001", tech_payload("TECH-001", param_nature="★", mandatory=True)),
+            row("technical", "TECH-002", tech_payload("TECH-002", param_nature="▲")),
+            row("technical", "TECH-003", tech_payload("TECH-003", param_nature=None)),
+            row("technical", "TECH-004", tech_payload("TECH-004")),  # 存量：无此字段
+        ]
+        assert validate_structure("technical", valid_meta(), items) == []
+
+    def test_param_nature_invalid_value(self):
+        # 未归一的 OCR 变体不放行——归一在抽取侧做
+        payload = tech_payload("TECH-005", param_nature="△")
+        issues = validate_structure("technical", valid_meta(), [row("technical", "TECH-005", payload)])
+        assert codes(issues) == {("technical/TECH-005", "invalid_param_nature")}
+        assert {i.severity for i in issues} == {"error"}
+
+    def test_param_nature_mandatory_mismatch_warns(self):
+        items = [
+            row("technical", "TECH-006", tech_payload("TECH-006", param_nature="★", mandatory=False)),
+            row("technical", "TECH-007", tech_payload("TECH-007", param_nature="▲", mandatory=True)),
+        ]
+        issues = validate_structure("technical", valid_meta(), items)
+        assert codes(issues, severity="warning") == {
+            ("technical/TECH-006", "param_nature_mandatory_mismatch"),
+            ("technical/TECH-007", "param_nature_mandatory_mismatch"),
+        }
+        assert codes(issues, severity="error") == set()
+
+    def test_param_nature_applies_to_business_too(self):
+        payload = tech_payload("BIZ-001", param_nature="invalid")
+        issues = validate_structure("business", valid_meta(), [row("business", "BIZ-001", payload)])
+        assert ("business/BIZ-001", "invalid_param_nature") in codes(issues)
+
+    def test_scoring_optional_string_fields(self):
+        def scoring_payload(item_id: str, **overrides) -> dict:
+            payload = {
+                "id": item_id,
+                "group": "technical",
+                "title": "技术方案",
+                "max_score": 20,
+                "scoring_rule": SOURCE_LINES[7],
+                "scoring_method": "subjective",
+                "source_refs": [{"document_id": "doc-001", "line_span": [8, 8]}],
+                "confidence": "high",
+            }
+            payload.update(overrides)
+            return payload
+
+        ok = [
+            row("scoring", "S-1", scoring_payload("S-1", related_format="「技术方案」相关证明材料")),
+            row("scoring", "S-2", scoring_payload("S-2", related_format=None, subgroup="技术方案")),
+            row("scoring", "S-3", scoring_payload("S-3")),
+        ]
+        assert validate_structure("scoring", valid_meta(), ok) == []
+
+        bad = [
+            row("scoring", "S-4", scoring_payload("S-4", related_format=["技术方案"])),
+            row("scoring", "S-5", scoring_payload("S-5", subgroup=1)),
+        ]
+        assert codes(validate_structure("scoring", valid_meta(), bad)) == {
+            ("scoring/S-4", "invalid_related_format"),
+            ("scoring/S-5", "invalid_subgroup"),
+        }
+
+    def test_compliance_response_format(self):
+        section = "compliance_overview.conformity_review"
+        ok = [
+            row("business", "CONF-1", {"text": "符合性审查项", "response_format": "格式二"},
+                section=section),
+            row("business", "CONF-2", {"text": "符合性审查项"}, section=section),
+        ]
+        assert validate_structure("business", valid_meta(), ok) == []
+
+        bad = row("business", "CONF-3", {"text": "x", "response_format": 2}, section=section)
+        assert codes(validate_structure("business", valid_meta(), [bad])) == {
+            ("business/CONF-3", "invalid_response_format")
+        }
+
+
+# —— 偏离计分规则行（新区段，契约即校验） ——
+
+
+def deviation_payload(item_id: str, **overrides) -> dict:
+    payload = {
+        "id": item_id,
+        "direction": "negative",
+        "applies_to": ["▲"],
+        "delta_per_item": 0.3,
+        "cap": None,
+        "threshold_items": None,
+        "effect_text": None,
+        "rule_text": SOURCE_LINES[7],
+        "source_refs": [{"document_id": "doc-001", "line_span": [8, 8]}],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def deviation_row(item_id: str, **overrides) -> MatrixItem:
+    return row(
+        "scoring", item_id, deviation_payload(item_id, **overrides),
+        section="evaluation.deviation_rules",
+    )
+
+
+class TestDeviationRules:
+    def test_valid_rules_pass(self):
+        items = [
+            deviation_row("DEVR-001", direction="positive", applies_to=None,
+                          delta_per_item=2, cap=10),
+            deviation_row("DEVR-002"),
+            deviation_row("DEVR-003", direction="zero_out", applies_to=None,
+                          delta_per_item=None, threshold_items=3,
+                          effect_text="技术指标部分得分为0分"),
+            deviation_row("DEVR-004", applies_to=["★", "▲", "general"]),
+        ]
+        assert validate_structure("scoring", valid_meta(), items) == []
+
+    def test_direction_required_and_enumerated(self):
+        items = [
+            deviation_row("DEVR-010", direction=None),
+            deviation_row("DEVR-011", direction="deduct"),
+        ]
+        assert codes(validate_structure("scoring", valid_meta(), items), severity="error") == {
+            ("scoring/DEVR-010", "invalid_deviation_direction"),
+            ("scoring/DEVR-011", "invalid_deviation_direction"),
+        }
+
+    def test_applies_to_shape(self):
+        items = [
+            deviation_row("DEVR-020", applies_to="▲"),  # 非列表
+            deviation_row("DEVR-021", applies_to=["重要"]),  # 元素不在枚举内
+        ]
+        assert codes(validate_structure("scoring", valid_meta(), items)) == {
+            ("scoring/DEVR-020", "invalid_deviation_applies_to"),
+            ("scoring/DEVR-021", "invalid_deviation_applies_to"),
+        }
+
+    def test_number_fields(self):
+        items = [
+            deviation_row("DEVR-030", delta_per_item="0.3"),
+            deviation_row("DEVR-031", cap=True),  # bool 不是数字
+            deviation_row("DEVR-032", direction="zero_out", threshold_items=3.5),
+        ]
+        assert codes(validate_structure("scoring", valid_meta(), items), severity="error") == {
+            ("scoring/DEVR-030", "invalid_deviation_number"),
+            ("scoring/DEVR-031", "invalid_deviation_number"),
+            ("scoring/DEVR-032", "invalid_deviation_number"),
+        }
+
+    def test_negative_number_warns(self):
+        # 字段承载绝对值，加/扣方向由 direction 表达
+        items = [deviation_row("DEVR-040", delta_per_item=-0.3)]
+        issues = validate_structure("scoring", valid_meta(), items)
+        assert codes(issues, severity="warning") == {
+            ("scoring/DEVR-040", "negative_deviation_number")
+        }
+        assert codes(issues, severity="error") == set()
+
+    def test_threshold_without_zero_out_warns(self):
+        items = [deviation_row("DEVR-050", threshold_items=3)]
+        issues = validate_structure("scoring", valid_meta(), items)
+        assert codes(issues, severity="warning") == {
+            ("scoring/DEVR-050", "threshold_without_zero_out")
+        }
+
+    def test_rule_text_required(self):
+        items = [
+            deviation_row("DEVR-060", rule_text=None),
+            deviation_row("DEVR-061", rule_text="   "),
+        ]
+        assert codes(validate_structure("scoring", valid_meta(), items), severity="error") == {
+            ("scoring/DEVR-060", "missing_rule_text"),
+            ("scoring/DEVR-061", "missing_rule_text"),
+        }
+
+    def test_source_refs_required_and_shaped(self):
+        items = [
+            deviation_row("DEVR-070", source_refs=None),
+            deviation_row("DEVR-071", source_refs=[]),
+            deviation_row("DEVR-072", source_refs=[{"line_span": [1, 2]}]),
+        ]
+        assert codes(validate_structure("scoring", valid_meta(), items), severity="error") == {
+            ("scoring/DEVR-070", "missing_source_refs"),
+            ("scoring/DEVR-071", "empty_source_refs"),
+            ("scoring/DEVR-072", "missing_document_id"),
+        }
+
+    def test_issues_carry_hint(self):
+        items = [deviation_row("DEVR-080", direction=None, rule_text=None, source_refs=None)]
+        issues = validate_structure("scoring", valid_meta(), items)
+        assert len(issues) == 3
+        assert all(i.hint for i in issues)
+
+    def test_section_is_allowed_for_scoring_only(self):
+        item = deviation_row("DEVR-090")
+        assert validate_consistency("scoring", valid_meta(), [item]) == []
+        stray = row("technical", "DEVR-090", {"direction": "positive"},
+                    section="evaluation.deviation_rules")
+        assert codes(validate_consistency("technical", valid_meta(), [stray])) == {
+            ("technical/DEVR-090", "invalid_section")
+        }
+
+    def test_meta_skeleton_type_conflict(self):
+        meta = valid_meta()
+        meta["evaluation"] = {"deviation_rules": "负偏离每项扣2分"}  # 应为列表
+        assert codes(validate_consistency("scoring", meta, [])) == {
+            ("scoring", "meta_type_conflict")
+        }
+
+
 # —— 组装一致性 ——
 
 

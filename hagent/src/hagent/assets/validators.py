@@ -87,9 +87,22 @@ META_SKELETONS: dict[str, dict] = {
             "technical_score": None,
             "pass_fail_rules": [],
             "tie_break_rules": [],
+            "deviation_rules": [],
         },
     },
 }
+
+# 参数性质三态：原文符号照录（★ 实质性 / ▲ 重要），列空或无此列为 None
+VALID_PARAM_NATURE = ("★", "▲")
+# 偏离计分规则行的枚举面
+VALID_DEVIATION_DIRECTION = ("positive", "negative", "zero_out")
+VALID_DEVIATION_APPLIES_TO = ("★", "▲", "general")
+# business 的符合性/资格审查区段：行可带可选 response_format（附表2「响应格式」列原文）
+COMPLIANCE_SECTIONS = (
+    "compliance_overview.qualification_review",
+    "compliance_overview.conformity_review",
+    "compliance_overview.invalid_bid_triggers",
+)
 
 
 @dataclass(frozen=True)
@@ -177,8 +190,13 @@ def validate_structure(matrix_type: str, meta: dict, items: list[MatrixItem]) ->
     if matrix_type == "basic_info":
         _check_basic_info_project(meta, issues)
     for item in items:
-        if item.section == "items" and matrix_type in ITEM_REQUIRED:
-            _check_item_shape(matrix_type, item, issues)
+        if item.section == "items":
+            if matrix_type in ITEM_REQUIRED:
+                _check_item_shape(matrix_type, item, issues)
+        elif matrix_type == "scoring" and item.section == "evaluation.deviation_rules":
+            _check_deviation_rule_shape(item, issues)
+        elif matrix_type == "business" and item.section in COMPLIANCE_SECTIONS:
+            _check_response_format(item, issues)
     return issues
 
 
@@ -274,7 +292,16 @@ def _check_item_shape(matrix_type: str, item: MatrixItem, issues: list[Validatio
             "response_required 必须是布尔值",
             hint="用 update_matrix_item 置为 true / false",
         ))
+    if matrix_type in ("business", "technical"):
+        _check_param_nature(target, payload, issues)
     if matrix_type == "scoring":
+        related_format = payload.get("related_format")
+        if related_format is not None and not isinstance(related_format, str):
+            issues.append(_error(
+                "structure", target, "invalid_related_format",
+                f"related_format 必须是字符串或 null，得到 {related_format!r}",
+                hint="用 update_matrix_item 置为评审标准表「关联格式」列的原文字符串（无此列置 null）",
+            ))
         max_score = payload.get("max_score")
         if max_score is not None and not isinstance(max_score, (int, float)):
             issues.append(_error(
@@ -292,6 +319,128 @@ def _check_item_shape(matrix_type: str, item: MatrixItem, issues: list[Validatio
                 hint="用 update_matrix_item 修正 subgroup",
             ))
     _check_source_refs(target, payload.get("source_refs"), issues)
+
+
+def _check_param_nature(target: str, payload: dict, issues: list[ValidationIssue]) -> None:
+    """参数性质三态（★ 实质性 / ▲ 重要 / 一般）与 mandatory 的双写一致性。
+
+    可选字段：存量抽取没有它，不进 ITEM_REQUIRED，只在给了值时核。★ 与 mandatory 双写
+    （前端 ★ 展示链读 mandatory）；▲ 不是 mandatory 信号——负偏离重扣分但不废标。
+    两者不一致只报 warning：原文确有 ▲ 条款叠加「须」类措辞的情形，留给主 agent 对照裁决。
+    """
+    nature = payload.get("param_nature")
+    if nature is None:
+        return
+    if nature not in VALID_PARAM_NATURE:
+        issues.append(_error(
+            "structure", target, "invalid_param_nature",
+            f"param_nature 必须是 {' / '.join(VALID_PARAM_NATURE)} 之一或 null，得到 {nature!r}",
+            hint="用 update_matrix_item 置为原文符号 ★ / ▲（OCR 变体 * ☆ 归一为 ★，△ Δ 归一为 ▲）；"
+            "一般参数置 null",
+        ))
+        return
+    mandatory = payload.get("mandatory")
+    if nature == "★" and mandatory is False:
+        issues.append(_warning(
+            "structure", target, "param_nature_mandatory_mismatch",
+            "param_nature 为 ★（实质性条款）但 mandatory 为 false",
+            hint="★ 条款负偏离即无效投标：核对原文后用 update_matrix_item 把 mandatory 置 true，"
+            "或修正 param_nature",
+        ))
+    elif nature == "▲" and mandatory is True:
+        issues.append(_warning(
+            "structure", target, "param_nature_mandatory_mismatch",
+            "param_nature 为 ▲（重要参数）但 mandatory 为 true",
+            hint="▲ 条款负偏离扣分但不废标：确认同条款另有无效投标措辞才保留 mandatory=true，"
+            "否则用 update_matrix_item 置 false",
+        ))
+
+
+def _check_response_format(item: MatrixItem, issues: list[ValidationIssue]) -> None:
+    """compliance_overview 行的可选 response_format（符合性审查表「响应格式」列原文）。"""
+    value = item.payload.get("response_format")
+    if value is not None and not isinstance(value, str):
+        issues.append(_error(
+            "structure", f"business/{item.item_id}", "invalid_response_format",
+            f"response_format 必须是字符串或 null，得到 {value!r}",
+            hint="用 update_matrix_item 置为符合性审查表「响应格式」列的原文字符串（无此列置 null）",
+        ))
+
+
+def _check_deviation_rule_shape(item: MatrixItem, issues: list[ValidationIssue]) -> None:
+    """偏离计分规则行的形状校验。
+
+    非 items 区段的行原本不做形状校验（pass_fail_rules 等只是文本 + source_refs）。这里是
+    有意的例外：deviation_rules 是新区段、无存量数据，契约建立之时即校验的成本最低。**不要**
+    照此给旧区段补形状校验——那会让既有已发布矩阵在重新校验时批量失败。
+    """
+    target = f"scoring/{item.item_id}"
+    payload = item.payload
+
+    direction = payload.get("direction")
+    if direction not in VALID_DEVIATION_DIRECTION:
+        issues.append(_error(
+            "structure", target, "invalid_deviation_direction",
+            f"direction 必须是 {' / '.join(VALID_DEVIATION_DIRECTION)} 之一，得到 {direction!r}",
+            hint="正偏离加分为 positive，负偏离扣分为 negative，达到项数后总分清零为 zero_out",
+        ))
+
+    applies_to = payload.get("applies_to")
+    if applies_to is not None and (
+        not isinstance(applies_to, list)
+        or any(v not in VALID_DEVIATION_APPLIES_TO for v in applies_to)
+    ):
+        issues.append(_error(
+            "structure", target, "invalid_deviation_applies_to",
+            f"applies_to 必须是 {' / '.join(VALID_DEVIATION_APPLIES_TO)} 组成的列表或 null，"
+            f"得到 {applies_to!r}",
+            hint='按档写 ["★"] / ["▲"] / ["general"]（列空的一般参数）；规则不分档时置 null',
+        ))
+
+    for key, want_int in (("delta_per_item", False), ("cap", False), ("threshold_items", True)):
+        value = payload.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int if want_int else (int, float)):
+            issues.append(_error(
+                "structure", target, "invalid_deviation_number",
+                f"{key} 必须是{'整数' if want_int else '数字'}或 null，得到 {value!r}",
+                hint=f"用 update_matrix_item 修正 {key}；原文没有明确数字时置 null，"
+                "规则原文留在 rule_text",
+            ))
+            continue
+        if value < 0:
+            issues.append(_warning(
+                "structure", target, "negative_deviation_number",
+                f"{key} 为负数（{value}）",
+                hint="该字段承载绝对值，加/扣方向由 direction 表达；用 update_matrix_item 改为正值",
+            ))
+
+    if payload.get("threshold_items") is not None and direction != "zero_out":
+        issues.append(_warning(
+            "structure", target, "threshold_without_zero_out",
+            f"threshold_items 有值但 direction 为 {direction!r}",
+            hint="threshold_items 只用于熔断规则（direction=zero_out）；"
+            "逐项加扣分规则请用 delta_per_item",
+        ))
+
+    rule_text = payload.get("rule_text")
+    if not isinstance(rule_text, str) or not rule_text.strip():
+        issues.append(_error(
+            "structure", target, "missing_rule_text",
+            "rule_text 缺失或为空",
+            hint="用 update_matrix_item 按源文补写 rule_text（贴原文措辞，解读进 notes）",
+        ))
+
+    refs = payload.get("source_refs")
+    if refs is None:
+        issues.append(_error(
+            "structure", target, "missing_source_refs",
+            "缺少字段 source_refs",
+            hint="每条偏离规则至少一条 source_ref（document_id + line_span），用 update_matrix_item 补充",
+        ))
+    else:
+        _check_source_refs(target, refs, issues)
 
 
 def _check_source_refs(target: str, refs, issues: list[ValidationIssue]) -> None:

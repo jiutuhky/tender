@@ -25,7 +25,7 @@ description: Parse tender and procurement documents (RFP/RFQ, 招标文件) into
 
 4. **派发抽取 pass**：每个矩阵一个 pass。用 `Agent` 工具四路并发，`subagent_type` 指定 `matrix-extraction-worker`（它继承主 agent 的全部工具面，能直接调 `prose_*` 提交草稿）；没有该类型就用 `general-purpose`；`Agent` 工具不可用时自己顺序跑四遍，指南一字不差同样适用。worker prompt 必须给足：目标矩阵类型、project_id、各 doc_id 与对应源文件路径、`references/worker-instructions.md` 与 `references/response-matrix-schema.md` 的完整路径，以及「先通读 worker-instructions 再动手」的要求。worker 只知道 prompt 里写的内容——给路径让它自己读，不要转述指南摘要。
 
-5. **主 agent 复核**：四个 pass 都汇报完成后，用 `prose_get_matrix` 的分组统计定位可疑面（某类计数异常、unset 桶过大），再 `prose_query_matrix_items` 抽查条目本体，做跨矩阵裁决：重复条目 `prose_drop_matrix_item`，归类错的 `prose_move_matrix_item`，字段修正 `prose_update_matrix_item`，envelope 修正 `prose_set_matrix_meta`。worker 汇报里的低置信与未决点优先核。
+5. **主 agent 复核**：四个 pass 都汇报完成后，用 `prose_get_matrix` 的分组统计定位可疑面（某类计数异常、unset 桶过大），再 `prose_query_matrix_items` 抽查条目本体，做跨矩阵裁决：重复条目 `prose_drop_matrix_item`，归类错的 `prose_move_matrix_item`，字段修正 `prose_update_matrix_item`，envelope 修正 `prose_set_matrix_meta`。worker 汇报里的低置信与未决点优先核。另核一处跨矩阵自洽：technical 有 ▲ 条款（`param_nature`）而 scoring 的 `evaluation.deviation_rules` 为空，或反之，通常意味着某一侧漏抽——责成对应 pass 补齐。
 
 6. **校验修复环**：`prose_validate_matrix` 跑全部矩阵，照报告里每条 issue 的 hint 逐条修。保真类失败集中成批修：先读齐所有失败条目引用的源文 span，再一轮改完，然后整体重跑校验；一轮一批，直到 `all_pass`。error 必须清零；warning 仅当招标文件确实缺该信息、或原文本身含混时才允许保留。
 
