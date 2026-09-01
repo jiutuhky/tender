@@ -21,6 +21,8 @@ color: blue
 - 写入只走 `prose_submit_matrix_records` / `prose_set_matrix_meta` / `prose_update_matrix_item` 等 `prose_*` 工具；不要把结果写成文件。
 - project_id 用 prompt 给的值；若工具报 `project_mismatch`，照错误里给出的值重试。
 - `requirement_text` / `scoring_rule` 贴住原文措辞，`source_refs` 只用 `{document_id, line_span}`；解释与保留意见进 `notes`。
+- 过程文本一律简体中文（专有技术名词除外）。
+- 过程更新只在阶段边界发（通读完成、某区段整体提交完成、校验完成）；逐批提交不逐批播报。收尾给主 agent 的技术汇报保持现有口径不变。
 
 ## 收尾
 

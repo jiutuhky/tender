@@ -9,18 +9,28 @@ import { Response } from "@/components/ai-elements/response";
 
 type Turn =
   | { kind: "user"; id: string; content: string }
-  | { kind: "assistant"; id: string; items: ThinkingItem[]; response: string; errors: string[]; showMeta: boolean };
+  | {
+      kind: "assistant";
+      id: string;
+      items: ThinkingItem[];
+      response: string;
+      narration: string;
+      errors: string[];
+      showMeta: boolean;
+    };
 
 // 把扁平 timeline 分组为「用户回合 / 助手回合」。一个助手段 = 思考/工具块 + 紧随其后的
 // 正文回复（对应设计稿的 .cm-message-turn）。关键：助手段以「正文回复」为界——一旦当前段
 // 已产出正文，再出现新的 thinking/工具，就 flush 出新段，让后续思考/工具在正文**下方**另起
-// 一条消息，而非全部回挤到顶部。
+// 一条消息，而非全部回挤到顶部。其中「正文之后又出现思考/工具」意味着这段正文是 tool-loop
+// 过程旁白（模型宣告下一步动作），flush 前降级进 narration 渲染为外层 dim 单行；真正的回合
+// 末回复只在 user 边界或时间线末尾 flush，不走该分支，保持满级正文。
 function groupTurns(timeline: ChatMsg[]): Turn[] {
   const turns: Turn[] = [];
   let cur: Extract<Turn, { kind: "assistant" }> | null = null;
   let roundOpened = false; // 本轮（上一条 user 之后）是否已有助手段 → 决定智能体名只在首段显示
   const flush = () => {
-    if (cur && (cur.items.length || cur.response || cur.errors.length)) turns.push(cur);
+    if (cur && (cur.items.length || cur.response || cur.narration || cur.errors.length)) turns.push(cur);
     cur = null;
   };
   for (const m of timeline) {
@@ -31,10 +41,22 @@ function groupTurns(timeline: ChatMsg[]): Turn[] {
       continue;
     }
     const isThinkingItem = m.role !== "assistant_text" && m.role !== "error";
-    // 当前段已经回复过正文，又来新的思考/工具 → 开启新段（渲染在上一段正文之下）。
-    if (cur && cur.response && isThinkingItem) flush();
+    // 当前段已经回复过正文，又来新的思考/工具 → 这段正文是过程旁白：降级后另起新段。
+    if (cur && cur.response && isThinkingItem) {
+      cur.narration = cur.response;
+      cur.response = "";
+      flush();
+    }
     if (!cur) {
-      cur = { kind: "assistant", id: `a-${m.id}`, items: [], response: "", errors: [], showMeta: !roundOpened };
+      cur = {
+        kind: "assistant",
+        id: `a-${m.id}`,
+        items: [],
+        response: "",
+        narration: "",
+        errors: [],
+        showMeta: !roundOpened,
+      };
       roundOpened = true;
     }
     if (m.role === "assistant_text") cur.response += m.content;
@@ -91,7 +113,7 @@ function itemSig(i: ThinkingItem): string {
 
 function turnSignature(t: Turn, active = false): string {
   if (t.kind === "user") return `u:${t.id}:${t.content.length}`;
-  return `a:${t.id}:${active ? 1 : 0}:${t.response.length}:${t.errors.length}:${t.items.map(itemSig).join("|")}`;
+  return `a:${t.id}:${active ? 1 : 0}:${t.response.length}:${t.narration.length}:${t.errors.length}:${t.items.map(itemSig).join("|")}`;
 }
 
 const UserTurn = memo(
@@ -129,6 +151,11 @@ const AssistantTurn = memo(
             active={active}
           />
           <ToolCallBlock items={after} active={active && anyItemRunning(after)} />
+          {turn.narration && (
+            <div className="cm-narration" title={turn.narration}>
+              {turn.narration}
+            </div>
+          )}
           {turn.response && (
             <div className="cm-response">
               <Response>{turn.response}</Response>

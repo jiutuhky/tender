@@ -1504,6 +1504,26 @@ body {
 }
 .cm-response p { margin: 0 0 0.7em; }
 .cm-response p:last-child { margin-bottom: 0; }
+/* 过程旁白：tool-loop 中每次工具调用前的一句话说明。可见但视觉降级——
+   与思考/工具摘要行同字阶同灰度，单行截断，完整内容悬停 title 可见。 */
+.cm-narration {
+  font-family: var(--font-sans);
+  font-size: var(--fs-chat-reasoning);
+  line-height: var(--lh-chat-reasoning);
+  letter-spacing: -0.003em;
+  color: var(--fg-2);
+  padding-left: 2px;
+  max-width: 68ch;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 一次性入场：正文降级为旁白的形态切换读作刻意的替换；柔和模式下 --t-float 归零自动豁免 */
+  animation: cm-narration-in var(--t-float) var(--ease-std);
+}
+@keyframes cm-narration-in {
+  from { opacity: 0; }
+}
 .cm-error-message { color: var(--red-text); }
 .cm-error-message p { display: flex; align-items: flex-start; gap: 8px; }
 .cm-error-mark {
