@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { useWorkspaceStore, type StreamSize } from "@/lib/store/workspace";
-import { ChevronIcon, MinusIcon, PlusIcon, ProseBotIcon } from "@/components/ui/icons";
+import { ChevronIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
+import { ProseBot } from "@/components/ui/ProseBot";
+import { deriveMainBotState } from "@/lib/bot";
 import {
   DUR_FLOAT,
   DUR_MICRO,
@@ -34,6 +36,28 @@ const GLASS = {
   cornerRadius: 20,
   mode: "standard",
 } as const;
+
+/**
+ * Bot 形象单拆一层：它按时间线末段派生状态（在思考？在检索？在落笔？），流式期每帧
+ * 都可能变。selector 返回的是**字符串**，状态没真的换档时 Object.is 相等，zustand 直接
+ * 跳过重渲——所以绝大多数帧这一层是静止的，动的是引擎内部的 rAF。
+ */
+function WindowBot() {
+  const state = useWorkspaceStore((s) => deriveMainBotState(s.phase, s.timeline));
+  const done = useWorkspaceStore((s) => s.phase === "done");
+  return (
+    <ProseBot
+      state={state}
+      followPointer
+      idleMoods
+      blinkOnHover
+      once="celebrate"
+      onceKey={done ? "done" : undefined}
+      onceMs={1900}
+      aria-hidden="true"
+    />
+  );
+}
 
 // 标题栏内容单拆一层：todos / matrices 在流式期每帧都变，让它们只重渲这一小块，
 // 外层 MessageWindow 就不会在改档的 tween 中途被重渲、把 data-state 冲掉。
@@ -310,7 +334,7 @@ export function MessageWindow() {
         title={open ? "收起 Prose Bot 执行流" : "展开 Prose Bot 执行流"}
         onClick={() => (open ? collapse() : setStreamSize("open"))}
       >
-        <ProseBotIcon aria-hidden="true" />
+        <WindowBot />
       </button>
 
       {showMin && (

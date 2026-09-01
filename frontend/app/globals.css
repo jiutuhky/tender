@@ -123,6 +123,26 @@
     --radius:      var(--r-window);
     --radius-lg:   var(--r-card);
     --ease-drawer: var(--ease-std);
+
+    /* --- Prose Bot 角色令牌（lib/bot 引擎 + components/ui/ProseBot） ---
+       主 Agent 的本体是**黑**：三段渐变照 app icon 的结构（浅→中→深，135° 不变），
+       只把色相换成中性墨。暗色外观下整体翻成白，否则 Bot 会溶进 #161618 的画布里。
+       gloss / 描边 / 眼白跟着翻——它们在黑本体上是白高光，在白本体上必须变回暗色。
+       子代理头像不吃这组令牌：身份色是饱和色，在两种外观下都撑得住白高光。 */
+    --pb-ink-1: #4a4a4f;
+    --pb-ink-2: #1d1d1f;
+    --pb-ink-3: #000000;
+    --pb-gloss: #ffffff;
+    --pb-rim:   #ffffff;
+    --pb-eye:   #ffffff;
+    /* 特效层（思考点、雷达、进度环）的底色：主 Bot 走中性墨，子代理由组件换成身份色。
+       这是对 Frost「身份色止于超椭圆」的有意扩写——并排跑的四个子代理，光靠 24px 的
+       本体色块分不清谁在检索谁在落笔，特效层跟着染色之后一屏看板才读得出来。 */
+    --pb-fx:    var(--label);
+    /* 庆祝 / 兴奋的星火。语义色里没有「高兴」这一档，角色破例用金。 */
+    --pb-spark: #e0a021;
+    /* 侧面：转起来时露出的那个楔形，比正面暗一档，读作背光的那一面 */
+    --pb-side:  #2b2b30;
   }
 
   /* 暗色外观不是反色：近黑冷灰画布、深炭玻璃、强调色抬到 #409CFF。
@@ -142,6 +162,17 @@
     --green-text:  var(--d-green-text);
     --orange-text: var(--d-orange-text);
     --red-text:    var(--d-red-text);
+
+    /* Bot 翻转：白本体 + 暗高光。三段仍是浅→中→深，只是整条降到暗侧。 */
+    --pb-ink-1: #ffffff;
+    --pb-ink-2: #e6e6eb;
+    --pb-ink-3: #bfbfc7;
+    --pb-gloss: #ffffff;
+    --pb-rim:   #1d1d1f;
+    --pb-eye:   #1d1d1f;
+    --pb-spark: #f5c451;
+    --pb-side:  #9b9ba6;
+
     color-scheme: dark;
   }
 
@@ -3065,37 +3096,10 @@ body {
   0%        { transform: scale(1);    opacity: .62; }
   70%, 100% { transform: scale(1.26); opacity: 0; }
 }
-/* 眼睛：待命静止（循环只授予进行中状态），hover 眨一次，运行中左右张望并眨眼。 */
-.cv-bot-eye {
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform var(--t-micro) var(--ease-std);
-}
-.cv-msgwin-bot:hover .cv-bot-eye { animation: cv-bot-blink var(--t-panel) var(--ease-std); }
-@keyframes cv-bot-blink { 40%, 60% { transform: scaleY(.18); } }
-/* 运行中的眼神：左看一眼、停一拍、右看一眼、回正时眨一下——像在认真翻资料。
-   关键帧里有大段 hold（8%→14%、36%→42%）：眼球是跳视不是平移，匀速滑动会像机器。 */
-.cv-msgwin[data-busy="1"] .cv-bot-eye {
-  animation: cv-bot-glance 4.2s var(--ease-std) infinite;
-}
-@keyframes cv-bot-glance {
-  0%, 8%    { transform: translateX(0) scaleY(1); }
-  14%, 36%  { transform: translateX(-1.4px) scaleY(1); }
-  42%, 64%  { transform: translateX(1.4px) scaleY(1); }
-  70%       { transform: translateX(0) scaleY(1); }
-  74%       { transform: translateX(0) scaleY(.12); }
-  78%, 100% { transform: translateX(0) scaleY(1); }
-}
-/* 身体：极轻的上下浮 + 半度歪头，周期与眼神（4.2s）、光晕（2.4s）互不整除。
-   挂在 svg 而不是 button：button 的 transform 留给 hover/active 反馈。 */
-.cv-msgwin[data-busy="1"] .cv-msgwin-bot svg {
-  animation: cv-bot-bob 3.1s var(--ease-std) infinite;
-  transform-origin: 50% 60%;
-}
-@keyframes cv-bot-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%      { transform: translateY(-1.2px) rotate(-1.5deg); }
-}
+/* 眼神与身体动效不再走 keyframes：眨眼、张望、歪头、呼吸全部由 lib/bot 的角色引擎
+   逐帧驱动（弹簧积分 + 状态机），状态切换才接得住——keyframes 只能从头重播。
+   这里只留下光晕（上面那段 ::after），它是与 data-busy 绑定的按钮级元素，不属于形本身。
+   引擎自己响应 prefers-reduced-motion，退化为静止形态。 */
 
 /* ---- min 档：一行滚动播报 ----
    整条不可点（用户定）：只有 Bot 是开合控件，caret 仅作提示。
@@ -3441,29 +3445,10 @@ body {
   display: grid;
   place-items: center;
 }
-.cv-agentboard-avatar svg { display: block; transform-origin: 50% 62%; }
-/* 运行中的子代理：身体做「呼吸式」挤压（横宽纵扁再回弹，像在使劲），眼睛沿用主 Bot
-   的张望+眨眼。每行用 --i 给负延迟把相位错开——四个一起点头会像节拍器。
-   动效只在 .is-running 行：终态行头像静止（循环只授予进行中状态）。 */
-.cv-agentboard-row.is-running .cv-agentboard-avatar svg {
-  animation: cv-agent-breathe 2.3s var(--ease-std) infinite;
-  animation-delay: calc(var(--i, 0) * -0.55s);
-}
-@keyframes cv-agent-breathe {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  50%      { transform: translateY(-1px) scale(1.05, .95); }
-}
-.cv-agentboard-row.is-running .cv-bot-eye {
-  animation: cv-bot-glance 4.2s var(--ease-std) infinite;
-  animation-delay: calc(var(--i, 0) * -1.3s);
-}
-/* 完成：眼睛眯成一道弯——「满意地合上」，只播一次，停在终态。 */
-.cv-agentboard-row.is-done .cv-bot-eye {
-  animation: cv-bot-content var(--t-panel) var(--ease-std) both;
-}
-@keyframes cv-bot-content {
-  to { transform: scaleY(.42) translateY(-1px); }
-}
+.cv-agentboard-avatar svg { display: block; }
+/* 子代理头像的呼吸挤压与眼神同样交给角色引擎：运行中 working、完成后回落待命。
+   相位错开不再靠 --i 的负延迟，而是每个实例开机时抽一个随机相位——负延迟只是把同一
+   条曲线平移，凑巧同相时还是会打成节拍器。 */
 
 .cv-agentboard-main {
   flex: 1 1 auto;
@@ -3526,9 +3511,6 @@ body {
      光晕停在贴边的一圈白环（状态仍在，只是不再化开），眼神与身体归位。 */
   .cv-msgwin-beam { display: none; }
   .cv-msgwin-bot::after { animation: none !important; }
-  .cv-bot-eye { animation: none !important; }
-  .cv-msgwin-bot svg,
-  .cv-agentboard-avatar svg { animation: none !important; }
 }
 
 /* Composer 在坞里的外壳：浮起卡片，不是侧栏页脚 */
@@ -4921,7 +4903,6 @@ body {
   .workspace .cv-actbar:hover { --_spot-a: 0; }
   .workspace .cv-msgwin-btn:hover { background: transparent; color: var(--muted); }
   .workspace .cv-msgwin-bot:hover { transform: none; }
-  .workspace .cv-msgwin-bot:hover .cv-bot-eye { animation: none; }
   .workspace .cv-drawer-btn.primary:hover,
   .workspace .composer-send:hover:not(:active) {
     background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%) !important;

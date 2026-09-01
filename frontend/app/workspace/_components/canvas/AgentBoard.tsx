@@ -2,7 +2,8 @@
 
 import { memo, type CSSProperties, useEffect, useRef } from "react";
 import { useWorkspaceStore } from "@/lib/store/workspace";
-import { ProseBotIcon } from "@/components/ui/icons";
+import { ProseBot } from "@/components/ui/ProseBot";
+import { deriveSubagentBotState } from "@/lib/bot";
 import { DUR_FLOAT } from "./traceMotion";
 import { LiquidGlass } from "../LiquidGlass";
 import { collectSubagentRuns, isRunning } from "../runStatus";
@@ -137,7 +138,17 @@ const AgentRow = memo(function AgentRow({
       style={{ "--i": index, "--depth": Math.min(depth, 2) } as CSSProperties}
     >
       <span className="cv-agentboard-avatar" aria-hidden="true">
-        <ProseBotIcon hue={hashHue(callId)} width={24} height={24} />
+        {/* 头像出现时先播一次派生（spawn），跑完一档插播一次 proud 再落回待命。
+            视线不跟指针：一屏十几个头像同时盯着鼠标是灵异片。 */}
+        <ProseBot
+          hue={hashHue(callId)}
+          state={deriveSubagentBotState(running ? "running" : "done", live)}
+          size={24}
+          spawn
+          once="proud"
+          onceKey={running ? undefined : "done"}
+          onceMs={2200}
+        />
       </span>
       <span className="cv-agentboard-main">
         <span className="cv-agentboard-line1">
