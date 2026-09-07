@@ -1,104 +1,100 @@
 import type { TimelineEvent } from "@/lib/hagent/matrix";
 
-// 投标截止时间的纯推导工具(概要卡决策触发器)。
-// datetime 由 LLM 产出、格式不保证:容错解析,解析不动一律返回 null,由卡面「—」兜底。
-// 无 DOM 依赖,未来引入测试框架时与 choreography 同为单元可测点。
-
-/** 临近截止阈值(含当日):剩余天数 ≤ 7 天翻警示色 */
 export const DEADLINE_WARN_DAYS = 7;
-
+const DEFAULT_ZONE = "Asia/Shanghai";
 export interface DeadlineInfo {
-  /** 原文时间串,展示用 */
   text: string;
-  /** 解析出的时间戳;解析失败为 null */
   at: number | null;
-  /** 距截止的整日历天数:今日为 0,已过为负;解析失败为 null */
   daysLeft: number | null;
+  expired: boolean;
+  timezone: string;
+  zoneLabel: string;
+  precise: boolean;
 }
 
-/** 容错解析 datetime → 时间戳。兼容 ISO、「2026-07-24 09:30」与「2026年7月24日」等常见写法。
- *  注:纯日期 ISO 串按 UTC 解析,在 UTC+8(目标市场)折算本地日不偏移;负时区环境会早一天,可接受。 */
-export function parseDeadline(raw: string): number | null {
-  const s = raw.trim();
-  if (!s) return null;
-  const normalized = s
-    .replace(/[年/.]/g, "-")
-    .replace(/月/g, "-")
-    .replace(/日/g, " ")
-    .replace(/[时点]/g, ":")
-    .replace(/分/g, "")
-    .trim();
-  for (const cand of [s, normalized]) {
-    const t = Date.parse(cand);
-    if (!Number.isNaN(t)) return t;
+/** 文件未给时区时按中国采购项目的北京时间解释，并在界面明确标注这一假设。 */
+export function deadlineZone(raw: string, zone?: string | null): string {
+  if (zone?.trim()) {
+    const z = zone.trim();
+    if (["北京时间", "中国标准时间", "UTC+8", "GMT+8", "UTC+08:00"].includes(z)) return DEFAULT_ZONE;
+    return z;
   }
-  // 兜底:只抽「YYYY-MM-DD」三段数字。构造后回读校验,防越界翻滚(如 13 月滚成次年 1 月)
-  const m = normalized.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m && m[1] && m[2] && m[3]) {
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    if (d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])) return d.getTime();
+  const offset = raw.match(/(?:T|\s)\d{1,2}:\d{2}.*?([+-]\d{2}:?\d{2}|Z)$/i)?.[1];
+  if (offset) return offset.toUpperCase() === "Z" ? "UTC" : offset.replace(/([+-]\d{2})(\d{2})$/, "$1:$2");
+  return DEFAULT_ZONE;
+}
+export function deadlineZoneLabel(raw: string, zone?: string | null): string {
+  const z = deadlineZone(raw, zone);
+  if (z === DEFAULT_ZONE || z === "+08:00") return zone || /(?:[+-]\d{2}:?\d{2}|Z)$/i.test(raw) ? "北京时间" : "按北京时间";
+  return /^[+-]/.test(z) ? `UTC${z}` : z;
+}
+function parts(at: number, zone: string) {
+  const p = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(at);
+  const n = (k: string) => Number(p.find((v) => v.type === k)?.value);
+  return [n("year"), n("month"), n("day"), n("hour"), n("minute"), n("second")] as const;
+}
+const hasClock = (raw: string) => /\d{1,2}\s*[:时点]\s*\d{1,2}/.test(raw);
+
+/** 只接受完整日期，校验越界。无偏移时间按文件时区解析，绝不使用浏览器时区。 */
+export function parseDeadline(raw: string, timezone?: string | null): number | null {
+  const normalized = raw.trim().replace(/[年/.]/g, "-").replace(/月/g, "-").replace(/日/g, " ").replace(/[时点]/g, ":").replace(/分/g, "").trim();
+  const m = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?(?:\s*(Z|[+-]\d{2}:?\d{2}))?$/i);
+  if (!m) return null;
+  const [y, month, d, h, minute, sec] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4] ?? 0), Number(m[5] ?? 0), Number(m[6] ?? 0)];
+  const wall = Date.UTC(y!, month! - 1, d!, h!, minute!, sec!);
+  const check = new Date(wall);
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== month! - 1 || check.getUTCDate() !== d || h! > 23 || minute! > 59 || sec! > 59) return null;
+  if (m[7]) {
+    const offset = m[7].toUpperCase();
+    if (offset === "Z") return wall;
+    const digits = offset.slice(1).replace(":", "");
+    const hh = Number(digits.slice(0, 2)), mm = Number(digits.slice(2));
+    if (hh > 23 || mm > 59) return null;
+    return wall - (offset.startsWith("-") ? -1 : 1) * (hh * 60 + mm) * 60_000;
   }
-  return null;
+  try {
+    const zone = deadlineZone(raw, timezone);
+    let at = wall;
+    for (let i = 0; i < 3; i++) {
+      const p = parts(at, zone);
+      at += wall - Date.UTC(p[0], p[1] - 1, p[2], p[3], p[4], p[5]);
+    }
+    const p = parts(at, zone);
+    return p[0] === y && p[1] === month && p[2] === d && p[3] === h && p[4] === minute ? at : null;
+  } catch { return null; }
 }
-
-/** 两个时间戳间的日历天数差(按本地自然日,当日为 0) */
-export function calendarDaysBetween(from: number, to: number): number {
-  const a = new Date(from);
-  const b = new Date(to);
-  a.setHours(0, 0, 0, 0);
-  b.setHours(0, 0, 0, 0);
-  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+export function calendarDaysBetween(from: number, to: number, zone = DEFAULT_ZONE): number {
+  const a = parts(from, zone), b = parts(to, zone);
+  return Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86_400_000);
 }
-
-/** 从 timeline 中取投标截止事件并推导倒计时;无该事件或无时间 → null */
-export function bidDeadline(
-  timeline: TimelineEvent[] | undefined,
-  now: number = Date.now(),
-): DeadlineInfo | null {
+export function bidDeadline(timeline: TimelineEvent[] | undefined, now = Date.now()): DeadlineInfo | null {
   const ev = timeline?.find((e) => e.event === "bid_deadline" && e.datetime);
   if (!ev?.datetime) return null;
-  const t = parseDeadline(ev.datetime);
-  return { text: ev.datetime, at: t, daysLeft: t === null ? null : calendarDaysBetween(now, t) };
+  const timezone = deadlineZone(ev.datetime, ev.timezone);
+  const at = parseDeadline(ev.datetime, ev.timezone);
+  let daysLeft: number | null = null;
+  try { if (at !== null) daysLeft = calendarDaysBetween(now, at, timezone); } catch { /* 无效时区保留原文，不推断倒计时。 */ }
+  const precise = hasClock(ev.datetime);
+  return { text: ev.datetime, at, daysLeft, expired: daysLeft !== null && (daysLeft < 0 || (precise && at !== null && now >= at)), timezone, zoneLabel: deadlineZoneLabel(ev.datetime, ev.timezone), precise };
 }
-
-/** 倒计时呈现:文案 + 语气(normal / warn 警示 / past 已过期) */
-export function deadlineCountdown(daysLeft: number | null): {
-  label: string;
-  tone: "normal" | "warn" | "past";
-} | null {
+export function deadlineCountdown(daysLeft: number | null, expired = false): { label: string; tone: "normal" | "warn" | "past" } | null {
   if (daysLeft === null) return null;
-  if (daysLeft < 0) return { label: "已截止", tone: "past" };
+  if (expired || daysLeft < 0) return { label: "已截止", tone: "past" };
   if (daysLeft === 0) return { label: "今日截止", tone: "warn" };
   return { label: `剩 ${daysLeft} 天`, tone: daysLeft <= DEADLINE_WARN_DAYS ? "warn" : "normal" };
 }
-
-/** 卡面结构条用的投标窗口:最早时间节点 → 投标截止,拆成「已过 / 剩余」两段(单位:毫秒)。
- *  缺任一端、或窗口跨度不合法时返回 null —— 没有结构可画就不画空轨道。 */
-export function bidWindow(
-  timeline: TimelineEvent[] | undefined,
-  now: number = Date.now(),
-): { elapsed: number; left: number } | null {
-  const end = timeline?.find((e) => e.event === "bid_deadline" && e.datetime)?.datetime;
-  const t1 = end ? parseDeadline(end) : null;
-  if (t1 === null) return null;
-  let t0: number | null = null;
-  for (const e of timeline ?? []) {
-    if (!e.datetime) continue;
-    const t = parseDeadline(e.datetime);
-    if (t !== null && (t0 === null || t < t0)) t0 = t;
-  }
-  if (t0 === null || t0 >= t1) return null;
-  const span = t1 - t0;
-  const elapsed = Math.min(span, Math.max(0, now - t0));
+export function bidWindow(timeline: TimelineEvent[] | undefined, now = Date.now()): { elapsed: number; left: number } | null {
+  const end = bidDeadline(timeline, now);
+  if (!end?.at || !end.precise) return null;
+  const times = (timeline ?? []).map((e) => e.datetime ? parseDeadline(e.datetime, e.timezone) : null).filter((t): t is number => t !== null);
+  const start = Math.min(...times);
+  if (start >= end.at) return null;
+  const span = end.at - start, elapsed = Math.min(span, Math.max(0, now - start));
   return { elapsed, left: span - elapsed };
 }
-
-/** 卡面用短日期:「09-12 09:30」。232px 的卡面放不下带年份的完整原文,
- *  而年份可由倒计时天数反推;完整原文留在抽屉详情的时间线里。零点整按纯日期呈现。 */
-export function fmtShortDeadline(at: number): string {
-  const d = new Date(at);
-  const p2 = (n: number) => String(n).padStart(2, "0");
-  const date = `${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-  if (d.getHours() === 0 && d.getMinutes() === 0) return date;
-  return `${date} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+export function fmtShortDeadline(at: number, zone = DEFAULT_ZONE, precise = true): string {
+  try {
+    const p = parts(at, zone), pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(p[1])}-${pad(p[2])}${precise ? ` ${pad(p[3])}:${pad(p[4])}` : "（时刻未注明）"}`;
+  } catch { return "时间待核实"; }
 }

@@ -8,6 +8,7 @@ from __future__ import annotations
 import sqlite3
 import time
 import uuid
+from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -45,7 +46,7 @@ _EXPECTED_COLUMNS = {"id", "project_id", "status", "created_at", "last_active"}
 class SessionStore:
     def __init__(self, db_path: Path | str):
         self._db_path = str(db_path)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             self._ensure_schema(conn)
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_sessions_project_id ON sessions(project_id)"
@@ -77,7 +78,7 @@ class SessionStore:
             raise ValueError("project_id is required")
         sid = uuid.uuid4().hex[:16]
         now = time.time()
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO sessions (id, project_id, status, created_at, last_active) "
                 "VALUES (?, ?, ?, ?, ?)",
@@ -92,12 +93,12 @@ class SessionStore:
         )
 
     def get(self, sid: str) -> SessionState | None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute("SELECT * FROM sessions WHERE id = ?", (sid,)).fetchone()
         return self._row_to_state(row) if row is not None else None
 
     def list(self, *, project_id: str | None = None) -> list[SessionState]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             if project_id is None:
                 rows = conn.execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
             else:
@@ -108,21 +109,21 @@ class SessionStore:
         return [self._row_to_state(row) for row in rows]
 
     def latest_per_project(self) -> dict[str, SessionState]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute(
                 "SELECT *, MAX(created_at) FROM sessions GROUP BY project_id"
             ).fetchall()
         return {row["project_id"]: self._row_to_state(row) for row in rows}
 
     def delete(self, sid: str) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "UPDATE sessions SET status = ? WHERE id = ?",
                 (SessionStatus.ENDED.value, sid),
             )
 
     def touch(self, sid: str) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "UPDATE sessions SET last_active = ? WHERE id = ?",
                 (time.time(), sid),

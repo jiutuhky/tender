@@ -11,6 +11,7 @@ import type {
   ProjectMatrixStatus,
   ResponseStatus,
 } from "@/lib/hagent/matrix";
+import { normalizeTodos, type TodoItem } from "@/lib/hagent/todo";
 
 const BASE = "/api/hagent";
 
@@ -39,7 +40,21 @@ const OP_LABEL: Record<string, string> = {
  */
 function apiError(op: string, status: number, detail?: string): Error {
   const label = OP_LABEL[op] ?? "请求后端";
-  const err = new Error(`未能${label}，请稍后重试。`, {
+  let errorCode: string | undefined;
+  try {
+    const parsed = JSON.parse(detail ?? "null") as { detail?: { code?: string } } | null;
+    errorCode = parsed?.detail?.code;
+  } catch {
+    // 兼容代理错误页或旧版后端返回的非 JSON 错误。
+  }
+  const message =
+    op === "streamMessage" && status === 503 &&
+    (errorCode === "sandbox_capacity_unavailable" || detail?.includes("sandbox pool exhausted"))
+      ? "任务执行资源暂时不足，请约 30 秒后在当前会话重试，无需重新上传文件。"
+      : errorCode === "upstream_unavailable"
+        ? "执行服务暂时无法连接，请稍后在当前会话重试。"
+      : `未能${label}，请稍后重试。`;
+  const err = new Error(message, {
     cause: `${op} failed: ${status}${detail ? ` ${detail}` : ""}`,
   });
   return err;
@@ -345,10 +360,12 @@ export async function setMatrixItemResponseStatus(
   return r.json();
 }
 
-export async function getTodos(sid: string): Promise<unknown[]> {
+/** 冷启动/恢复路径的全量待办。注意该端点返回**裸数组**,而 SSE todo.updated 是
+ *  `{todos:[...]}`——两种形状的差异收在 normalizeTodos 里,调用方不必分辨。 */
+export async function getTodos(sid: string): Promise<TodoItem[]> {
   const r = await fetch(`${BASE}/sessions/${sid}/todos`);
   if (!r.ok) throw apiError("getTodos", r.status);
-  return r.json();
+  return normalizeTodos(await r.json());
 }
 
 export interface SSEEvent {
@@ -367,7 +384,7 @@ export async function* streamMessage(sid: string, content: string): AsyncIterabl
   if (!r.ok) {
     // 非 2xx 是 JSON 错误体不是 SSE 流(如 404/503;M2 起对话轮锁 409),吞掉会静默变空流。
     const body = await r.text().catch(() => "");
-    throw apiError("streamMessage", r.status, body ? body.slice(0, 200) : undefined);
+    throw apiError("streamMessage", r.status, body || undefined);
   }
   if (!r.body) throw new Error("后端未返回响应内容，请稍后重试。", { cause: "no response body" });
   const reader = r.body.getReader();

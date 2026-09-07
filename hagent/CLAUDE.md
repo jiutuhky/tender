@@ -68,19 +68,19 @@ cd web && npm run dev                              # Web 前端（需 Server 已
 
 新增模块保持「一个文件一个职责」，避免堆大文件。
 
-`web/` 是独立 Next.js 工程，有自己的 `web/CLAUDE.md`；写前端代码前必须读 `web/node_modules/next/dist/docs/` 下相关指南，不要凭训练数据写。
+`web/` 是独立 Next.js 工程，遵循 `web/AGENTS.md` 与 `web/CLAUDE.md`；涉及 Next.js API、路由或框架配置时查本地已安装版本的相关指南。
 
 ## 开发原则
 
 ### 动 deepagents 上层前先读官方文档
 
-触发条件：改 `core.py`、`subagents/`、`permissions.py`、`backends.py`，或新增任何调用 `deepagents.*` 的代码。先 Read 仓库根 `deepagents/` 目录下相关 `.mdx`（官方文档镜像，须显式 Read）：backends / sandboxes / permissions / subagents / human-in-the-loop / event-streaming / mcp / harness / profiles / models 各有对应文件。
+触发条件：修改 deepagents API 调用或集成行为。先核对本目录 `deepagents/` 下相关 `.mdx`（官方文档镜像），按主题选择 backends / sandboxes / permissions / subagents / human-in-the-loop / event-streaming / mcp / harness / profiles / models；不要求逐份加载，纯注释与文字修改无需触发。
 
 如 API 与猜测不符，**以 `.venv/lib/python3.12/site-packages/deepagents/` 实际源码为准**。历史上已两次因猜 API 名导致全 plan 返工，别再猜。
 
 ### 自研工具替换了 deepagents 默认工具
 
-`core.py` 显式禁用 `execute / read_file / write_file / edit_file / write_todos / grep / glob / ls`，替换为 CC 对齐实现（`ls` 无对齐替代，目录列举回落 `Bash`）。这些工具的 schema 与行为对齐 Claude Code 是反复磨过的细节（如 `null` 是否进 JSON Schema）——**改之前先读对应 spec/plan 与现有测试断言，别凭直觉改**。
+`core.py` 显式禁用 `execute / read_file / write_file / edit_file / write_todos / grep / glob / ls`，替换为 CC 对齐实现（`ls` 无对齐替代，目录列举回落 `Bash`）。修改工具 schema 或行为前，核对当前 spec 与现有测试断言（如 `null` 是否进入 JSON Schema）；`docs/plans/` 仅作历史背景，不能作为当前实施依据。
 
 ### Host / Sandbox 双模式
 
@@ -120,5 +120,17 @@ cd web && npm run dev                              # Web 前端（需 Server 已
 
 - 工作项：新工作项一律走仓根 `.scratch/<feature>/`（约定见仓根 `docs/agents/issue-tracker.md`）；仓根 `tickets.md` 是约定前的 M1 拆票，仍有效
 - 历史任务分解：`docs/plans/`（superpowers 时期存档，只读；plan-5 docker-backend 已被 sandbox spec 取代，勿按其实施）
-- 提交 / PR 规范：`AGENTS.md`（sandbox 相关改动 PR 须含 `HAGENT_TEST_DOCKER=1 pytest -m docker -v` 验证行；触及 gVisor 再加 `HAGENT_TEST_GVISOR=1 pytest -m gvisor -v`）
+- 提交与交付规范、sandbox 门控验证：见 `AGENTS.md`，记录实际结果而非仅列命令。
 - 部署手册：`docs/deploy/smolvm.md`（KVM/kvm 组/sudoers/WSL2 固化/btrfs 建议/systemd 样例/`SMOLVM_DATABASE_URL`/出口白名单局限）
+
+## No Negative Echo
+
+生成最终产物及其包装时，包括标题、文件名、正文、注释、标签、commit、
+PR 和交付说明，只描述最终采用的状态，假设读者没看过本次会话。
+
+- 会话里的否决、中间尝试和措辞纠正，只当作控制信息，不要让它们成为最终产物的命名或叙述中心。
+- 对每个交付面分别判断：不知道本次会话的读者需要这条信息吗？省略会不会导致不准确、不安全、误导或兼容性信息缺失？它是不是任务开始时已提交或用户确认状态中的真实变化，而且当前交付面需要解释它？
+- 「不要提 X」不是让你写「无 X」。标题、文件名、开篇和标签应从正向目标重新生成，不要逐词修改被否文案。
+- 保留真实的基线变化、已经执行的外部操作，以及必要的技术名称、诊断、测试和快照。任务开始前已有的用户改动不算被否内容。
+- 不要把与本任务无关的改动写进本次 commit、PR 或交付说明。对比、引用、审计和迁移说明，只在用户要求或当前交付面确实需要时保留。
+- 写完后通读全部用户可见内容及其包装，包括文件名、元数据和 hook 改写。内容发生变化后重新检查，不要另加「已清理」或「无残留」类声明。

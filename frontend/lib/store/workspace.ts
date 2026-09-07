@@ -18,6 +18,8 @@ import {
   type SSEEvent,
 } from "@/lib/hagent/api";
 import { reduceChatEvent, type ChatMsg } from "@/lib/hagent/timeline";
+import { emptyBotSignals, reduceBotSignals, type BotSignals } from "@/lib/hagent/botSignals";
+import { normalizeTodos, type TodoItem } from "@/lib/hagent/todo";
 import {
   MATRIX_TYPES,
   assembleMatrixDocument,
@@ -88,6 +90,15 @@ type AnyMatrix = BasicInfoMatrix & BusinessMatrix & TechnicalMatrix & ScoringMat
  *  两档里 Bot 的绝对坐标完全一致，窗口从它右下方生长——这是整个交互的支点。 */
 export type StreamSize = "min" | "open";
 
+interface ParseInput {
+  sampleName?: string;
+  sampleLabel?: string;
+  file?: File;
+  projectName?: string;
+  instruction?: string;
+}
+type RecoveryKind = "parse" | "results" | "message" | "session" | null;
+
 interface WorkspaceState {
   // —— UI 状态 ——
   composerDraft: string;
@@ -105,9 +116,11 @@ interface WorkspaceState {
   projectName: string | null;
   phase: RunPhase;
   errorMsg: string | null;
+  recovery: RecoveryKind;
   currentDocName: string | null; // 当前解析文件的展示名
   timeline: ChatMsg[];
-  todos: unknown[];
+  botSignals: BotSignals;
+  todos: TodoItem[];
   /** 四张应答矩阵结果槽位(数据源:hagent 对象库 REST 读端点) */
   matrices: MatrixSlots;
   /** 本浏览器会话是否亲历解析(startParse 路径)。仅存内存、不持久化:
@@ -121,13 +134,8 @@ interface WorkspaceState {
   flushEvents: () => void;
   /** 全量对账装载;settle=false(流中断路径)时不把未发布槽位落终态,留给「解析中断」定格。 */
   loadResults: (opts?: { settle?: boolean }) => Promise<void>;
-  startParse: (opts: {
-    sampleName?: string;
-    sampleLabel?: string;
-    file?: File;
-    projectName?: string;
-    instruction?: string;
-  }) => Promise<void>;
+  startParse: (opts: ParseInput) => Promise<void>;
+  retryOperation: () => Promise<void>;
   /** 项目内自由对话:续写/修改工作区产物;会话缺失时按当前项目惰性新建。 */
   sendMessage: (content: string) => Promise<void>;
   /** 项目内新建会话:新会话共享同一项目 workspace,可续写此前会话的产物。 */
@@ -157,6 +165,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   // for-await 的每个 await 边界都会 flush 渲染，渲染次数随时间线增长叠加成 O(N²)，
   // 越跑越卡。这里把事件缓冲，用 rAF 合并到「每帧一次 set」，并在每帧内串联 reduce。
   let pending: SSEEvent[] = [];
+  // 仅在内存保留失败操作；文件不写浏览器持久存储，上传重试复用已创建项目。
+  let lastInput: ParseInput | null = null;
+  let lastMessage = "";
+  let reuseParse: { id: string; name: string; sessionId: string | null } | null = null;
   let raf = 0;
 
   // prose 工具调用累积(按 call_id 拼 args 分片,SSE 契约 §4.2);流开始前清空
@@ -215,10 +227,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     set((s) => {
       let timeline = s.timeline;
       let todos = s.todos;
+      let botSignals = s.botSignals;
       for (const ev of batch) {
+        botSignals = reduceBotSignals(botSignals, ev);
         if (ev.event === "todo.updated") {
-          const d = ev.data as { todos?: unknown[] };
-          if (Array.isArray(d?.todos)) todos = d.todos;
+          // 全量快照:归一化只在这里跑一次,render 侧零成本(看板订阅 timeline,流式期每帧重渲)
+          todos = normalizeTodos(ev.data);
         }
         // reduceChatEvent 处理 message.delta / tool_call.* / error，忽略其余事件。
         timeline = reduceChatEvent(timeline, { event: ev.event, data: ev.data });
@@ -233,7 +247,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }
         }
       }
-      return { timeline, todos, matrices };
+      return { timeline, todos, matrices, botSignals };
     });
     // publish 完成 → 装载该矩阵点亮;失败留待流末 loadResults 收口,不打断对话流。
     if (toLoad.size) {
@@ -328,15 +342,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
 
   return {
   composerDraft: "",
-  streamSize: "open",
+  streamSize: "min",
 
   sessionId: null,
   projectId: null,
   projectName: null,
   phase: "idle",
   errorMsg: null,
+  recovery: null,
   currentDocName: null,
   timeline: [],
+  botSignals: emptyBotSignals(),
   todos: [],
   matrices: emptyMatrices(),
   witnessedParse: false,
@@ -367,14 +383,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!found) throw new Error("项目中未找到已发布的应答矩阵");
   },
 
-  startParse: async ({ sampleName, sampleLabel, file, projectName, instruction }) => {
+  startParse: async (opts) => {
+    const { sampleName, sampleLabel, file, projectName, instruction } = opts;
     if (BUSY.includes(get().phase)) return;
+    if (typeof window !== "undefined" && window.location.pathname === "/workspace") {
+      window.history.replaceState(null, "", "/workspace");
+    }
+    lastInput = opts;
+    const reuse = reuseParse;
+    reuseParse = null;
+    let uploaded = false;
     clearPending();
     set((s) => ({
       ...revealStream(s),
       phase: "creating",
       errorMsg: null,
+      recovery: null,
       timeline: [],
+      botSignals: emptyBotSignals(),
       todos: [],
       matrices: emptyMatrices(),
       witnessedParse: true,
@@ -387,13 +413,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       // 1) 创建项目(会话必须归属项目,创建失败即终止)
       const projName =
         projectName || sampleLabel || (file ? prettyLabel(file.name) : "") || "未命名项目";
-      const proj = await createProject(projName, {
+      const proj = reuse ?? await createProject(projName, {
         doc_name: file?.name || sampleName || "招标文件.md",
       });
+      if (typeof window !== "undefined" && window.location.pathname === "/workspace") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("project", proj.id);
+        url.searchParams.set("name", proj.name);
+        window.history.replaceState(null, "", url);
+      }
       set({ projectId: proj.id, projectName: proj.name });
 
       // 2) 会话 + 上传到项目 workspace(落 sources/ 并形成提交)
-      const { session_id } = await createSession({ projectId: proj.id });
+      const { session_id } = reuse?.sessionId ? { session_id: reuse.sessionId } : await createSession({ projectId: proj.id });
       set({ sessionId: session_id });
 
       set({ phase: "uploading" });
@@ -407,6 +439,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       } else {
         throw new Error("缺少待解析文件");
       }
+
+      uploaded = true;
+      lastInput = null;
 
       // 3) 显式触发 bid-response-matrix skill(/skill: 语法糖由服务端展开为 Skill 工具调用)
       const defaultInstruction = `解析当前工作区 sources/ 目录下的招标文件《${docName}》，生成 basic_info、business、technical、scoring 四张应答矩阵`;
@@ -426,13 +461,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         get().pushEvent(ev);
       }
       get().flushEvents();
+      if (!streamError && !get().botSignals.ended) streamError = "连接提前结束，请核对任务状态后再继续。";
+      if (!streamError && get().botSignals.attention) { set({ phase: "done" });return; }
 
       if (streamError) {
         // error 前可能已 publish 出部分矩阵,best-effort 装载后仍落错误态;
         // 不 settle:未发布槽位保持非终态,卡面如实定格「解析中断」。
         set({ phase: "loading_results" });
         await get().loadResults({ settle: false }).catch(() => {});
-        set({ phase: "error", errorMsg: streamError });
+        set({ phase: "error", errorMsg: streamError, recovery: "results" });
         return;
       }
 
@@ -445,7 +482,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const anyReady = MATRIX_TYPES.some((t) => get().matrices[t].status === "ready");
       if (anyReady) void patchProject(proj.id, { status: "parsed" }).catch(() => {});
     } catch (e) {
-      set({ phase: "error", errorMsg: toUserMessage(e) });
+      set({ phase: "error", errorMsg: toUserMessage(e), recovery: uploaded ? "results" : "parse" });
     }
   },
 
@@ -453,12 +490,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     const text = content.trim();
     const pid = get().projectId;
     if (!text || !pid || BUSY.includes(get().phase)) return;
+    lastMessage = text;
     clearPending();
     set((s) => ({
       ...revealStream(s),
       phase: "running",
       errorMsg: null,
+      recovery: null,
       timeline: [...s.timeline, { id: `u-${Date.now()}`, role: "user", content: text }],
+      botSignals: emptyBotSignals(),
     }));
     try {
       let sid = get().sessionId;
@@ -476,11 +516,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         get().pushEvent(ev);
       }
       get().flushEvents();
+      if (!streamError && !get().botSignals.ended) streamError = "连接提前结束，请核对任务状态后再继续。";
       // 画布刷新由流内 prose 工具事件驱动(submit → 解析中,publish → 装载点亮);
       // 无矩阵写入的轮次无需刷新。
-      set(streamError ? { phase: "error", errorMsg: streamError } : { phase: "done" });
+      set(streamError ? { phase: "error", errorMsg: streamError, recovery: "message" } : { phase: "done" });
     } catch (e) {
-      set({ phase: "error", errorMsg: toUserMessage(e) });
+      get().flushEvents();
+      set({ phase: "error", errorMsg: toUserMessage(e), recovery: "message" });
     }
   },
 
@@ -489,18 +531,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     if (!pid || BUSY.includes(get().phase)) return;
     clearPending();
     const hasResults = MATRIX_TYPES.some((t) => get().matrices[t].status === "ready");
-    set({ phase: "creating", errorMsg: null });
+    set({ phase: "creating", errorMsg: null, botSignals: emptyBotSignals() });
     try {
       const { session_id } = await createSession({ projectId: pid });
       // 新会话清空对话与任务;矩阵是项目级对象库资产,保留供续写。
       set({
         sessionId: session_id,
         timeline: [],
+        botSignals: emptyBotSignals(),
         todos: [],
         phase: hasResults ? "done" : "idle",
       });
     } catch (e) {
-      set({ phase: "error", errorMsg: toUserMessage(e) });
+      set({ phase: "error", errorMsg: toUserMessage(e), recovery: "session" });
     }
   },
 
@@ -512,7 +555,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     set({
       phase: "loading_results",
       errorMsg: null,
+      recovery: null,
       timeline: [],
+      botSignals: emptyBotSignals(),
       todos: [],
       matrices: emptyMatrices(),
       witnessedParse: false,
@@ -529,7 +574,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       await get().loadResults();
       set({ phase: "done" });
     } catch (e) {
-      set({ phase: "error", errorMsg: toUserMessage(e) });
+      set({ phase: "error", errorMsg: toUserMessage(e), recovery: "results" });
+    }
+  },
+
+  retryOperation: async () => {
+    const state = get();
+    if (BUSY.includes(state.phase)) return;
+    if (state.recovery === "parse" && lastInput) {
+      reuseParse = state.projectId ? { id: state.projectId, name: state.projectName ?? "未命名项目", sessionId: state.sessionId } : null;
+      await get().startParse(lastInput);
+    } else if (state.recovery === "message") {
+      set({ composerDraft: lastMessage, streamSize: "min" });
+    } else if (state.recovery === "session") {
+      await get().newSession();
+    } else if (state.projectId) {
+      set({ phase: "loading_results", errorMsg: null, recovery: null, botSignals: emptyBotSignals() });
+      try {
+        const project = await getProject(state.projectId);
+        set({ projectName: project.name });
+        await get().loadResults();
+        set({ phase: "done" });
+      } catch (e) { set({ phase: "error", errorMsg: toUserMessage(e), recovery: "results" }); }
     }
   },
 
@@ -567,6 +633,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   },
 
   reset: () => {
+    if (BUSY.includes(get().phase)) return;
+    lastInput = null;
+    lastMessage = "";
+    reuseParse = null;
     clearPending();
     set({
       sessionId: null,
@@ -574,13 +644,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       projectName: null,
       phase: "idle",
       errorMsg: null,
+      recovery: null,
       currentDocName: null,
       timeline: [],
+      botSignals: emptyBotSignals(),
       todos: [],
       matrices: emptyMatrices(),
       witnessedParse: false,
       composerDraft: "",
-      streamSize: "open",
+      streamSize: "min",
     });
   },
   };

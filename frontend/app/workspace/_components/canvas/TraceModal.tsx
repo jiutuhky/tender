@@ -1,16 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import { prettyLabel } from "@/lib/hagent/naming";
 import type { DocumentRecord } from "@/lib/hagent/documents";
-import { ImportantMark, ItemActions, MandatoryMark, RiskMark, useItemAction } from "./matrixViews";
+import { ImportantMark, MandatoryMark, RiskMark } from "./matrixViews";
+import { ItemActions, useItemAction } from "./detailShared";
 import { TracePanel } from "./TracePanel";
 import { useTrace, type TraceClaim } from "./traceContext";
-import { DUR_FLOAT, DUR_PANEL, TRACE_EASE_ENTER, prefersReducedMotion } from "./traceMotion";
-import { ChevronLeftIcon, ChevronRightIcon, FileIcon, XIcon } from "@/components/ui/icons";
+import {
+  DUR_FLOAT,
+  DUR_PANEL,
+  TRACE_EASE_ENTER,
+  prefersReducedMotion,
+} from "./traceMotion";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FileIcon,
+  XIcon,
+} from "@/components/ui/icons";
 
 // 溯源预览层:点来源签后盖满画布的阅读层(取代早期「抽屉加宽对照双栏」)。
 // 形态决策:旧双栏留给原文的版心只有 ~503px,而公文排版的纸面版心要 720px 以上,
@@ -35,12 +53,31 @@ const FOCUSABLE =
 function ClaimBar({ claim }: { claim: TraceClaim }) {
   const trace = useTrace();
   const [expanded, setExpanded] = useState(false);
-  const { busyItemId, actionErr, confirm, setStatus } = useItemAction(claim.matrixType);
+  const { busyIds, errors, notice, confirm, setStatus } = useItemAction(
+    claim.matrixType,
+  );
   const row = useWorkspaceStore((s) => {
     if (!claim.itemId) return null;
-    return s.matrices[claim.matrixType].itemRows?.find((r) => r.item_id === claim.itemId) ?? null;
+    return (
+      s.matrices[claim.matrixType].itemRows?.find(
+        (r) => r.item_id === claim.itemId,
+      ) ?? null
+    );
   });
 
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [clamped, setClamped] = useState(false);
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    const measure = () => {
+      if (!expanded) setClamped(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [claim.requirementText, expanded]);
   const total = claim.refs.length;
   const text = claim.requirementText.trim();
 
@@ -60,41 +97,85 @@ function ClaimBar({ claim }: { claim: TraceClaim }) {
       </div>
 
       {text && (
-        <p className={expanded ? "cv-trace-claim-text is-open" : "cv-trace-claim-text"}>
-          {text}
-          <button
-            type="button"
-            className="cv-trace-claim-toggle"
-            aria-expanded={expanded}
-            onClick={() => setExpanded((v) => !v)}
+        <div className="cv-trace-claim-copy">
+          <p
+            ref={textRef}
+            className={
+              expanded ? "cv-trace-claim-text is-open" : "cv-trace-claim-text"
+            }
           >
-            {expanded ? "收起" : "展开"}
-          </button>
-        </p>
+            {text}
+          </p>
+          {(clamped || expanded) && (
+            <button
+              type="button"
+              className="cv-trace-claim-toggle"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? "收起" : "展开"}
+            </button>
+          )}
+        </div>
       )}
 
       <div className="cv-trace-claim-foot">
         {row && (
-          <ItemActions
-            row={row}
-            busy={busyItemId === row.item_id}
-            error={actionErr?.id === row.item_id ? actionErr.msg : null}
-            onConfirm={() => confirm(row.item_id)}
-            onSetStatus={(status) => setStatus(row.item_id, status)}
-          />
-        )}
-        {total > 1 && (
-          <div className="cv-trace-step" role="group" aria-label="来源步进">
-            <span>
-              第 {claim.refIndex + 1}/{total} 条来源
-            </span>
-            <button type="button" aria-label="上一条来源" onClick={() => trace?.stepSource(-1)}>
-              <ChevronLeftIcon width={13} height={13} />
-            </button>
-            <button type="button" aria-label="下一条来源" onClick={() => trace?.stepSource(1)}>
-              <ChevronRightIcon width={13} height={13} />
-            </button>
+          <div className="rd-trace-review">
+            <ItemActions
+              showHint={false}
+              row={row}
+              busy={busyIds.has(row.item_id)}
+              error={errors[row.item_id] ?? null}
+              onConfirm={() => confirm(row.item_id)}
+              onSetStatus={(status) => setStatus(row.item_id, status)}
+            />
           </div>
+        )}
+        <div className="rd-trace-navigation">
+          {claim.itemId && (
+            <button
+              className="cv-next-review"
+              type="button"
+              disabled={!trace?.nextPendingCount || busyIds.size > 0}
+              onClick={() => trace?.nextPending()}
+            >
+              下一条待核验
+              {trace?.nextPendingCount
+                ? ` · ${trace.nextPendingCount}`
+                : " · 已无可溯源条目"}
+              <ChevronRightIcon width={14} height={14} />
+            </button>
+          )}
+          {total > 1 && (
+            <div className="cv-trace-step" role="group" aria-label="来源步进">
+              <span>
+                第 {claim.refIndex + 1}/{total} 条来源
+              </span>
+              <button
+                type="button"
+                aria-label="上一条来源"
+                onClick={() => trace?.stepSource(-1)}
+              >
+                <ChevronLeftIcon width={13} height={13} />
+              </button>
+              <button
+                type="button"
+                aria-label="下一条来源"
+                onClick={() => trace?.stepSource(1)}
+              >
+                <ChevronRightIcon width={13} height={13} />
+              </button>
+            </div>
+          )}
+        </div>
+        {row && (
+          <p className="rd-action-hint">核验确认仅标记已核对，不代表合规。</p>
+        )}
+        {notice && (
+          <span className="cv-review-saved" role="status">
+            {notice}
+          </span>
         )}
       </div>
     </div>
@@ -127,7 +208,11 @@ export function TraceModal({
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
-      gsap.from(".cv-trace-modal-scrim", { autoAlpha: 0, duration: DUR_FLOAT, ease: TRACE_EASE_ENTER });
+      gsap.from(".cv-trace-modal-scrim", {
+        autoAlpha: 0,
+        duration: DUR_FLOAT,
+        ease: TRACE_EASE_ENTER,
+      });
       gsap.from(".cv-trace-modal-panel", {
         autoAlpha: 0,
         scale: 0.98,
@@ -142,7 +227,10 @@ export function TraceModal({
   // Esc 不在这里处理 —— 两个 window 监听器会互抢且 stopPropagation 对同节点无效,
   // 所以「逐层退」的判定统一收在 CanvasDrawer 的单一处理器里。
   useEffect(() => {
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previous =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     closeRef.current?.focus({ preventScroll: true });
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
@@ -195,7 +283,12 @@ export function TraceModal({
             <XIcon width={15} height={15} />
           </button>
         </div>
-        {claim && <ClaimBar claim={claim} />}
+        {claim && (
+          <ClaimBar
+            key={`${claim.matrixType}:${claim.itemKey}`}
+            claim={claim}
+          />
+        )}
         <TracePanel doc={doc} arrival={DUR_PANEL} />
       </div>
     </div>

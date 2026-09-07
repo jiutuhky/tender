@@ -10,6 +10,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { gsap } from "gsap";
+import Link from "next/link";
+import { CardPreview } from "./CardPreview";
+import "./workspace-surface.css";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import {
   FrameIcon,
@@ -17,7 +20,8 @@ import {
   MinusIcon,
   PlusIcon,
   RefreshCcwIcon,
-  TreeStructureIcon,
+  FileIcon,
+  ArrowRightIcon,
 } from "@/components/ui/icons";
 import { DUR_PANEL, TRACE_EASE_ENTER } from "./traceMotion";
 import { useCanvasViewport, type WorldRect } from "./useCanvasViewport";
@@ -41,14 +45,10 @@ import {
 import {
   MATRIX_CARD_ORDER,
   cardsForStage,
-  centerStageRect,
   deriveChoreoStage,
   type ChoreoStage,
 } from "./choreography";
 import type { DetailType } from "./CardDetail";
-
-// 「下一步」占位落点:停靠后让位出来的中心舞台区域(world 坐标,纯常量)。
-const NEXT_HINT_RECT = centerStageRect();
 
 // 停靠飞行与相机取景是同一次运镜的两个组成部分,时长/曲线必须一致,
 // 否则相机先落定、卡片还在飞,读成两拍子。节拍走 traceMotion 的 panel 档与品牌标准缓动。
@@ -78,30 +78,22 @@ function computeBounds(cards: CardInst[], withSpine: boolean): WorldRect {
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
-/** 按模式/编排阶段解析包围盒:演示模式并入主轴卡;已停靠阶段并入中心舞台区域(为「下一步」占位保留)。 */
-function resolveBounds(cards: CardInst[], realMode: boolean, stage: ChoreoStage | null): WorldRect {
-  const b = computeBounds(cards, !realMode);
-  if (!realMode || stage !== "docked") return b;
-  const r = centerStageRect();
-  const minX = Math.min(b.x, r.x);
-  const minY = Math.min(b.y, r.y);
-  return {
-    x: minX,
-    y: minY,
-    w: Math.max(b.x + b.w, r.x + r.w) - minX,
-    h: Math.max(b.y + b.h, r.y + r.h) - minY,
-  };
+/** 空间只围绕真实产物计算，不为未实现的下一阶段预留空白。 */
+function resolveBounds(cards: CardInst[], realMode: boolean): WorldRect {
+  return computeBounds(cards, !realMode);
 }
 
-export function CanvasPane() {
+export function CanvasPane({ demo = false }: { demo?: boolean }) {
+  const [viewMode, setViewMode] = useState<"overview" | "canvas">(demo ? "canvas" : "overview");
+  const streamSize = useWorkspaceStore((s) => s.streamSize);
   const phase = useWorkspaceStore((s) => s.phase);
   const matrices = useWorkspaceStore((s) => s.matrices);
   const projectId = useWorkspaceStore((s) => s.projectId);
   const projectName = useWorkspaceStore((s) => s.projectName);
   const witnessedParse = useWorkspaceStore((s) => s.witnessedParse);
 
-  // 双模式:idle = 静态 mockup 原型;解析一旦启动(含恢复) = 真实矩阵四卡。
-  const realMode = phase !== "idle";
+  // 真实工作区默认显示空态，只有明确的 demo 入口展示原型。
+  const realMode = !demo && (phase !== "idle" || Boolean(projectId));
   const running = phase === "creating" || phase === "uploading" || phase === "running";
 
   // 停靠单向阀:同一模式 + 同一项目内停靠过就不再回落(纯推导的 dockedBefore 输入)。
@@ -135,16 +127,13 @@ export function CanvasPane() {
   const [cards, setCards] = useState<CardInst[]>(() =>
     realMode ? cardsForStage(stage ?? "center") : initialCards(),
   );
-  // 已铺进 cards 的布局阶段。「下一步」占位以它为准而非推导阶段:推导阶段先翻 docked、
-  // 卡位在后续 effect 才重铺,间隙帧里占位会压在仍居中的四卡上闪现。
-  const [layoutStage, setLayoutStage] = useState<ChoreoStage | null>(() => (realMode ? stage : null));
   const [drawer, setDrawer] = useState<DrawerState | null>(null);
 
   const cardsRef = useRef(cards);
   useEffect(() => {
     cardsRef.current = cards;
   }, [cards]);
-  const boundsRef = useRef<WorldRect>(resolveBounds(cards, realMode, stage));
+  const boundsRef = useRef<WorldRect>(resolveBounds(cards, realMode));
 
   const getCard = useCallback((id: string) => cardsRef.current.find((c) => c.id === id), []);
   const moveCard = useCallback((id: string, x: number, y: number) => {
@@ -173,15 +162,14 @@ export function CanvasPane() {
     useCanvasViewport({ getCard, onCardMove: moveCard, onCardClick: openCard, boundsRef });
 
   // 整套重铺卡位并同步包围盒(供「适应」即时读取,不等 [cards] effect)。
-  const applyLayout = useCallback((next: CardInst[], mode: boolean, st: ChoreoStage | null) => {
+  const applyLayout = useCallback((next: CardInst[], mode: boolean) => {
     setCards(next);
-    setLayoutStage(mode ? st : null);
-    boundsRef.current = resolveBounds(next, mode, st);
+    boundsRef.current = resolveBounds(next, mode);
   }, []);
 
   // 包围盒随卡片变化刷新（命令式，供「适应」即时读取）。初次适应由视口 ResizeObserver 驱动。
   useEffect(() => {
-    boundsRef.current = resolveBounds(cards, realMode, stage);
+    boundsRef.current = resolveBounds(cards, realMode);
   }, [cards, realMode, stage]);
 
   // 停靠飞行(亲历会话专属):阶段切换沿记录各卡「旧卡位 → 停靠位」的位移,
@@ -224,7 +212,7 @@ export function CanvasPane() {
     // 纪元切换沿先终止在途飞行:复用的卡片 DOM 不能把上一纪元的位移带进新布局。
     if (prev.realMode !== realMode || prev.epoch !== choreoEpoch) killFlight();
     if (prev.realMode !== realMode) {
-      applyLayout(realMode ? cardsForStage(stage ?? "center") : initialCards(), realMode, stage);
+      applyLayout(realMode ? cardsForStage(stage ?? "center") : initialCards(), realMode);
       setDrawer(null);
       if (realMode) fit();
       return;
@@ -242,7 +230,7 @@ export function CanvasPane() {
         }),
       );
     }
-    applyLayout(cardsForStage(stage), true, stage);
+    applyLayout(cardsForStage(stage), true);
     // 有飞行时相机跟飞行同节拍;直切路径(reduced-motion / 跨纪元)用默认快速取景。
     if (stage === "docked") fit(false, flightRef.current ? FLIGHT_MOTION : undefined);
   }, [realMode, stage, choreoEpoch, applyLayout, fit, killFlight]);
@@ -269,25 +257,16 @@ export function CanvasPane() {
         i * 0.06,
       );
     });
-    const hint = world.querySelector<HTMLElement>(".cv-next-hint-body");
-    if (hint) {
-      tl.fromTo(
-        hint,
-        { autoAlpha: 0, y: 8 },
-        { autoAlpha: 1, y: 0, duration: DUR_PANEL, ease: TRACE_EASE_ENTER, clearProps: "transform,opacity,visibility" },
-        Math.max(0, tl.duration() - 0.12),
-      );
-    }
   }, [cards, worldRef, killFlight]);
 
   // 重置画布:按当前编排阶段重铺卡位(已停靠→铺回停靠列,未完毕→铺回四宫格),mock 模式铺回原型初始位。
   const reset = useCallback((instant = false) => {
     setDrawer(null);
     if (realMode) {
-      applyLayout(cardsForStage(stage ?? "center"), true, stage);
+      applyLayout(cardsForStage(stage ?? "center"), true);
       fit(instant);
     } else {
-      applyLayout(initialCards(), false, null);
+      applyLayout(initialCards(), false);
       resetView(instant);
     }
   }, [resetView, fit, realMode, stage, applyLayout]);
@@ -330,7 +309,7 @@ export function CanvasPane() {
   );
 
   return (
-    <div className="canvas-pane">
+    <div className="canvas-pane workspace-surface" data-view={viewMode} data-stream={streamSize}>
       {/* 画布工具条:霜 soft·regular,flush 嵌入(材质分区,不用 1px 线) */}
       <div
         className="cv-toolbar frost-glass frost-glass--soft frost-glass--flush frost-scroll-edge"
@@ -338,16 +317,17 @@ export function CanvasPane() {
       >
         <span className="cv-toolbar-label">
           <GridIcon width={15} height={15} />
-          大纲视图
+          {demo && !realMode ? "演示画布" : "应答矩阵"}
         </span>
         <span className="cv-toolbar-sub">
           {realMode
             ? `${projectName ?? "招标文件解析"} · ${
-                running ? "正在解析" : phase === "done" ? "已完成" : phase === "error" ? "解析异常" : "载入结果"
+                running ? "正在解析" : phase === "done" ? "提取完成 · 按条目核验" : phase === "error" ? "操作未完成" : "载入结果"
               }`
-            : "招标文件解析结果 · 工作进行中"}
+            : demo ? "示例内容 · 不代表真实项目结果" : "添加文件，开始新项目"}
         </span>
         <span className="cv-toolbar-spacer" />
+        {realMode && <div className="cv-view-switch" role="group" aria-label="结果视图"><button type="button" aria-pressed={viewMode === "overview"} onClick={() => setViewMode("overview")}>概览</button><button type="button" aria-pressed={viewMode === "canvas"} onClick={() => { setViewMode("canvas"); requestAnimationFrame(() => fit(true)); }}>画布</button></div>}
         <span className="cv-zoom" role="group" aria-label="缩放">
           <button type="button" aria-label="缩小" onClick={(event) => zoomOut(event.detail === 0)}>
             <MinusIcon width={15} height={15} />
@@ -368,25 +348,33 @@ export function CanvasPane() {
       </div>
 
       <div className="canvas-viewport" ref={viewportRef} aria-label="制品画布">
-        <div className="cv-world" ref={worldRef}>
+        <div className="cv-world" ref={worldRef} aria-hidden={viewMode !== "canvas"}>
           {/* 真实模式不渲染 mock 主轴卡与任何连线层,四张矩阵卡即全部内容 */}
-          {!realMode && <SpineCard onOpenOutline={openOutline} />}
-          {!realMode && <CanvasLinks cards={cards} links={LINK_DEFS} />}
-          {cardEls}
-          {/* 停靠后中心舞台让位给「下一步」占位:非交互纯提示,为未来真实大纲预留舞台 */}
-          {realMode && layoutStage === "docked" && (
-            <div
-              className="cv-next-hint"
-              style={{ left: NEXT_HINT_RECT.x + NEXT_HINT_RECT.w / 2, top: NEXT_HINT_RECT.y + NEXT_HINT_RECT.h / 2 }}
-              aria-hidden="true"
-            >
-              <div className="cv-next-hint-body">
-                <TreeStructureIcon width={17} height={17} />
-                <span>下一步：生成投标大纲</span>
-              </div>
-            </div>
-          )}
+          {!realMode && demo && <SpineCard onOpenOutline={openOutline} />}
+          {!realMode && demo && <CanvasLinks cards={cards} links={LINK_DEFS} />}
+          {(realMode || demo) && cardEls}
         </div>
+
+        {viewMode === "overview" && <section className="cv-overview" aria-label="项目解析结果">
+          {realMode ? <>
+            <header className="cv-overview-heading"><div><p>招标文件解析</p><h1>{projectName || "正在创建项目…"}</h1></div><Link href="/projects">全部项目 <ArrowRightIcon width={14} height={14} /></Link></header>
+            <div className="cv-overview-grid">
+              {MATRIX_CARD_ORDER.map((type) => {
+                const meta = META[type]; const Icon = meta.icon; const badge = badgeFor(type);
+                const requirementIds = type === "business" || type === "technical"
+                  ? new Set((matrices[type].data?.items ?? []).map((item) => item.id)) : null;
+                const reviewRows = requirementIds ? (matrices[type].itemRows ?? []).filter((row) => requirementIds.has(row.item_id)) : [];
+                return <button type="button" className="cv-overview-card" key={type} onClick={() => openCard(type)}>
+                  <span className="cv-face-head"><Icon width={16} height={16} /><span className="cv-face-name">{meta.title}</span>{badge && badge.tone !== "done" && <span className="cv-face-state">{badge.label}</span>}<ArrowRightIcon className="cv-overview-arrow" width={15} height={15} /></span>
+                  <CardPreview type={type} />
+                  {!!reviewRows.length && <span className="cv-overview-review">已核验 <b>{reviewRows.filter((row) => row.confirmed).length}</b> / {reviewRows.length} 条</span>}
+                </button>;
+              })}
+            </div>
+            <p className="cv-overview-guidance">选择一类结果，对照原文逐条核验。提取完成后，仍需人工确认要求与应答。</p>
+            <AgentBoard />
+          </> : <div className="cv-workspace-empty"><FileIcon width={30} height={30} /><h1>从一份招标文件开始</h1><p>在下方添加文件或选择样本，生成四类解析结果。<br />已有项目可从项目列表继续。</p><Link className="prose-button" href="/projects">查看项目 <ArrowRightIcon /></Link><Link className="cv-demo-link" href="/workspace?demo=1">查看画布示例</Link></div>}
+        </section>}
 
         {/* 视口提示:按放置矩阵本应 lens thin,lens 预算已满,降级 霜 soft·thin */}
         <div className="cv-viewport-hint frost-glass frost-glass--soft" data-thick="thin" aria-hidden="true">拖动画布 · 滚轮缩放 · 点击卡片查看详情</div>
@@ -394,9 +382,9 @@ export function CanvasPane() {
         {/* 对话浮层。挂在视口内部（而非 .canvas-pane 下）有两个理由：视口的
             overflow:hidden 免费给出「不许骑到工具条上」的裁剪；展开态浮窗的
             height: calc(100% - …) 也才以视口为解算盒。抽屉 z-30 的遮罩天然压住它们。 */}
-        <MessageWindow />
-        <AgentBoard />
-        <CanvasDock />
+        {!demo && <MessageWindow />}
+        {viewMode === "canvas" && <AgentBoard />}
+        {demo ? <div className="cv-demo-exit"><span>画布演示 · 不写入真实项目</span><Link className="prose-button" href="/home">开始真实项目</Link><Link className="prose-button" href="/preview">查看文档排版示例</Link></div> : <CanvasDock />}
 
         {drawer && (
           <CanvasDrawer

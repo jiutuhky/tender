@@ -64,15 +64,27 @@ export function AppearanceMenu() {
   // 点击菜单外、Esc、滚动与改窗都收起
   useEffect(() => {
     if (!open) return;
+    menuRef.current?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus({ preventScroll: true });
     const onPointerDown = (e: PointerEvent) => {
       const t = e.target as Node;
       if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
       setPos(null);
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPos(null);
+      if (e.key === "Escape") { e.preventDefault(); setPos(null); btnRef.current?.focus({ preventScroll: true }); }
+      if (e.key === "Tab") { setPos(null); btnRef.current?.focus({ preventScroll: true }); return; }
+      if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+      if (!items.length) return;
+      e.preventDefault();
+      const current = items.indexOf(document.activeElement as HTMLButtonElement);
+      const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : (current + (e.key === "ArrowUp" ? -1 : 1) + items.length) % items.length;
+      items[next]?.focus({ preventScroll: true });
     };
-    const close = () => setPos(null);
+    const close = (event: Event) => {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      setPos(null);
+    };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", close);
@@ -87,6 +99,7 @@ export function AppearanceMenu() {
 
   const choose = useCallback((next: AppearancePref) => {
     setAppearancePref(next);
+    btnRef.current?.focus({ preventScroll: true });
     setPos(null);
   }, []);
 

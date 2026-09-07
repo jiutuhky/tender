@@ -1,7 +1,7 @@
 /* ===========================================================================
    Frost · lens  (Frost 2 「凝光」)
    ---------------------------------------------------------------------------
-   Drop-in companion to tokens/materials.css. Include once per page:
+   Drop-in companion to app/frost-materials.css. Include once per page:
      <script src="assets/frost-lens.js"></script>
    It does four things and nothing else:
      1. Injects the SVG refraction filters (#frost-lens-thin / -regular / -thick

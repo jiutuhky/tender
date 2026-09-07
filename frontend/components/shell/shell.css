@@ -1,0 +1,34 @@
+/* 全站外壳独立命名，避免路由中的历史布局声明互相覆盖。 */
+.prose-app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; overflow: hidden; background: var(--canvas); }
+.prose-topbar { min-height: 60px; display: flex; align-items: center; gap: 28px; padding: 0 24px; background: var(--surface); border-bottom: 1px solid var(--separator); z-index: 40; min-width: 0; }
+.prose-brand { display: inline-flex; align-items: center; gap: 9px; font-size: 17px; font-weight: 650; letter-spacing: -.03em; flex-shrink: 0; }
+.prose-brand-mark { width: 26px; height: 26px; }
+.prose-brand-mark svg { display: block; width: 100%; height: 100%; }
+.prose-navigation { display: flex; align-self: stretch; align-items: center; gap: 4px; flex-shrink: 0; }
+.prose-navigation a { position: relative; padding: 9px 15px; border-radius: var(--r-control); color: var(--label-2); font-size: 13px; font-weight: 500; transition: color var(--t-micro), background-color var(--t-micro); }
+.prose-navigation a:hover { background: var(--surface-2); color: var(--label); }
+.prose-navigation a.active { color: var(--blue); background: var(--blue-soft); font-weight: 600; }
+.prose-breadcrumb { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: 6px; color: var(--label-3); font-size: 12px; flex: 1; }
+.prose-breadcrumb a:hover { color: var(--blue); }
+.prose-breadcrumb > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--label-2); }
+.prose-topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.prose-topbar-actions > .icon-btn { width: 36px; height: 36px; }
+.prose-skip { position: fixed; top: 8px; left: 12px; z-index: 100; padding: 10px 16px; background: var(--surface); border: 2px solid var(--blue); border-radius: 8px; transform: translateY(-180%); }
+.prose-skip:focus { transform: none; }
+.prose-app :is(a,button,input,textarea,select):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.prose-app button:disabled { cursor: not-allowed; }
+.prose-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--separator); border-radius: var(--r-control); color: var(--label); font: 500 13px/1.4 var(--font-ui); transition: background-color var(--t-micro), transform var(--t-micro); }
+.prose-button:hover { background: var(--surface-2); }
+.prose-button:active { transform: translateY(1px); }
+.prose-button.is-primary { background: var(--blue); border-color: var(--blue); color: white; }
+.prose-button.is-primary:hover { background: var(--blue-press); }
+.prose-button:disabled { opacity: .5; }
+.prose-button svg { width: 15px; height: 15px; flex: none; }
+.prose-text-button { border: 0; background: transparent; color: var(--blue); padding: 6px; font: inherit; border-radius: var(--r-control); }
+@media (max-width: 1000px) { .prose-topbar { gap: 20px; padding: 0 18px; } .prose-breadcrumb { display: none; } }
+@media (max-width: 600px) { .prose-topbar { min-height: 56px; gap: 12px; padding: 0 14px; flex-wrap: wrap; } .prose-brand { font-size: 16px; } .prose-navigation { gap: 0; margin-left: auto; } .prose-navigation a { padding: 9px 10px; } .prose-topbar-actions { gap: 4px; margin-left: 0; } .prose-topbar-actions > :not(.icon-btn) { display: none; } }
+@media (max-width: 360px) { .prose-topbar { gap: 6px; padding: 0 10px; } .prose-navigation a { padding-inline: 8px; } .prose-brand-mark { width: 22px; height: 22px; } }
+/* 小字号辅助信息也保持可读，深色不再使用接近背景的灰阶。 */
+html[data-appearance="dark"] .prose-app { --label-3: #9b9ba7; }
+.prose-app summary:focus-visible { outline: 2px solid var(--blue); outline-offset: -3px; }
+@media (prefers-reduced-motion: reduce) { .prose-app *, .prose-app *::before, .prose-app *::after { scroll-behavior: auto; transition-duration: 0.01ms; animation-duration: 0.01ms; animation-iteration-count: 1; } }

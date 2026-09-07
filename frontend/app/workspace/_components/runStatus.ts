@@ -1,3 +1,6 @@
+import { deriveSubagentBotState } from "@/lib/bot/derive";
+import { BOT_DEFINITIONS, type BotPersistentState } from "@/lib/bot/states";
+import type { BotSignals } from "@/lib/hagent/botSignals";
 import type { ChatMsg, SubagentRun } from "@/lib/hagent/timeline";
 import { MATRIX_TYPES } from "@/lib/hagent/matrix";
 import type { MatrixSlots, RunPhase } from "@/lib/store/workspace";
@@ -12,8 +15,8 @@ export const PHASE_STATUS: Record<RunPhase, string> = {
   uploading: "正在上传招标文件",
   running: "正在解析招标文件",
   loading_results: "正在载入应答矩阵",
-  done: "解析完成",
-  error: "解析失败",
+  done: "本轮处理完成",
+  error: "操作未完成",
 };
 
 export function isRunning(phase: RunPhase): boolean {
@@ -22,16 +25,27 @@ export function isRunning(phase: RunPhase): boolean {
   );
 }
 
-/** 状态点语义（品牌：蓝只授予「正在进行」，成功用绿，待命用灰）。 */
-export function runDotState(phase: RunPhase): "idle" | "running" | "done" | "error" {
+/** 真实终止/人工介入信号优先于页面的载入相位；所有状态文案共用。 */
+function botStatusOverride(phase: RunPhase, signals?: BotSignals): string | null {
+  if (phase === "error" || signals?.failed) return PHASE_STATUS.error;
+  if (signals?.attention) return BOT_DEFINITIONS[signals.attention].name;
+  if (phase === "done" && signals?.partial) return "部分完成";
+  return null;
+}
+
+/** 状态点不是头像角标，只辅助邻接文字；需要回应时不显示完成绿。 */
+export function runDotState(phase: RunPhase, signals?: BotSignals): "idle" | "running" | "done" | "error" | "attention" {
+  if (phase === "error" || signals?.failed) return "error";
+  if (signals?.attention || phase === "done" && signals?.partial) return "attention";
   if (isRunning(phase)) return "running";
   if (phase === "done") return "done";
-  if (phase === "error") return "error";
   return "idle";
 }
 
-export function runStatusText(phase: RunPhase, todoCount: number, readyCount: number): string {
-  if (phase === "done" && readyCount) return `已完成 · ${readyCount} 张矩阵`;
+export function runStatusText(phase: RunPhase, todoCount: number, readyCount: number, signals?: BotSignals): string {
+  const override = botStatusOverride(phase,signals);
+  if (override) return override;
+  if (phase === "done" && readyCount) return `已提取 · ${readyCount} 类结果`;
   if (phase === "running" && todoCount) return `${PHASE_STATUS[phase]} · ${todoCount} 项任务`;
   return PHASE_STATUS[phase];
 }
@@ -51,7 +65,9 @@ const SCAN_LIMIT = 400;
  * 刻意返回 string 而非对象：ActivityBar 用它当 selector，内容不变即 Object.is
  * 相等，zustand 跳过重渲——所以流式期大多数帧底部坞是静止的。
  */
-export function activityLine(timeline: ChatMsg[], phase: RunPhase): string {
+export function activityLine(timeline: ChatMsg[], phase: RunPhase, signals?: BotSignals): string {
+  const override = botStatusOverride(phase,signals);
+  if (override) return override;
   if (!isRunning(phase)) return PHASE_STATUS[phase];
 
   let head = "";
@@ -84,20 +100,23 @@ export interface SubagentBoardRow {
   depth: number;
   /** 一行摘要：运行中=最近动作，完成=已完成 */
   summary: string;
+  botState: BotPersistentState;
 }
 
-function collectFromLevel(msgs: ChatMsg[], depth: number, out: SubagentBoardRow[]): void {
+function collectFromLevel(msgs: ChatMsg[], depth: number, out: SubagentBoardRow[], live: boolean, signals?: BotSignals): void {
   for (const m of msgs) {
     if (m.role !== "subagent") continue;
+    const botState = deriveSubagentBotState(m.run,live,signals);
     out.push({
       callId: m.run.call.call_id,
       description: m.run.description,
       subagentType: m.run.subagentType,
       status: m.run.status,
       depth,
-      summary: subagentStatusText(m.run),
+      summary: m.run.status === "done" ? "已完成" : `${BOT_DEFINITIONS[botState].name}中`,
+      botState,
     });
-    collectFromLevel(m.run.children, depth + 1, out);
+    collectFromLevel(m.run.children, depth + 1, out,live,signals);
   }
 }
 
@@ -106,7 +125,7 @@ function collectFromLevel(msgs: ChatMsg[], depth: number, out: SubagentBoardRow[
  * 与 activityLine 同一回扫策略：从末尾回到最近一条 user 消息为止——看板只反映
  * 当前这一轮，上一轮的子代理不残留。O(末段扫描)，可安全当每帧批处理的一部分跑。
  */
-export function collectSubagentRuns(timeline: ChatMsg[]): SubagentBoardRow[] {
+export function collectSubagentRuns(timeline: ChatMsg[],live=true,signals?: BotSignals): SubagentBoardRow[] {
   let start = timeline.length;
   while (start > 0) {
     const m = timeline[start - 1];
@@ -114,8 +133,22 @@ export function collectSubagentRuns(timeline: ChatMsg[]): SubagentBoardRow[] {
     start -= 1;
   }
   const out: SubagentBoardRow[] = [];
-  collectFromLevel(timeline.slice(start), 0, out);
+  collectFromLevel(timeline.slice(start), 0, out,live,signals);
   return out;
+}
+
+/**
+ * 本轮是否派发过子代理。与 collectSubagentRuns 同一回扫策略，但首个 subagent 即返回，
+ * 且返回原始值——所以可以安全地当每帧跑的 zustand selector（Object.is 兜住重渲），
+ * 理由同 activityLine 的「刻意返回 string 而非对象」。
+ */
+export function hasSubagentRuns(timeline: ChatMsg[]): boolean {
+  for (let i = timeline.length - 1; i >= 0; i -= 1) {
+    const m = timeline[i];
+    if (!m || m.role === "user") return false; // 回溯到本轮起点为止
+    if (m.role === "subagent") return true;
+  }
+  return false;
 }
 
 /** 子任务的一行状态文字：运行中显示最近动作，完成显示「已完成」。 */

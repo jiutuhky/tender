@@ -1,989 +1,473 @@
-// 角色引擎 · 主循环 —— grok-icon-study replica src/character.js 的 1:1 移植。
-//
-// GrokCharacter 原样移植：onboarding 轮换、状态机、眼形播放列表、眨眼 / wink、
-// 特技轮换、overlay 步进、指针跟随、弹簧积分、_paint 的形体形变（shapeSpring 插值、
-// overlay 向圆过渡、turn 缠绕、humming 呼吸点）。
-//
-// 平台化的小增补（不改原版行为）：
-//   · 默认形体为 block（方块，见 geometry.ts）；
-//   · blink() / playOnce() 两个公开方法，供 ProseBot 组件复用旧交互；
-//   · playOnce 的回跳由 setState 取消，外部状态变化永远压过插播。
-
-import type { FaceVal } from "./math";
 import {
-  applyPose, freshPoseCtx, nextGaze, type PoseCtx,
+  BOT_DEFINITIONS,
+  URGENT_STATES,
+  isWorkingState,
+  type BotState,
+  type BotCue,
+} from "./states";
+import {
+  clamp,
+  smooth,
+  poseFor,
+  REST_POSE,
+  POSE_KEYS,
+  type BotPose,
 } from "./pose";
-import * as EY from "./eyes";
-import * as FX from "./fx";
-import * as TR from "./tricks";
-import { GROK_GEO, type ShapeGeo } from "./geometry";
 import {
-  BLINK_MS, EYE_HOLD_MS, EYE_PLAYLIST, FACE_TUNE, ONBOARDING_MS, onboardMood,
-  POSE, POSE_HOME, poseScale, shapeEyeScale, SPRINGS, UNIFORM_EYES, inkCss, inkFg,
-  overlayViewZoom, B_T, V_T, WINK_STATES, VIEW_HALF, VIEW_MID, EYE_BG, type BotState,
-} from "./tables";
+  BotPainter,
+  RIBBON_STYLES,
+  RIBBON_KEYS,
+  type RibbonPose,
+} from "./painter";
 import {
-  clamp, Dke, K2, lerpFace, lerpPoly, mapPointer, Rn, rand, relRot, sign, spring, springSteps,
-  stepSpring, type Spring,
-} from "./math";
-
-export interface BotSnapshot {
-  state: BotState;
-  mode: "onboarding" | "hold";
-  shape: string;
-  color: string;
-  scheme: string;
-  eyeFrom: number;
-  eyeTo: number;
-  spin: number;
-  tx: number;
-  ty: number;
-  squash: number;
-  blink: number;
-  overlay: string | null;
-}
+  registerBot,
+  wakeBot,
+  sleepBot,
+  type BotFrameClient,
+} from "./scheduler";
 
 export interface BotEngineOptions {
-  shape?: string;
-  color?: string;
-  scheme?: string;
-  mode?: "onboarding" | "hold";
   state?: BotState;
-  onChange?: (s: BotSnapshot) => void;
-  loginWrap?: boolean;
-  eyeTopology?: boolean;
-  faceTune?: typeof FACE_TUNE | null;
-  pose?: Partial<{ turn: number; tilt: number; roll: number; scale: number }>;
-  poseHome?: { turn: number; tilt: number; roll: number };
-  uniformEyes?: boolean;
-  eyeScale?: number;
-  emphasis?: boolean;
-  followPointer?: boolean;
-  gazeTarget?: { x: number; y: number } | null;
+  entrance?: boolean;
+  size?: number;
+  intensity?: "normal" | "quiet";
+  motion?: "full" | "reduced" | "static";
   paused?: boolean;
-  reduceMotion?: boolean;
-  badgeColor?: string;
-  sizePx?: number | null;
-  eyeColor?: string | null;
-  inkFlat?: string | null;
+  ribbons?: boolean;
+  idleMoods?: boolean;
+  seed?: number;
+  /** 真实工作轮次的身份；历史恢复不提供此值，就不会播放完成庆祝。 */
+  completionKey?: string;
+  celebrateOnComplete?: boolean;
 }
+// 主角色与子角色共用播放倍率；状态防抖和自然眨眼的触发间隔仍按真实时间计。
+const PLAYBACK_RATE = 1.5;
 
-interface Extras {
-  turn: number | null;
-  Kr: number;
-  yi: number;
-  ki: number;
-  Yr: number;
-  Zr: number;
-  wi: number;
-  lidMul: number | null;
-  eyeBoost: number | null;
-  hop: number;
-}
-
-export class ProseBotEngine {
-  private svg: SVGSVGElement;
-  private shapeName: string;
-  private colorId: string;
-  private scheme: string;
-  mode: "onboarding" | "hold";
+const defaults: Required<BotEngineOptions> = {
+  state: "idle",
+  entrance: false,
+  size: 40,
+  intensity: "normal",
+  motion: "full",
+  paused: false,
+  ribbons: true,
+  idleMoods: false,
+  seed: 0,
+  completionKey: "",
+  celebrateOnComplete: true,
+};
+export interface BotSnapshot {
   state: BotState;
-  onChange: (s: BotSnapshot) => void;
-  private loginWrap: boolean;
-  private eyeTopology: boolean;
-  private faceTune: typeof FACE_TUNE | null;
-  private pose: { turn: number; tilt: number; roll: number; scale: number };
-  private poseHome: { turn: number; tilt: number; roll: number };
-  private uniformEyes: boolean;
-  private eyeScaleProp: number;
-  private emphasis: boolean;
-  followPointer: boolean;
-  private gazeTarget: { x: number; y: number } | null;
-  private paused: boolean;
-  private reduceMotion: boolean;
-  private badgeColor: string;
-  private sizePx: number | null;
-  private eyeColor: string | null;
-  private inkFlat: string | null;
+  displayed: BotState;
+  expression: BotState;
+  reduced: boolean;
+  visible: boolean;
+  timerPending: boolean;
+  pose: BotPose;
+}
 
-  private spin = spring(0);
-  private tx = spring(0);
-  private ty = spring(0);
-  private squash = spring(1);
-  private blink = spring(1);
-  private eyeScale = spring(1);
-  private gazeX = spring(0);
-  private gazeY = spring(0);
-  private eyeMorph = spring(1);
-  private overlay = spring(0);
-  private overlayMix = spring(1);
-  private notify = spring(0);
-  private humDots = spring(0);
-  private shapeSpring = spring(1);
-  private overlayTurn = spring(0);
-  private emphasisBlend = 0;
+/** 基础态、插播态、显示相位分别持有；插播结束永远回到最新基础态。 */
+export class ProseBotEngine implements BotFrameClient {
+  private svg: SVGSVGElement;
+  private painter: BotPainter;
+  private options: Required<BotEngineOptions>;
+  private base: BotState;
+  private displayed: BotState;
+  private candidate: { state: BotState; at: number } | null = null;
+  private cue: { state: BotCue; at: number } | null = null;
+  private pose: BotPose = { ...REST_POSE };
+  private velocity: BotPose = Object.fromEntries(
+    POSE_KEYS.map((k) => [k, 0]),
+  ) as BotPose;
+  private ribbon: RibbonPose = { ...RIBBON_STYLES.none };
+  private phase = 0;
+  private stateAt: number;
+  private paintAt = 0;
+  private last = 0;
+  private settleUntil = 0;
+  private visible = true;
+  private systemReduced = false;
+  private destroyed = false;
+  private observer: IntersectionObserver | null = null;
+  private unregister: () => void = () => {};
+  private ambient: ReturnType<typeof setTimeout> | null = null;
+  private nextMood = Infinity;
+  private pointer = { x: 0, y: 0 };
+  private pauseAt = 0;
+  private seenWorkKey = "";
+  private completedKey = "";
+  private eventKey: string | number | undefined;
+  private lastBlink = -Infinity;
+  private appeared = false;
 
-  private eyeFrom = 0;
-  private eyeTo = 0;
-  private eyeStiffness = 7;
-  private eyeIdx = 0;
-  private _fromPolys: [number[][], number[][]] | null = null;
-
-  private t0 = performance.now();
-  private stateAt = this.t0;
-  private last = this.t0;
-  moodN = 0;
-  private eyeUntil = this.t0 + rand(...EYE_HOLD_MS.idle);
-  private blinkUntil = this.t0 + rand(1500, 7000);
-  private gazeUntil = this.t0 + 800;
-  private blinkQueue: EY.BlinkKey[] = [];
-  private winkAt = -1e9;
-  private winkEye = 0;
-  private winkUntil = this.t0 + rand(3000, 8000);
-  private spinTurn: Spring | null = null;
-  private trick: TR.Trick | null = null;
-  private hopAt = -1;
-  private trickAt = this.t0 + rand(2500, 5000);
-  private trickCycle = Math.floor(rand(0, 5));
-  private wildWide = false;
-  private ovSpin = 0;
-  private ovTurnAcc = 0;
-  private ovOn = false;
-  private ovTurnDir = 1;
-  private pointer = { x: 0, y: 0, tx: 0, ty: 0 };
-  private pointerRaw: { x: number; y: number } | null = null;
-  private rectCache: DOMRect | null = null;
-  private rectAt = -1e9;
-  private prevShape: string;
-  private prevFace: FaceVal | null = null;
-  private prevRing: [number, number][] | null = null;
-  private prevTilt: number | null = null;
-  private prevBelt: number | null = null;
-  private ctx: PoseCtx;
-  private ovKind: string | null = null;
-  private ovPrev: string | null = null;
-  private ovTarget: string | null = null;
-  private ovRest = false;
-  private ovRestAt = 0;
-  private pxW = 190;
-  private pxAt = 0;
-  private partScale = 1;
-  private celebrateAt = -1;
-  private extras: Extras = { turn: null, Kr: 0, yi: 0, ki: 0, Yr: 0, Zr: 0, wi: 0, lidMul: null, eyeBoost: null, hop: 0 };
-
-  private group: SVGGElement;
-  private body: SVGPathElement;
-  private clipPath: SVGPathElement;
-  private eyeEls: SVGPathElement[];
-  private badge: SVGCircleElement;
-  private fx: FX.OverlayLayer;
-  private particles: FX.ParticlesHandle;
-
-  private clipId: string;
-  private _raf = 0;
-  private onceTimer: ReturnType<typeof setTimeout> | null = null;
-
-  constructor(svg: SVGSVGElement, opts: BotEngineOptions = {}) {
+  constructor(svg: SVGSVGElement, options: BotEngineOptions = {}) {
     this.svg = svg;
-    this.shapeName = opts.shape || "block";
-    this.colorId = opts.color || "black";
-    this.scheme = opts.scheme || "light";
-    this.mode = opts.mode || "onboarding";
-    this.state = opts.state || "idle";
-    this.onChange = opts.onChange || (() => {});
-    this.loginWrap = opts.loginWrap !== false;
-    this.eyeTopology = opts.eyeTopology ?? this.loginWrap;
-    this.faceTune = opts.faceTune ?? (this.loginWrap ? FACE_TUNE : null);
-    this.pose = { ...(this.loginWrap ? POSE : { turn: 0, tilt: 0, roll: 0, scale: 1 }), ...opts.pose };
-    this.poseHome = opts.poseHome || (this.loginWrap ? POSE_HOME : { turn: 0, tilt: 0, roll: 0 });
-    this.uniformEyes = opts.uniformEyes ?? (this.loginWrap ? UNIFORM_EYES : false);
-    this.eyeScaleProp = opts.eyeScale ?? (this.loginWrap ? shapeEyeScale(this.shapeName) : 1);
-    this.emphasis = !!opts.emphasis;
-    this.followPointer = !!opts.followPointer;
-    this.gazeTarget = opts.gazeTarget || null;
-    this.paused = !!opts.paused;
-    this.reduceMotion = opts.reduceMotion ?? (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
-    this.badgeColor = opts.badgeColor || "var(--gb-badge, #1d9bf0)";
-    this.sizePx = opts.sizePx || null;
-    this.eyeColor = opts.eyeColor || null;
-    this.inkFlat = opts.inkFlat || null;
-
-    this.t0 = performance.now();
-    this.stateAt = this.t0;
-    this.last = this.t0;
-    this.eyeUntil = this.t0 + rand(...EYE_HOLD_MS.idle);
-    this.blinkUntil = this.t0 + rand(1500, 7000);
-    this.gazeUntil = this.t0 + 800;
-    this.winkUntil = this.t0 + rand(3000, 8000);
-    this.trickAt = this.t0 + rand(2500, 5000);
-    this.trickCycle = Math.floor(rand(0, 5));
-    this.prevShape = this.shapeName;
-    this.ctx = this._freshCtx(this.t0);
-
-    const built = this._build();
-    this.group = built.group;
-    this.body = built.body;
-    this.clipPath = built.clipPath;
-    this.eyeEls = built.eyeEls;
-    this.badge = built.badge;
-    this.fx = built.fx;
-    this.particles = built.particles;
-    this.clipId = built.clipId;
-
-    this.setColor(this.colorId, this.scheme);
-    this._applyPoseScale();
-    this.setState(this.state, { resetEyes: true });
-    this._bindPointer();
-    this._paint(this.t0);
-    this._raf = requestAnimationFrame((t) => this._tick(t));
-  }
-
-  destroy(): void {
-    cancelAnimationFrame(this._raf);
-    this._unbindPointer();
-    this.particles?.clear();
-    document.getElementById(this.clipId)?.remove();
-  }
-
-  private _freshCtx(now: number): PoseCtx {
-    return freshPoseCtx(now);
-  }
-
-  setMode(mode: "onboarding" | "hold"): void {
-    this.mode = mode;
-    if (mode === "onboarding") {
-      this.moodN = 0;
-      this.stateAt = performance.now();
-      this.setState("idle", { resetEyes: true });
-    }
-  }
-
-  setPaused(v: boolean): void {
-    this.paused = !!v;
-  }
-
-  setEmphasis(v: boolean): void {
-    this.emphasis = !!v;
-  }
-
-  setFollowPointer(v: boolean): void {
-    this.followPointer = !!v;
-    if (!v) {
-      this.pointerRaw = null;
-      this.gazeTarget = null;
-    }
-  }
-
-  setGazeTarget(pt: { x: number; y: number } | null): void {
-    this.gazeTarget = pt;
-  }
-
-  setShape(name: string): void {
-    if (!GROK_GEO.shapes[name] || name === this.shapeName) return;
-    const R = GROK_GEO.Re;
-    const k = K2(clamp(this.shapeSpring.x, 0, 1));
-    const rest = FX.shapeMetrics(GROK_GEO.shapes[this.shapeName] as ShapeGeo, R);
-    if (k >= 1 || !this.prevFace || !this.prevRing) {
-      this.prevFace = rest.face;
-      this.prevRing = rest.ring;
-      this.prevTilt = rest.tilt;
-      this.prevBelt = rest.belt;
-    } else {
-      this.prevFace = lerpFace(this.prevFace, rest.face, k);
-      this.prevRing = FX.lerpRing(this.prevRing, rest.ring, k);
-      // 进到这支说明 prevFace/prevRing 都在，prevTilt/prevBelt 必然已随第一次 setShape 赋值
-      this.prevTilt = (this.prevTilt as number) + (rest.tilt - (this.prevTilt as number)) * k;
-      this.prevBelt = (this.prevBelt as number) + (rest.belt - (this.prevBelt as number)) * k;
-    }
-    this.prevShape = this.shapeName;
-    this.shapeName = name;
-    this.shapeSpring.x = 0;
-    this.shapeSpring.v = 0;
-    this.shapeSpring.t = 1;
-    if (this.loginWrap) this.eyeScaleProp = shapeEyeScale(name);
-    this._applyPoseScale();
-    this._cycleShapeTrick();
-  }
-
-  setColor(id: string, scheme?: string): void {
-    this.colorId = id;
-    if (scheme) this.scheme = scheme;
-    if (this.inkFlat) {
-      this.svg.style.setProperty("--fg", this.inkFlat);
-    } else if (this.loginWrap) {
-      this.svg.style.setProperty("--fg", inkFg(id));
-    } else {
-      const pal = GROK_GEO.palette[id] || GROK_GEO.palette.black!;
-      this.svg.style.setProperty("--fg", this.scheme === "dark" ? pal.dark : pal.light);
-    }
-    this.svg.style.setProperty("--ink", inkCss(id));
-    this.svg.style.setProperty("--bg", this.eyeColor || EYE_BG);
-  }
-
-  setInk(flat: string | null): void {
-    this.inkFlat = flat;
-    this.setColor(this.colorId);
-  }
-
-  setEyeColor(color: string | null): void {
-    this.eyeColor = color;
-    this.svg.style.setProperty("--bg", this.eyeColor || EYE_BG);
-  }
-
-  setState(name: BotState, { resetEyes = false } = {}): void {
-    if (!(name in EYE_PLAYLIST)) return;
-    if (this.onceTimer) {
-      clearTimeout(this.onceTimer);
-      this.onceTimer = null;
-    }
-    this.state = name;
+    this.options = { ...defaults, ...options };
+    this.base = this.displayed = this.options.state;
     this.stateAt = performance.now();
-    const list = EYE_PLAYLIST[name] as readonly number[];
-    this.eyeIdx = 0;
-    if (resetEyes) {
-      this.eyeFrom = list[0] as number;
-      this.eyeTo = list[0] as number;
-      this._fromPolys = null;
-      this.eyeMorph.x = 1;
-      this.eyeMorph.t = 1;
-      this.eyeMorph.v = 0;
-    } else if (name !== "sleeping" && name !== "waking") {
-      this._morphEyes(list[0] as number, name === "excited" ? 10 : 8);
+    this.phase = ((this.options.seed % 97) / 97) * Math.PI * 2;
+    this.painter = new BotPainter(svg);
+    this.systemReduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    this.unregister = registerBot(this);
+    if (typeof IntersectionObserver !== "undefined") {
+      this.visible = false;
+      this.observer = new IntersectionObserver((entries) => {
+        const visible = entries[0]?.isIntersecting ?? false;
+        if (visible === this.visible) return;
+        this.visible = visible;
+        this.resumeOrSleep();
+      });
+      this.observer.observe(svg);
     }
-    this.eyeUntil = this.stateAt + rand(...(EYE_HOLD_MS[name] as readonly [number, number]));
-    const blink = BLINK_MS[name];
-    this.blinkUntil = blink ? this.stateAt + rand(1500, 7000) : Infinity;
-    this.gazeUntil = this.stateAt + rand(500, 1400);
-    this.winkUntil = this.stateAt + rand(3000, 8000);
-    this.ctx = this._freshCtx(this.stateAt);
-    this.ctx.stAt = this.stateAt + (
-      name === "excited" ? rand(400, 1100)
-        : name === "searching" ? rand(800, 1600)
-          : name === "working" ? rand(1200, 2400)
-            : rand(6000, 10000)
+    this.paintStatic();
+    this.resumeOrSleep();
+  }
+  private get reduced(): boolean {
+    return this.systemReduced || this.options.motion !== "full";
+  }
+  private get active(): boolean {
+    return (
+      !this.destroyed &&
+      this.visible &&
+      !document.hidden &&
+      !this.reduced &&
+      !this.options.paused
     );
-    this.celebrateAt = name === "celebrate" ? this.stateAt + 140 : -1;
-    this.trick = null;
-    this.spinTurn = null;
-    this.hopAt = -1;
-    this.wildWide = false;
-    if (name !== "writing") this.fx.resetInk();
-    if (name !== "waking" && name !== "sleeping" && name !== "drowsy") {
-      EY.queueBlink(this.blinkQueue, this.stateAt);
+  }
+  private now(): number {
+    return performance.now();
+  }
+
+  configure(options: Omit<BotEngineOptions, "state">): void {
+    const previous = this.options;
+    this.options = { ...previous, ...options };
+    const now = this.now();
+    if (previous.completionKey !== this.options.completionKey)
+      this.seenWorkKey = "";
+    if (!previous.paused && this.options.paused) this.pauseAt = now;
+    if (previous.paused && !this.options.paused) {
+      const pausedFor = now - this.pauseAt;
+      this.stateAt += pausedFor;
+      if (this.cue) this.cue.at += pausedFor;
+      if (this.candidate) this.candidate.at += pausedFor;
+      this.settleUntil += pausedFor;
+      this.last = 0;
     }
-    try {
-      this.onChange(this.snapshot());
-    } catch {
-      /* host UI may not be ready */
-    }
-  }
-
-  /** 平台接口：插播一个状态，到时自动回到此前的基础状态 */
-  playOnce(state: BotState, ms: number): void {
-    if (this.mode === "onboarding") return;
-    const back = this.state;
-    this.setState(state);
-    if (this.onceTimer) clearTimeout(this.onceTimer);
-    this.onceTimer = setTimeout(() => {
-      this.onceTimer = null;
-      if (this.state === state) this.setState(back, { resetEyes: false });
-    }, ms);
-  }
-
-  /** 平台接口：立刻眨一次眼 */
-  blinkOnce(): void {
-    if (!this.reduceMotion) EY.queueBlink(this.blinkQueue, performance.now());
-  }
-
-  snapshot(): BotSnapshot {
-    return {
-      state: this.state,
-      mode: this.mode,
-      shape: this.shapeName,
-      color: this.colorId,
-      scheme: this.scheme,
-      eyeFrom: this.eyeFrom,
-      eyeTo: this.eyeTo,
-      spin: this.spin.x,
-      tx: this.tx.x,
-      ty: this.ty.x,
-      squash: this.squash.x,
-      blink: this.blink.x,
-      overlay: this.ovKind,
-    };
-  }
-
-  spinOnce(turns = 1): void {
-    this._pn(turns);
-  }
-
-  bounceOnce(): void {
-    this._hop(performance.now());
-  }
-
-  burstOnce(): void {
-    if (!this.reduceMotion) this.particles.burst(22, 1.1, 0.3);
-  }
-
-  private _applyPoseScale(): void {
-    const sc = this.loginWrap ? poseScale(this.shapeName) : (this.pose.scale || 1);
-    this.pose.scale = sc;
-    if (this.sizePx) {
-      this.svg.style.width = `${this.sizePx}px`;
-      this.svg.style.height = `${this.sizePx}px`;
-    }
-    if (Math.abs(sc - 1) > 0.001) {
-      this.svg.style.transform = `scale(${sc})`;
-      this.svg.style.transformOrigin = "50% 50%";
-    } else {
-      this.svg.style.transform = "";
-    }
-  }
-
-  private _bindPointer(): void {
-    this._onMove = (e: PointerEvent) => {
-      if (!this.followPointer) return;
-      this.pointerRaw = { x: e.clientX, y: e.clientY };
-    };
-    this._onLeave = () => {
-      if (this.followPointer) this.pointerRaw = null;
-    };
-    window.addEventListener("pointermove", this._onMove, { passive: true });
-    document.documentElement.addEventListener("pointerleave", this._onLeave);
-  }
-
-  private _onMove: ((e: PointerEvent) => void) | null = null;
-  private _onLeave: (() => void) | null = null;
-
-  private _unbindPointer(): void {
-    if (this._onMove) window.removeEventListener("pointermove", this._onMove);
-    if (this._onLeave) document.documentElement.removeEventListener("pointerleave", this._onLeave);
-  }
-
-  private _build(): {
-    group: SVGGElement;
-    body: SVGPathElement;
-    clipPath: SVGPathElement;
-    eyeEls: SVGPathElement[];
-    badge: SVGCircleElement;
-    fx: FX.OverlayLayer;
-    particles: FX.ParticlesHandle;
-    clipId: string;
-  } {
-    const geo = GROK_GEO;
-    const vb = geo.viewBox;
-    this.svg.setAttribute("viewBox", `${vb.minX} ${vb.minY} ${vb.width} ${vb.height}`);
-    this.svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    this.svg.style.overflow = "visible";
-    this.svg.innerHTML = "";
-    const ns = "http://www.w3.org/2000/svg";
-    const defs = document.createElementNS(ns, "defs");
-    const clip = document.createElementNS(ns, "clipPath");
-    const clipId = `grok-clip-${Math.random().toString(36).slice(2, 8)}`;
-    clip.setAttribute("id", clipId);
-    const clipPath = document.createElementNS(ns, "path");
-    clip.appendChild(clipPath);
-    defs.appendChild(clip);
-    this.svg.appendChild(defs);
-
-    const group = document.createElementNS(ns, "g");
-    const body = document.createElementNS(ns, "path");
-    body.setAttribute("fill", "var(--fg, #000)");
-    const eyesG = document.createElementNS(ns, "g");
-    eyesG.setAttribute("clip-path", `url(#${clipId})`);
-    const eyeEls = [0, 1].map(() => {
-      const p = document.createElementNS(ns, "path");
-      p.setAttribute("fill", "var(--bg, #f3efe6)");
-      eyesG.appendChild(p);
-      return p;
-    });
-    const badge = document.createElementNS(ns, "circle");
-    badge.setAttribute("style", "display:none");
-    group.appendChild(body);
-    group.appendChild(eyesG);
-    group.appendChild(badge);
-
-    const fx = new FX.OverlayLayer();
-    const R = geo.Re;
-    fx.circlePath = FX.circlePathOf(R);
-    fx.pencilPath = FX.capsule(30, 88, R);
-    fx.bangPath = FX.taper(30, 17, 96, R);
-    fx.attach(this.svg, group);
-    const particles = FX.createParticles({
-      back: fx.back,
-      front: fx.front,
-      idPrefix: fx.uid,
-      getRadius: () => {
-        const sh = geo.shapes[this.shapeName] as ShapeGeo | undefined;
-        const k = K2(clamp(this.shapeSpring.x, 0, 1));
-        const to = sh?.beltRadius || FX.beltRadius((sh as ShapeGeo).path, R);
-        let je = k < 0.999 && this.prevBelt != null
-          ? this.prevBelt + (to - this.prevBelt) * k
-          : to;
-        if (this.state === "loading") je += (52 - je) * clamp(this.overlay.x, 0, 1);
-        return je;
-      },
-    });
-    body.setAttribute("d", (geo.shapes[this.shapeName] as ShapeGeo).path);
-    clipPath.setAttribute("d", (geo.shapes[this.shapeName] as ShapeGeo).path);
-    return { group, body, clipPath, eyeEls, badge, fx, particles, clipId };
-  }
-
-  private _morphEyes(index: number, stiffness = 7): void {
-    if (index === this.eyeTo && this.eyeMorph.t === 1) return;
-    const t = clamp(this.eyeMorph.x, 0, 1);
-    this.eyeFrom = this.eyeTo;
-    this._fromPolys = this._currentPolys(t);
-    this.eyeTo = index;
-    this.eyeMorph.x = 0;
-    this.eyeMorph.v = 0;
-    this.eyeMorph.t = 1;
-    this.eyeStiffness = stiffness;
-  }
-
-  private _currentPolys(t: number): [number[][], number[][]] {
-    const eyes = GROK_GEO.eyes;
-    const from = this._fromPolys || eyes[this.eyeFrom] as [number[][], number[][]];
-    const to = eyes[this.eyeTo] as [number[][], number[][]];
-    return [lerpPoly(from[0], to[0], t), lerpPoly(from[1], to[1], t)];
-  }
-
-  private _pn(turns = 1, dir = sign()): void {
-    if (this.reduceMotion || this.paused || this.spinTurn) return;
-    this.spinTurn = TR.makeSpinTurn(turns, dir);
-  }
-
-  private _hop(now: number): void {
-    if (this.hopAt < 0) this.hopAt = now;
-  }
-
-  private _cycleShapeTrick(): void {
-    if (this.reduceMotion || this.paused) return;
-    this.trickCycle = (this.trickCycle + 1) % 5;
-    this.wildWide = false;
-    if (this.trickCycle === 0) this._pn(1);
-    else if (this.trickCycle === 1) {
-      this.wildWide = true;
-      this._pn(2);
-    } else if (this.trickCycle === 2) this.trick = TR.startTrick("spinBounce", this.reduceMotion);
-    else if (this.trickCycle === 3) this.trick = TR.startTrick("spinDizzy", this.reduceMotion);
-    else {
-      this._pn(1);
-      this.particles.burst(16, 0.95, 0.3);
-    }
-  }
-
-  private _stepOverlay(now: number): void {
-    const want = FX.MAP[this.state] || null;
-    if (want !== this.ovTarget) {
-      this.ovTarget = want;
-      this.fx.overlayAt = now;
-      this.ovRest = false;
-      this.ovRestAt = 0;
-    }
-    let on = want != null;
-    if (want && FX.CYCLE.has(this.state)) {
-      if (!this.ovRest && now - this.fx.overlayAt > (FX.CYCLE_ON[this.state] || 2500)) {
-        this.ovRest = true;
-        this.ovRestAt = now;
-      } else if (this.ovRest && now - this.ovRestAt > FX.CYCLE_OFF) {
-        this.ovRest = false;
-        this.fx.overlayAt = now;
-      }
-      on = !this.ovRest;
-    }
-    this.overlay.t = on ? 1 : 0;
-    if (on !== this.ovOn) {
-      if (!this.reduceMotion) {
-        if (on) this.ovTurnDir = sign();
-        this.ovTurnAcc += Math.PI * this.ovTurnDir;
-        this.overlayTurn.t = this.ovTurnAcc;
-      }
-      this.ovOn = on;
-    }
-    if (want && want !== this.ovKind) {
-      if (this.ovKind && this.overlay.x > 0.02) {
-        this.ovPrev = this.ovKind;
-        this.overlayMix.x = 0;
-        this.overlayMix.v = 0;
-        this.overlayMix.t = 1;
-      } else {
-        this.ovPrev = null;
-        this.overlayMix.x = 1;
-        this.overlayMix.v = 0;
-        this.overlayMix.t = 1;
-      }
-      this.ovKind = want;
-      this.fx.overlayAt = now;
-      if (want !== "pencil") this.fx.resetInk();
-    }
-    if (!want && this.overlay.x < 0.004) {
-      this.ovKind = null;
-      this.ovPrev = null;
-    }
-    if (this.overlayMix.x > 0.996) this.ovPrev = null;
-  }
-
-  private _updatePointer(now: number): void {
-    const src = this.gazeTarget || (this.followPointer ? this.pointerRaw : null);
-    if (src && this.svg.getBoundingClientRect) {
-      if (now - this.rectAt > 200) {
-        this.rectCache = this.svg.getBoundingClientRect();
-        this.rectAt = now;
-      }
-      const rect = this.rectCache;
-      if (rect && rect.width > 0) {
-        const mapped = this.gazeTarget ? src : mapPointer(rect, src);
-        this.pointer.tx = clamp((mapped.x - (rect.left + rect.width / 2)) / rect.width, -0.6, 0.6) * 22;
-        this.pointer.ty = clamp((mapped.y - (rect.top + rect.height / 2)) / rect.height, -0.6, 0.6) * 14;
-      }
-    } else {
-      this.pointer.tx = 0;
-      this.pointer.ty = 0;
-    }
-    const z = Rn(0.16);
-    this.pointer.x += (this.pointer.tx - this.pointer.x) * z;
-    this.pointer.y += (this.pointer.ty - this.pointer.y) * z;
-  }
-
-  private _tick = (now: number): void => {
-    const dt = Math.min((now - this.last) / 1000, 0.1);
-    this.last = now;
-
-    if (this.paused) {
-      this._raf = requestAnimationFrame(this._tick);
+    if (this.options.paused) {
+      this.clearAmbient();
+      sleepBot(this);
       return;
     }
+    if (this.reduced) {
+      this.cue = null;
+      this.candidate = null;
+      this.displayed = this.base;
+      this.paintStatic();
+      this.clearAmbient();
+      sleepBot(this);
+      return;
+    }
+    // 颜色通过 CSS 变量即时更新；尺寸、强度与偏好改变只重绘，不重建 SVG。
+    this.settleUntil = Math.max(this.settleUntil, now + 700 / PLAYBACK_RATE);
+    this.last = 0;
+    if (this.active) wakeBot(this);
+    this.scheduleAmbient();
+  }
 
-    if (this.mode === "onboarding" && now - this.stateAt >= ONBOARDING_MS) {
-      this.moodN += 1;
-      this.setState(onboardMood(this.moodN));
+  setState(state: BotState): void {
+    if (this.destroyed || state === this.base) return;
+    const wasWorking = isWorkingState(this.base);
+    this.base = state;
+    this.options.state = state;
+    this.cue = null;
+    this.clearAmbient();
+    if (!this.active) {
+      this.displayed = state;
+      this.candidate = null;
+      this.stateAt = this.now();
+      this.paintStatic();
+      return;
     }
-
-    const mt = (now - this.t0) / 1000;
-    const dtState = (now - this.stateAt) / 1000;
-    const pose = applyPose(this.state, mt, dtState, now, this.ctx, {
-      eyeTo: this.eyeTo,
-      eyeMorphX: this.eyeMorph.x,
-      blinkX: this.blink.x,
-    });
-    this.spin.t = pose.spin;
-    this.tx.t = pose.tx;
-    this.ty.t = pose.ty;
-    this.squash.t = pose.squash;
-    this.eyeScale.t = pose.eyeBoost;
-    if (this.ctx.tyKick) {
-      this.ty.v += this.ctx.tyKick;
-      this.ctx.tyKick = 0;
-    }
-    if (this.ctx.spinKick) {
-      this.spin.v += this.ctx.spinKick;
-      this.ctx.spinKick = 0;
-    }
-    if (this.ctx.forceSleepEye) {
-      this.ctx.forceSleepEye = false;
-      this._morphEyes(13, 11);
-    }
-    if (this.ctx.wakeEye) {
-      this._morphEyes(this.ctx.wakeEye[0] as number, this.ctx.wakeEye[1] as number);
-      this.ctx.wakeEye = null;
-    }
-    if (this.ctx.wakeBlink && !this.ctx.wakingBlinked && this.blinkQueue.length === 0) {
-      EY.queueBlink(this.blinkQueue, now);
-      this.ctx.wakingBlinked = true;
-    }
-    this.ctx.wakeBlink = false;
-    if (this.ctx.wantBlink) {
-      EY.queueBlink(this.blinkQueue, now);
-      this.ctx.wantBlink = false;
-    }
-    if (this.ctx.wantPn) {
-      this._pn(...this.ctx.wantPn);
-      this.ctx.wantPn = null;
-    }
-    if (this.ctx.wantBurst) {
-      this.particles.burst((this.ctx.wantBurst as [number, number])[0], (this.ctx.wantBurst as [number, number])[1]);
-      this.ctx.wakingBurst = true;
-      this.ctx.wantBurst = null;
-    }
-
-    this._stepOverlay(now);
-
-    if (this.celebrateAt > 0 && now >= this.celebrateAt && !this.trick && !this.spinTurn) {
-      this.trick = TR.startTrick("spinWild", this.reduceMotion);
-      this.celebrateAt = now + 6200;
-    }
-
-    if (now >= this.trickAt) {
-      if ((V_T.has(this.state) || B_T.has(this.state)) && !this.spinTurn && this.hopAt < 0 && !this.trick) {
-        const z = Math.random();
-        if (V_T.has(this.state)) {
-          if (z < 0.55) this._pn(1);
-          else this.trick = TR.startTrick("spinBounce", this.reduceMotion);
-        } else if (z < 0.34) this.trick = TR.startTrick("spinBounce", this.reduceMotion);
-        else if (z < 0.62) this._hop(now);
-        else if (z < 0.86) this.trick = TR.startTrick("spinDizzy", this.reduceMotion);
-        else this._pn(1);
+    const now = this.now();
+    if (URGENT_STATES.has(state)) {
+      this.applyState(state, now);
+      const key = this.options.completionKey;
+      if (
+        state === "completed" &&
+        wasWorking &&
+        key &&
+        this.seenWorkKey === key &&
+        this.completedKey !== key &&
+        this.options.celebrateOnComplete
+      ) {
+        this.completedKey = key;
+        this.playOnce("celebrate");
       }
-      this.trickAt = now + rand(9000, 18000);
-    }
-
-    const tf = TR.evalTrick(this.trick, now);
-    if (tf.wantHop) this._hop(now);
-    if (tf.done) this.trick = null;
-    let hop = TR.hopY(this.hopAt, now);
-    if (hop == null) {
-      this.hopAt = -1;
-      hop = 0;
-    }
-    let turn = tf.turn;
-    if (this.spinTurn) {
-      turn = (turn ?? 0) + this.spinTurn.x;
-      if (TR.spinTurnSettled(this.spinTurn)) this.spinTurn = null;
-    }
-    this.extras = { ...tf, turn, hop };
-
-    if (this.extras.eyeBoost != null) this.eyeScale.t = this.extras.eyeBoost;
-
-    if (this.state !== "waking" && this.state !== "sleeping" && now >= this.eyeUntil) {
-      const list = EYE_PLAYLIST[this.state] as readonly number[];
-      this.eyeIdx = (this.eyeIdx + 1 + Math.floor(rand(0, list.length - 1))) % list.length;
-      const stiff = this.state === "searching" || this.state === "excited" ? 10 : 6;
-      this._morphEyes(list[this.eyeIdx] as number, stiff);
-      this.eyeUntil = now + rand(...(EYE_HOLD_MS[this.state] as readonly [number, number]));
-    }
-
-    const blinkCadence = BLINK_MS[this.state];
-    if (blinkCadence && now >= this.blinkUntil) {
-      EY.queueBlink(this.blinkQueue, now);
-      this.blinkUntil = now + rand(blinkCadence[0], blinkCadence[1]);
-    }
-    const blinkKey = EY.consumeBlink(this.blinkQueue, now);
-    this.blink.t = blinkKey ?? (this.blinkQueue.length ? this.blink.t : (this.extras.lidMul ?? pose.lid));
-
-    if (now >= this.gazeUntil) {
-      const gz = nextGaze(this.state);
-      this.gazeX.t = gz.x;
-      this.gazeY.t = gz.y;
-      this.gazeUntil = now + rand(...gz.hold);
-    }
-
-    if (WINK_STATES.has(this.state) && now >= this.winkUntil) {
-      this.winkAt = now;
-      this.winkEye = Math.random() < 0.5 ? 0 : 1;
-      this.winkUntil = now + rand(4500, 10000);
-    }
-
-    this.emphasisBlend += ((this.emphasis ? 1 : 0) - this.emphasisBlend) * Rn(0.12);
-
-    if (this.emphasis) {
-      this.eyeScale.t = Math.max(this.eyeScale.t, 1.32);
-      this.blink.t = Math.max(this.blink.t, 1.18);
-    }
-
-    const humming = this.state === "humming";
-    const loading = this.state === "loading";
-    if ((humming || loading) && !this.reduceMotion) {
-      const Zt = dtState;
-      const dn = loading ? 3 : 1.6;
-      const on = Zt < 0.5 ? 7 * K2(Zt / 0.5) : Zt < 1.3 ? 7 + (dn - 7) * K2((Zt - 0.5) / 0.8) : dn + 0.3 * Math.sin(Zt * 0.5);
-      this.ovSpin += on * dt;
-    }
-
-    if (this.reduceMotion) {
-      this._morphEyes((EYE_PLAYLIST[this.state] as readonly number[])[0] as number);
-      this.spin.t = 0;
-      this.tx.t = 0;
-      this.ty.t = 0;
-      this.squash.t = 1;
-      this.blink.t = 1;
-      this.eyeScale.t = 1;
-    }
-
-    const nSteps = springSteps(dt);
-    const step = dt / nSteps;
-    for (let i = 0; i < nSteps; i++) {
-      stepSpring(this.eyeMorph, this.eyeStiffness, 1, step);
-      if (this.spinTurn) stepSpring(this.spinTurn, ...SPRINGS.spinTurn, step);
-      stepSpring(this.spin, ...SPRINGS.spin, step);
-      stepSpring(this.tx, ...SPRINGS.x, step);
-      stepSpring(this.ty, ...SPRINGS.y, step);
-      stepSpring(this.squash, ...SPRINGS.squash, step);
-      stepSpring(this.blink, ...SPRINGS.blink, step);
-      stepSpring(this.eyeScale, ...SPRINGS.eyeScale, step);
-      stepSpring(this.notify, ...SPRINGS.notify, step);
-      stepSpring(this.humDots, ...SPRINGS.humDots, step);
-      stepSpring(this.gazeX, ...SPRINGS.gazeX, step);
-      stepSpring(this.gazeY, ...SPRINGS.gazeY, step);
-      stepSpring(this.overlay, ...SPRINGS.overlay, step);
-      stepSpring(this.overlayMix, ...SPRINGS.overlayMix, step);
-      stepSpring(this.shapeSpring, ...SPRINGS.shape, step);
-      stepSpring(this.overlayTurn, ...SPRINGS.overlayTurn, step);
-    }
-    if (this.reduceMotion) {
-      this.overlayMix.x = 1;
-      this.overlayTurn.x = this.overlayTurn.t;
-      this.overlay.x = this.overlay.t;
-    }
-    this.notify.t = this.state === "notifying" ? 1 : 0;
-    this.humDots.t = this.state === "humming" ? 1 : 0;
-
-    let spinAngle = 0;
-    if (this.spinTurn) spinAngle = this.spinTurn.x;
-    else if (this.extras.turn != null) spinAngle = this.extras.turn;
-    else if (humming || loading) spinAngle = this.ovSpin;
-    if (now - this.pxAt > 500 && this.svg.getBoundingClientRect) {
-      const w = this.svg.getBoundingClientRect().width;
-      if (w > 0) {
-        this.pxW = w;
-        this.partScale = clamp(Math.pow(340 / w, 0.7), 1, 2.6);
-      }
-      this.pxAt = now;
-    }
-    this.particles.update(now, dt, {
-      spinAngle,
-      sizeScale: this.partScale,
-      wideStyle: this.trick?.kind === "spinWild" || this.wildWide || humming,
-      sustainBelts: humming || loading,
-    });
-
-    this._updatePointer(now);
-    this._paint(now);
-    this._raf = requestAnimationFrame(this._tick);
-  };
-
-  private _paint(now: number): void {
-    const geo = GROK_GEO;
-    const R = geo.Re;
-    const shape = geo.shapes[this.shapeName] as ShapeGeo;
-    const morphK = K2(clamp(this.shapeSpring.x, 0, 1));
-    const morphing = morphK < 0.999 && !!this.prevFace;
-    const face = morphing ? lerpFace(this.prevFace as FaceVal, shape.face, morphK) : shape.face;
-    const fromTilt = this.prevTilt ?? (geo.shapes[this.prevShape]?.tiltScale || 1);
-    const tilt = morphing
-      ? fromTilt + ((shape.tiltScale || 1) - fromTilt) * morphK
-      : (shape.tiltScale || 1);
-    const yl = clamp(this.overlay.x, 0, 1);
-    const mix = clamp(this.overlayMix.x, 0, 1);
-    this.fx._reduce = this.reduceMotion;
-    const ov = this.fx.extras(now, this.stateAt, this.ovKind, this.ovPrev, yl, mix);
-    const bodyW = 1 - yl;
-    const ex = this.extras;
-    const tx = this.tx.x * bodyW + ex.yi * bodyW + ov.yre * yl;
-    const ty = (this.ty.x + ex.hop) * bodyW + ex.ki * bodyW - ov.rX.lift * ov.Lee + ov.aX * yl;
-    const rot = (this.spin.x * bodyW + ex.Kr * bodyW) * tilt + (ex.Yr || 0) * bodyW + ov.wl * yl;
-    const sx = bodyW + ov.wre * yl;
-    const sy = this.squash.x * bodyW + ov.wre * yl;
-    this.group.setAttribute(
-      "transform",
-      `translate(${(R + tx).toFixed(2)} ${(R + ty).toFixed(2)}) rotate(${rot.toFixed(2)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(${-R} ${-R})`,
-    );
-    this.group.style.opacity = ((1 - (1 - ov.rX.tone) * ov.Lee) * (1 - ov.fade)).toFixed(3);
-
-    const Jc = clamp(yl / FX.P_BLEND, 0, 1);
-    const pencil = this.ovKind === "pencil" || this.ovPrev === "pencil";
-    const tear = (geo.shapes.teardrop as ShapeGeo | undefined)?.path;
-    const spinAmt = ex.turn;
-    const spinning = spinAmt != null;
-    const restRing = morphing
-      ? FX.lerpRing(this.prevRing as [number, number][], FX.shapeRing(shape.path, R), morphK)
-      : FX.shapeRing(shape.path, R);
-    let liveRing = restRing;
-    let turned = false;
-    const turnAt = !morphing && spinning ? FX.turnAtOf(this.shapeName, shape.path, R) : null;
-    if (turnAt) {
-      liveRing = turnAt(spinAmt as number);
-      turned = true;
-    }
-    let faceTop = shape.top;
-    let faceBottom = shape.bottom;
-    if (morphing || turned) {
-      faceTop = Infinity;
-      faceBottom = -Infinity;
-      for (const p of liveRing) {
-        if (p[1] < faceTop) faceTop = p[1];
-        if (p[1] > faceBottom) faceBottom = p[1];
-      }
-    }
-    let bodyD: string;
-    if (Jc >= 1) {
-      bodyD = pencil ? FX.closedSpline(FX.overlayRing(this.ovKind, R, tear)) : this.fx.circlePath;
-    } else if (Jc <= 0 && !morphing && !turned) {
-      bodyD = shape.path;
+      if (state !== "completed") this.seenWorkKey = "";
+    } else if (state === this.displayed) {
+      this.candidate = null;
     } else {
-      const to = FX.overlayRing(this.ovKind || this.ovPrev, R, tear);
-      bodyD = FX.closedSpline(Jc <= 0 ? liveRing : FX.lerpRing(liveRing, to, K2(Jc)));
+      this.candidate = { state, at: Math.max(now + 180, this.stateAt + 600) };
     }
-    this.body.setAttribute("d", bodyD);
-    this.clipPath.setAttribute("d", bodyD);
+    this.settleUntil = now + 800 / PLAYBACK_RATE;
+    wakeBot(this);
+  }
+  private applyState(state: BotState, now: number): void {
+    this.displayed = state;
+    this.stateAt = now;
+    this.candidate = null;
+    this.settleUntil = now + 800 / PLAYBACK_RATE;
+    this.nextMood = now + 25000 + (this.options.seed % 20) * 1000;
+  }
 
-    this.fx.paint(now, this.stateAt, this.ovKind, this.ovPrev, yl, mix, R, this.reduceMotion);
+  playOnce(state: BotCue, key?: string | number): void {
+    if (this.destroyed || !this.active) return;
+    if (key !== undefined && key === this.eventKey) return;
+    if (key !== undefined) this.eventKey = key;
+    // 提醒、微表情不能掩盖待回应、失败、停止等关键姿态。
+    if (
+      URGENT_STATES.has(this.base) &&
+      !(state === "celebrate" && this.base === "completed")
+    )
+      return;
+    this.cue = { state, at: this.now() };
+    this.settleUntil =
+      this.now() + (BOT_DEFINITIONS[state].duration * 1000 + 800) / PLAYBACK_RATE;
+    this.clearAmbient();
+    wakeBot(this);
+  }
+  blinkOnce(): void {
+    const now = this.now();
+    if (now - this.lastBlink < 2000 || this.cue) return;
+    this.lastBlink = now;
+    this.playOnce("blink");
+  }
+  setPointer(x: number, y: number): void {
+    if (this.base !== "idle" || !this.active) return;
+    this.pointer = { x: clamp(x, -3, 3), y: clamp(y, -2, 2) };
+    this.settleUntil = this.now() + 700 / PLAYBACK_RATE;
+    wakeBot(this);
+  }
+  reducedMotion(reduced: boolean): void {
+    this.systemReduced = reduced;
+    if (this.destroyed || !this.painter) return;
+    this.cue = null;
+    this.candidate = null;
+    this.displayed = this.base;
+    this.paintStatic();
+    this.resumeOrSleep();
+  }
+  pageVisibility(): void {
+    this.resumeOrSleep();
+  }
+  private resumeOrSleep(): void {
+    this.clearAmbient();
+    sleepBot(this);
+    this.last = 0;
+    this.cue = null;
+    this.candidate = null;
+    this.displayed = this.base;
+    this.seenWorkKey = "";
+    this.stateAt = this.now();
+    this.settleUntil = this.stateAt + 800 / PLAYBACK_RATE;
+    this.paintStatic();
+    if (this.active) {
+      if (!this.appeared) {
+        this.appeared = true;
+        if (this.options.entrance && isWorkingState(this.base))
+          this.playOnce("appear");
+      }
+      wakeBot(this);
+      this.scheduleAmbient();
+    }
+  }
+  private clearAmbient(): void {
+    if (this.ambient !== null) {
+      clearTimeout(this.ambient);
+      this.ambient = null;
+    }
+  }
+  private scheduleAmbient(): void {
+    this.clearAmbient();
+    if (
+      !this.active ||
+      this.base !== "idle" ||
+      this.cue ||
+      this.options.intensity === "quiet"
+    )
+      return;
+    if (!Number.isFinite(this.nextMood))
+      this.nextMood = this.now() + 25000 + (this.options.seed % 20) * 1000;
+    this.ambient = setTimeout(
+      () => {
+        this.ambient = null;
+        if (!this.active || this.base !== "idle") return;
+        if (this.options.idleMoods && this.now() >= this.nextMood) {
+          this.nextMood = this.now() + 30000 + (this.options.seed % 15) * 1000;
+          this.playOnce(this.options.seed % 2 ? "curious" : "content");
+        } else this.blinkOnce();
+        this.scheduleAmbient();
+      },
+      7000 + (this.options.seed % 5) * 1000,
+    );
+  }
 
-    const shrink = 1 - Dke(clamp((this.pxW - 44) / 90, 0, 1));
-    const pScale = this.pose.scale || 1;
-    const zCur = overlayViewZoom(this.ovKind, pScale);
-    const zPrev = overlayViewZoom(this.ovPrev, pScale);
-    const zoom = 1 + (zCur * mix + zPrev * (1 - mix) - 1) * yl * shrink;
-    const half = VIEW_HALF / zoom;
-    this.svg.setAttribute("viewBox", `${(VIEW_MID - half).toFixed(2)} ${(VIEW_MID - half).toFixed(2)} ${(half * 2).toFixed(2)} ${(half * 2).toFixed(2)}`);
-
-    const morphT = clamp(this.eyeMorph.x, 0, 1);
-    const polys = this._currentPolys(morphT);
-    const cr = this.eyeTopology ? relRot(this.pose, this.poseHome) : null;
-    const overlayLive = yl > 0.001 || Math.abs(this.overlayTurn.t - this.overlayTurn.x) > 0.01;
-    let cyl = overlayLive ? this.overlayTurn.x : null;
-    if (ex.turn != null) cyl = (cyl ?? 0) + ex.turn;
-    const ringHint = morphing || turned ? liveRing : null;
-    const hasPtr = !!(this.gazeTarget || (this.followPointer && this.pointerRaw));
-    EY.paintEyes({
-      now,
-      polys,
-      morphT,
-      shape,
-      face,
-      faceTune: this.faceTune,
-      uniformEyes: this.uniformEyes,
-      eyeScaleProp: this.eyeScaleProp,
-      blinkX: this.blink.x,
-      eyeBoostX: this.eyeScale.x,
-      gazeX: this.gazeX.x,
-      gazeY: this.gazeY.x,
-      winkAt: this.winkAt,
-      winkEye: this.winkEye,
-      turn: cyl,
-      cr,
-      pointer: hasPtr ? this.pointer : null,
-      notifyX: this.notify.x,
-      overlayX: this.overlay.x,
-      eyeEls: this.eyeEls,
-      badgeEl: this.badge,
-      badgeColor: this.badgeColor,
-      Re: R,
-      G9e: geo.G9e,
-      VJt: geo.VJt,
-      extras: ex,
-      ringHint,
-      badgeRing: restRing,
-      top: faceTop,
-      bottom: faceBottom,
-      emphasisBlend: this.emphasisBlend,
-    });
-
-    const hum = clamp(this.humDots.x, 0, 1);
-    if (hum > 0.01) {
-      for (let i = 0; i < 2; i++) {
-        const el = this.fx.parts[3 + i];
-        if (!el) continue;
-        const Gn = this.ovSpin * 0.85 + i * Math.PI;
-        const Ti = shape.radius * 1.3;
-        const Ui = Math.cos(Gn);
-        const Si = 0.55 + 0.45 * clamp((Ui + 1) / 2, 0, 1);
-        el.style.display = "";
-        el.setAttribute("cx", (R + Ti * Math.sin(Gn)).toFixed(1));
-        el.setAttribute("cy", (R - Ti * 0.38 * Math.cos(Gn) - 8).toFixed(1));
-        el.setAttribute("r", (7.5 * Si * hum).toFixed(2));
-        el.setAttribute("opacity", ((0.3 + 0.7 * Si) * hum).toFixed(3));
+  frame(now: number): boolean {
+    if (!this.active) return false;
+    if (this.options.intensity === "quiet" && now - this.paintAt < 32)
+      return true;
+    const dt = this.last ? Math.min((now - this.last) / 1000, 0.1) * PLAYBACK_RATE : 0;
+    this.last = now;
+    this.paintAt = now;
+    if (this.candidate && now >= this.candidate.at)
+      this.applyState(this.candidate.state, now);
+    if (
+      this.cue &&
+      (now - this.cue.at) * PLAYBACK_RATE >= BOT_DEFINITIONS[this.cue.state].duration * 1000
+    )
+      this.cue = null;
+    if (isWorkingState(this.displayed) && this.displayed === this.base)
+      this.seenWorkKey = this.options.completionKey;
+    const expression = this.cue?.state ?? this.displayed;
+    const time = ((now - (this.cue?.at ?? this.stateAt)) / 1000) * PLAYBACK_RATE;
+    const t = poseFor(expression, time, expression === "idle");
+    if (expression === "blink") {
+      const lid = t.lh / 18;
+      Object.assign(
+        t,
+        poseFor(
+          this.displayed,
+          ((now - this.stateAt) / 1000) * PLAYBACK_RATE,
+          this.displayed === "idle",
+        ),
+      );
+      t.lh = Math.max(2.2, t.lh * lid);
+      t.rh = Math.max(2.2, t.rh * lid);
+    }
+    if (expression === "idle") {
+      Object.assign(t, REST_POSE);
+      t.gx = this.pointer.x;
+      t.gy = this.pointer.y;
+    }
+    const intensity =
+      this.options.intensity === "quiet"
+        ? 0.55
+        : this.options.size < 32
+          ? 0.4
+          : 1;
+    for (const k of ["x", "y", "r", "lean", "shoulder"] as const)
+      t[k] *= intensity;
+    t.sx = 1 + (t.sx - 1) * Math.max(0.6, intensity);
+    t.sy = 1 + (t.sy - 1) * Math.max(0.6, intensity);
+    if (this.options.size < 32) {
+      t.lw = Math.max(t.lw, 160 / this.options.size);
+      t.rw = Math.max(t.rw, 160 / this.options.size);
+    }
+    for (const k of POSE_KEYS) {
+      let target = t[k];
+      if (k === "yaw")
+        target =
+          this.pose[k] + ((((target - this.pose[k]) % 360) + 540) % 360) - 180;
+      const freq =
+        (k === "lh" || k === "rh") && expression === "blink"
+          ? 65
+          : [
+                "gx",
+                "gy",
+                "lh",
+                "rh",
+                "lw",
+                "rw",
+                "la",
+                "ra",
+                "ls",
+                "rs",
+              ].includes(k)
+            ? 30
+            : 20;
+      const damping = ["sx", "sy", "y"].includes(k) ? 0.83 : 0.96;
+      for (let left = dt; left > 0;) {
+        const h = Math.min(left, 1 / 120);
+        this.velocity[k] +=
+          (freq * freq * (target - this.pose[k]) -
+            2 * damping * freq * this.velocity[k]) *
+          h;
+        this.pose[k] += this.velocity[k] * h;
+        left -= h;
       }
     }
+    const visualState = expression === "blink" ? this.displayed : expression;
+    const definition = BOT_DEFINITIONS[visualState];
+    const targetRibbon = { ...RIBBON_STYLES[definition.ribbon] };
+    if (definition.duration)
+      targetRibbon.strength *= Math.sin(
+        Math.PI * clamp(time / definition.duration),
+      );
+    if (expression === "settling") {
+      const fade = 1 - smooth(time / 3.4);
+      targetRibbon.strength *= fade;
+      targetRibbon.speed *= fade;
+    }
+    if (!this.options.ribbons || this.options.size < 48)
+      targetRibbon.strength = 0;
+    for (const k of RIBBON_KEYS)
+      this.ribbon[k] +=
+        (targetRibbon[k] - this.ribbon[k]) * (1 - Math.exp(-dt * 12));
+    this.phase += dt * this.ribbon.speed;
+    this.painter.paint(
+      this.pose,
+      visualState,
+      this.ribbon,
+      this.phase,
+      time,
+      this.options.size,
+    );
+    this.svg.dataset.botState = this.base;
+    const looping = definition.period > 0 && expression !== "idle";
+    const continuing =
+      looping ||
+      Boolean(this.cue || this.candidate) ||
+      now < this.settleUntil ||
+      (expression === "settling" && time < 4.2) ||
+      (definition.duration > 0 && time < definition.duration + 0.8);
+    if (!continuing) this.scheduleAmbient();
+    return continuing;
+  }
+  private paintStatic(): void {
+    const expression = this.base;
+    this.pose =
+      expression === "idle" ? { ...REST_POSE } : poseFor(expression, 0, true);
+    this.velocity = Object.fromEntries(POSE_KEYS.map((k) => [k, 0])) as BotPose;
+    this.ribbon = { ...RIBBON_STYLES.none };
+    this.painter.paint(
+      this.pose,
+      expression,
+      this.ribbon,
+      this.phase,
+      0,
+      this.options.size,
+    );
+    this.svg.dataset.botState = this.base;
+  }
+  snapshot(): BotSnapshot {
+    return {
+      state: this.base,
+      displayed: this.displayed,
+      expression: this.cue?.state ?? this.displayed,
+      reduced: this.reduced,
+      visible: this.visible,
+      timerPending: this.ambient !== null,
+      pose: { ...this.pose },
+    };
+  }
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.clearAmbient();
+    this.observer?.disconnect();
+    this.unregister();
+    this.painter.destroy();
   }
 }

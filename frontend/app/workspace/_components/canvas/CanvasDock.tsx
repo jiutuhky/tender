@@ -16,19 +16,19 @@ import { Composer } from "../Composer";
 
 const CHIPS: Array<{ label: string; icon: React.ReactNode; prompt: string }> = [
   {
-    label: "合成应答矩阵",
+    label: "核查实质性条款",
     icon: <TableIcon width={14} height={14} />,
-    prompt: "请基于已解析的招标文件，合成一张完整的应答矩阵。",
+    prompt: "请核查已解析的实质性条款，列出还需要人工确认的问题，并附上原文依据。",
   },
   {
-    label: "生成大纲",
+    label: "整理证明材料",
     icon: <TreeStructureIcon width={14} height={14} />,
-    prompt: "请根据应答矩阵生成投标文件大纲，标注每章对应的实质性条款。",
+    prompt: "请根据当前应答矩阵，整理需要准备的证明材料清单，注明对应条目。",
   },
   {
-    label: "起草章节",
+    label: "检查负偏离",
     icon: <PenIcon width={14} height={14} />,
-    prompt: "请起草技术方案章节，覆盖技术应答矩阵中的高风险条目。",
+    prompt: "请检查当前应答中的负偏离，说明影响及需要核实的事项。",
   },
 ];
 

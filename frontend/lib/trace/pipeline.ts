@@ -63,7 +63,7 @@ function wrapTables() {
       const wrapper: Element = {
         type: "element",
         tagName: "div",
-        properties: { className: ["cv-trace-html"] },
+        properties: { className: ["cv-trace-html"], tabIndex: 0, role: "region", ariaLabel: "原文表格，可横向滚动" },
         children: [node],
       };
       if (node.position) wrapper.position = node.position;

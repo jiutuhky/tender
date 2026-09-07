@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>hagent bot · 角色与动效系统</title>
+  <link rel="stylesheet" href="design.css?v=2">
+  <script src="motion.js?v=2" defer></script>
+  <script src="design.js?v=2" defer></script>
+</head>
+<body>
+<main>
+  <header class="masthead"><a href="#" class="wordmark">hagent<span> / 角色动效系统</span></a><span>设计提案 02 · 2026.09</span><button id="theme" type="button">切换深色</button></header>
+  <section class="intro">
+    <div><p class="eyebrow">方块本体 · 彩色轨迹 · 通用语义</p><h1>让方块本身，<br>说出它的状态。</h1></div>
+    <div class="intro-note"><p>扭转、承接、推进、舒展、落定。<br>彩带沿着身体运动绕行，让节奏变得可见。</p><p class="muted">24 个持续状态 · 8 个事件动作 · 4 个微表情<br>通用 Agent 设计样片 · 尚未接入产品。</p><a href="README.md">阅读完整设计规范 ↗</a></div>
+  </section>
+
+  <section class="playground" aria-label="动作预览">
+    <div class="stage" id="stage">
+      <div class="stage-top"><span id="family-label">持续状态</span><span id="motion-indicator">标准动效</span></div>
+      <div class="hero-space"><div id="hero" class="hero-bot"></div></div>
+      <div class="stage-foot"><span id="hero-state">思考</span><span id="state-code">thinking</span></div>
+    </div>
+    <div class="inspector">
+      <div class="section-line"><span id="state-index">06 / 24</span><span class="muted">动作设计</span></div>
+      <h2 id="detail-name">思考</h2><p id="detail-desc"></p>
+      <dl class="facts"><div><dt>本体</dt><dd id="detail-body"></dd></div><div><dt>眼神</dt><dd id="detail-eyes"></dd></div><div><dt>节奏</dt><dd id="detail-rhythm"></dd></div><div><dt>触发</dt><dd id="detail-trigger"></dd></div></dl>
+      <div class="play-controls"><button type="button" id="replay">重播动作</button><button type="button" id="pause" aria-pressed="false">暂停预览</button></div>
+      <div class="motion-options"><label class="check"><input type="checkbox" id="trails" checked>彩色拖尾</label><label class="check"><input type="checkbox" id="reduce">减少动效</label><label class="speed-label">播放速度 <select id="speed"><option value="0.5">0.5 倍</option><option value="1" selected>1 倍</option><option value="1.5">1.5 倍</option></select></label></div>
+      <div class="actual"><span class="muted">实际尺寸</span><div id="sizes"></div></div>
+    </div>
+  </section>
+  <p class="status-line" id="announcement" role="status" aria-live="polite">正在预览：思考</p>
+
+  <section class="sequences" aria-label="任务情境演示">
+    <div class="section-heading"><h2>放进一段真实的工作节奏。</h2><span class="muted">通用情境 · 演示数据</span></div>
+    <div class="sequence-controls"><button type="button" data-scenario="normal">完整任务</button><button type="button" data-scenario="approval">等待回应</button><button type="button" data-scenario="recovery">中断与恢复</button><button type="button" data-scenario="partial">部分完成</button><button type="button" id="rapid">快速切换</button><button type="button" id="urgent">立即打断</button></div>
+    <ol id="sequence-track" class="sequence-track" aria-label="演示步骤"></ol>
+    <div class="sequence-bottom"><span id="sequence-label">选择情境，查看状态之间如何衔接。</span><button type="button" id="continue" hidden>模拟已回应并继续</button><button type="button" id="stop" hidden>结束演示</button></div>
+  </section>
+
+  <section class="comparison-section" aria-labelledby="comparison-title">
+    <div class="section-heading"><div><p class="eyebrow">运动逻辑对照</p><h2 id="comparison-title">六种节奏，同一枚方块。</h2></div><div class="compare-actions"><span class="muted">可见时循环展示</span><button id="compare-trails" type="button">仅看本体</button></div></div>
+    <div id="comparisons" class="comparisons"></div>
+  </section>
+
+  <section class="catalog" aria-labelledby="catalog-title">
+    <div class="section-heading"><div><p class="eyebrow">完整动作目录</p><h2 id="catalog-title">每个状态，都有自己的读法。</h2></div><span class="muted">缩略图为关键姿态 · 选择后播放</span></div>
+    <div class="filters" role="group" aria-label="动作分类"><button type="button" data-filter="state" aria-pressed="true">持续状态 <span>24</span></button><button type="button" data-filter="cue" aria-pressed="false">事件动作 <span>08</span></button><button type="button" data-filter="micro" aria-pressed="false">微表情 <span>04</span></button></div>
+    <div id="catalog-grid" class="catalog-grid"></div>
+  </section>
+
+  <section class="anatomy" aria-labelledby="anatomy-title">
+    <div><p class="eyebrow">造型语法</p><h2 id="anatomy-title">简单的轮廓，<br>细腻的注意力。</h2><p>圆角方块是稳定的身份。<br>轮廓、重心、视线共同组成动作。</p><p class="muted">彩带有前后关系，也有出现和消退。<br>关闭彩带，仍然能看见每个动作的个性。</p></div>
+    <figure class="blueprint"><svg viewBox="0 0 330 250" role="img" aria-label="造型母版：100单位布局框，72单位方块，22.4%圆角，双眼位于视觉中心偏上。"><defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="currentColor" stroke-opacity=".1" stroke-width=".7"/></pattern></defs><rect width="330" height="250" fill="url(#grid)"/><path d="M55 42H255M55 35V49M255 35V49M277 55V199M270 55H284M270 199H284" fill="none" stroke="currentColor" opacity=".4"/><text x="155" y="30" text-anchor="middle">100 · 固定布局框</text><g transform="translate(55 27) scale(2)"><rect x="14" y="14" width="72" height="72" rx="16.13" fill="var(--ink)"/><rect x="36.2" y="37" width="7.6" height="18" rx="3.8" fill="var(--eye)"/><rect x="56.2" y="37" width="7.6" height="18" rx="3.8" fill="var(--eye)"/></g><path d="M65 119H250M155 45V210" stroke="var(--blue)" stroke-dasharray="3 5" opacity=".5"/><text x="288" y="130">72</text><text x="155" y="232" text-anchor="middle">双眼独立运动 · 一致路径拓扑</text></svg></figure>
+  </section>
+
+  <section class="family-section"><div class="section-heading"><div><p class="eyebrow">身份与状态分离</p><h2>换一种颜色，仍是同一个角色。</h2></div><span class="muted">身份色固定 · 动作与行业无关</span></div><div id="identities" class="identities"></div></section>
+
+  <section class="principles"><article><span>01 / 连续</span><h3>从当前姿态继续</h3><p>打断、反向、收到新任务，眼神与身体都从正在显示的位置转向。</p></article><article><span>02 / 可信</span><h3>身体承担表达</h3><p>受阻的侧向压缩、完成的舒展、失败的卸力，直接发生在方块身上。</p></article><article><span>03 / 克制</span><h3>适用于不同 Agent</h3><p>产品提供通用工作状态，角色负责表达。小尺寸收敛振幅，减少动效时保留关键姿态。</p></article></section>
+  <footer><span>hagent bot · 设计评审稿</span><a href="README.md">完整规范与接入边界 ↗</a><a href="VALIDATION.md">样片验证记录 ↗</a><a href="../v1/index.html">第一版存档 ↗</a></footer>
+</main>
+</body>
+</html>

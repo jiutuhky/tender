@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -57,7 +58,7 @@ def _now() -> str:
 class LeaseStore:
     def __init__(self, db_path: Path | str):
         self._db_path = str(db_path)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(_SCHEMA)
 
     def _connect(self) -> sqlite3.Connection:
@@ -74,7 +75,7 @@ class LeaseStore:
     ) -> ProjectLeaseState:
         if not project_id:
             raise ValueError("project_id is required")
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT OR IGNORE INTO sandbox_leases "
                 "(project_id, sandbox_kind, node, last_activity_at) VALUES (?, ?, ?, ?)",
@@ -85,14 +86,14 @@ class LeaseStore:
         return lease
 
     def get(self, project_id: str) -> ProjectLeaseState | None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute(
                 "SELECT * FROM sandbox_leases WHERE project_id = ?", (project_id,)
             ).fetchone()
         return self._row_to_state(row) if row is not None else None
 
     def list(self) -> list[ProjectLeaseState]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute(
                 "SELECT * FROM sandbox_leases ORDER BY last_activity_at DESC"
             ).fetchall()
@@ -116,7 +117,7 @@ class LeaseStore:
         if not sets:
             return
         params.append(project_id)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 f"UPDATE sandbox_leases SET {', '.join(sets)} WHERE project_id = ?",
                 params,
@@ -143,7 +144,7 @@ class LeaseStore:
         params: list[object] = [value for value in values.values() if value is not None]
         if sets:
             params.append(project_id)
-            with self._connect() as conn:
+            with closing(self._connect()) as conn, conn:
                 conn.execute(
                     f"UPDATE sandbox_leases SET {', '.join(sets)} WHERE project_id = ?",
                     params,
@@ -154,21 +155,21 @@ class LeaseStore:
         return lease
 
     def clear_sandbox(self, project_id: str) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "UPDATE sandbox_leases SET sandbox_id = NULL WHERE project_id = ?",
                 (project_id,),
             )
 
     def update_snapshot(self, project_id: str, snapshot_id: str | None) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "UPDATE sandbox_leases SET snapshot_id = ? WHERE project_id = ?",
                 (snapshot_id, project_id),
             )
 
     def touch_activity(self, project_id: str) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "UPDATE sandbox_leases SET last_activity_at = ? WHERE project_id = ?",
                 (_now(), project_id),

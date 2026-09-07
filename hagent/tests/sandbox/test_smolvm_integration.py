@@ -11,6 +11,64 @@ import pytest
 pytestmark = pytest.mark.smolvm
 
 
+def test_fifth_project_admission_and_old_project_restore(tmp_path, monkeypatch):
+    """真实四槽池轮换第五个项目，回到旧项目后文件仍在，名额不超限。"""
+    import uuid
+    from hagent.sandbox import SandboxKind
+    from hagent.sandbox.pool import SandboxPool
+    from hagent.sandbox.smolvm.sandbox import HagentSmolVMSandbox
+    from hagent.server.leases import LeaseStore, SandboxState
+    from hagent.server.manager import SessionManager
+    from hagent.server.project_workspace import ProjectWorkspace
+    from hagent.server.runs import RunStore
+    from hagent.server.sessions import SessionStore
+    from hagent.server.workspace_checkpoint import WorkspaceCheckpointer
+    from hagent.server.workspace_materialization import WorkspaceMaterializer
+
+    monkeypatch.setenv('HAGENT_SMOLVM_MEMORY_MIB', '512')
+    monkeypatch.setenv('HAGENT_SMOLVM_VCPUS', '1')
+    pool = SandboxPool(
+        sandbox_factory=HagentSmolVMSandbox.start,
+        project_sandbox_factory=lambda pid: HagentSmolVMSandbox.start(project_id=pid),
+        restore_factory=lambda snap, pid: HagentSmolVMSandbox.restore(snap, project_id=pid),
+        min_size=0, max_size=4,
+    )
+    db = tmp_path / 'sessions.db'
+    leases = LeaseStore(db)
+    runs = RunStore(db)
+    workspace = ProjectWorkspace(tmp_path / 'workspaces')
+    manager = SessionManager(
+        store=SessionStore(db), lease_store=leases, sandbox_pool=pool,
+        workspace_root=tmp_path / 'workspaces',
+        project_workspace=workspace, run_store=runs,
+        workspace_materializer=WorkspaceMaterializer(workspace),
+        workspace_checkpointer=WorkspaceCheckpointer(workspace=workspace, runs=runs, leases=leases),
+    )
+    pool.set_persist_fn(manager.persist_sandbox)
+    projects = [f'cap{uuid.uuid4().hex[:10]}' for _ in range(5)]
+    sessions = []
+    try:
+        for index, project in enumerate(projects):
+            workspace.initialize(project)
+            session = manager.create_session(project_id=project, sandbox_kind=SandboxKind.SMOLVM)
+            sessions.append(session)
+            run = manager.create_chat_turn(session.id, summary='写入持久化验证文件')
+            sandbox = manager.ensure_sandbox(session.id)
+            result = sandbox.execute(f"printf 'project-{index}' > /workspace/deliverables/retained.txt")
+            assert result.exit_code == 0
+            manager.checkpoint_run(run.id, sandbox=sandbox)
+            assert pool.stats()['size'] <= 4
+        assert leases.get(projects[0]).sandbox_state == SandboxState.SNAPSHOTTED.value
+        restored = manager.ensure_sandbox(sessions[0].id)
+        # 快照 IP 被复用时 SDK 可能无法恢复；正式工作区仍须经冷启动注入完整还原。
+        assert restored.execute('cat /workspace/deliverables/retained.txt').output == 'project-0'
+        assert pool.stats()['size'] == 4
+    finally:
+        for project in projects:
+            manager.release_project(project)
+        pool.shutdown()
+
+
 @pytest.fixture
 def sb():
     from hagent.sandbox.smolvm.sandbox import HagentSmolVMSandbox

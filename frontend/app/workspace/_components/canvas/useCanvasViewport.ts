@@ -41,10 +41,10 @@ const MIN_SCALE = 0.2;
 const MAX_SCALE = 1.4;
 const DEFAULT_VIEW = { tx: 30, ty: 50, scale: 0.72 };
 /** pointerdown 不视作「拖背景平移」：卡片/主轴自处理拖拽，浮层是 chrome。 */
-const PAN_IGNORE = ".cv-card, .cv-spine, .cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-agentboard";
+const PAN_IGNORE = ".cv-card, .cv-spine, .cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-agentboard, .cv-overview";
 /** wheel 不视作「缩放画布」：只有自带滚动容器/输入的浮层。卡片与主轴仍属画布世界，
  *  悬停其上滚轮照常缩放——所以这两张名单不能合并。 */
-const WHEEL_IGNORE = ".cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-agentboard";
+const WHEEL_IGNORE = ".cv-zoom, .cv-dock, .cv-drawer, .cv-msgwin, .cv-agentboard, .cv-overview";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const prefersReduced = () =>
@@ -146,11 +146,22 @@ export function useCanvasViewport(opts: ViewportOpts) {
     const r = vp.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return;
     const b = optsRef.current.boundsRef?.current ?? { x: 0, y: 0, w: 800, h: 600 };
-    const pad = 64;
+    // 适应时扣除消息窗、任务看板和输入坞真正占用的区域。
+    const box = (selector: string) => vp.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+    const dock = box(".cv-dock");
+    const message = box(".cv-msgwin");
+    const board = box(".cv-agentboard");
+    const expanded = vp.closest("[data-stream='open']") !== null;
+    const left = expanded && message ? Math.max(0, message.right - r.left + 16) : 16;
+    const top = expanded ? 16 : 76;
+    const right = board && board.width > 0 ? Math.max(16, r.right - board.left + 16) : 16;
+    const bottom = dock ? Math.max(16, r.bottom - dock.top + 16) : 16;
+    const usableWidth = Math.max(80, r.width - left - right);
+    const usableHeight = Math.max(80, r.height - top - bottom);
     const w = Math.max(b.w, 1);
     const h = Math.max(b.h, 1);
-    const s = clamp(Math.min((r.width - pad * 2) / w, (r.height - pad * 2) / h), MIN_SCALE, 1);
-    animateTo({ scale: s, tx: (r.width - w * s) / 2 - b.x * s, ty: (r.height - h * s) / 2 - b.y * s }, instant, motion);
+    const s = clamp(Math.min(usableWidth / w, usableHeight / h), MIN_SCALE, 1);
+    animateTo({ scale: s, tx: left + (usableWidth - w * s) / 2 - b.x * s, ty: top + (usableHeight - h * s) / 2 - b.y * s }, instant, motion);
   }, [animateTo]);
 
   const resetView = useCallback((instant = false) => {
@@ -227,6 +238,8 @@ export function useCanvasViewport(opts: ViewportOpts) {
       }
     };
 
+    const onCancel = () => { if (drag.current) drag.current.moved = true; onUp(); };
+
     const onWheel = (e: WheelEvent) => {
       // 浮层（消息浮窗 / 底部坞输入区 / 抽屉正文）自带滚动：放行原生滚动，既不
       // preventDefault 也不缩放。此前无条件 preventDefault，导致抽屉正文根本滚不动、
@@ -244,11 +257,14 @@ export function useCanvasViewport(opts: ViewportOpts) {
     vp.addEventListener("pointerdown", onViewportDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
     vp.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       vp.removeEventListener("pointerdown", onViewportDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      onCancel();
       vp.removeEventListener("wheel", onWheel);
       tweenRef.current?.kill();
     };
@@ -262,6 +278,7 @@ export function useCanvasViewport(opts: ViewportOpts) {
       if (!touchedRef.current) fit(true);
     });
     ro.observe(vp);
+    vp.querySelectorAll(".cv-dock, .cv-msgwin, .cv-agentboard").forEach((el) => ro.observe(el));
     return () => ro.disconnect();
   }, [fit]);
 

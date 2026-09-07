@@ -1,0 +1,36 @@
+/* 单一平色角色；侧面只在转向中补位。视框包含彩带的安全空间。 */
+.pb {
+  display: block;
+  flex: none;
+  overflow: hidden;
+  --bot-ink: var(--pb-ink-2, #252724);
+  --bot-eye: var(--pb-eye, #ffffff);
+  --bot-ribbon-cyan: #35b7d7;
+  --bot-ribbon-blue: #537fec;
+  --bot-ribbon-violet: #a76aea;
+  --bot-ribbon-pink: #ed7897;
+  --bot-ribbon-gold: #eab760;
+  --bot-tone-0: #4255a4;
+  --bot-tone-1: #287569;
+  --bot-tone-2: #76559a;
+  --bot-tone-3: #976530;
+  --bot-tone-4: #316f9a;
+  --bot-tone-5: #975679;
+  --bot-tone-6: #567249;
+  --bot-tone-7: #56687e;
+}
+[data-appearance="dark"] .pb {
+  --bot-ribbon-cyan: #6cd6e9;
+  --bot-ribbon-blue: #87a8ff;
+  --bot-ribbon-violet: #c59aff;
+  --bot-ribbon-pink: #ffa0bd;
+  --bot-ribbon-gold: #f7d18b;
+  --bot-tone-0: #a7b4fa;
+  --bot-tone-1: #8dccbf;
+  --bot-tone-2: #c9abe5;
+  --bot-tone-3: #dcba8f;
+  --bot-tone-4: #9fc6e6;
+  --bot-tone-5: #e2b1cd;
+  --bot-tone-6: #b7cda0;
+  --bot-tone-7: #b5c3d7;
+}

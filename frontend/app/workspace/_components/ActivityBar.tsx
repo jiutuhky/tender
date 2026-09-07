@@ -10,7 +10,7 @@ import { activityLine } from "./runStatus";
 // 性能要点：订阅的是**派生字符串**而非 timeline。内容不变即 Object.is 相等，
 // zustand 跳过重渲，所以流式逐 token 的绝大多数帧里底部坞是静止的。
 export function ActivityBar() {
-  const line = useWorkspaceStore((s) => activityLine(s.timeline, s.phase));
+  const line = useWorkspaceStore((s) => activityLine(s.timeline, s.phase, s.botSignals));
   const setStreamSize = useWorkspaceStore((s) => s.setStreamSize);
 
   return (

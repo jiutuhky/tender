@@ -1,22 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
-import { IconTile, StatusBadge } from "./bits";
+import "./reading-detail.css";
 import { CardDetail, type DetailType } from "./CardDetail";
 import { META, isMatrixCardType, type CardType } from "./cardMeta";
-import { useMatrixDetailSummary } from "./matrixViews";
 import { TraceContext, useTraceState } from "./traceContext";
 import { TraceModal } from "./TraceModal";
-import { DUR_FLOAT, DUR_MICRO, DUR_PANEL, TRACE_EASE_ENTER, TRACE_EASE_EXIT, prefersReducedMotion } from "./traceMotion";
+import {
+  DUR_FLOAT,
+  DUR_MICRO,
+  DUR_PANEL,
+  TRACE_EASE_ENTER,
+  TRACE_EASE_EXIT,
+  prefersReducedMotion,
+} from "./traceMotion";
 import type { CardBadge } from "./ArtifactCard";
-import { DotsThreeIcon, DownloadIcon, RefreshIcon, XIcon } from "@/components/ui/icons";
+import { FrameIcon, XIcon } from "@/components/ui/icons";
 
 // 右侧抽屉：点击制品卡 / 主轴行后从右滑入，承载完整详情 + 制品动作。
 // 滑入 / 遮罩淡入走 gsap（不手写 keyframes）。遮罩点击、关闭钮、Esc 同走快速镜像退出。
-// 真实矩阵卡的人工动作(确认/应答状态标注)在详情条目行内(matrixViews.ItemActions),
-// 不设底部动作条;mock 卡沿用原型的静态按钮组(演示面,不动)。
+// 真实矩阵卡的人工动作(确认/应答状态标注)在详情条目行内(detailShared.ItemActions),
+// 核验操作仅在展开的条目中呈现；演示卡沿用展示内容。
 //
 // 溯源预览:矩阵卡详情点来源签后,打开盖满画布的原文预览层(TraceModal)。
 // 抽屉留在层后不卸载,退层即回到条目列表原样(含滚动位置)。
@@ -37,9 +50,7 @@ interface CanvasDrawerProps {
   skipEntrance?: boolean;
 }
 
-/** 矩阵抽屉的标题栏:线性图标 + 标题 + 摘要,不发终态徽标。
- *  摘要(共 26 条 · 实质性 11 项)由详情正文上提到头里 —— 正文再写一遍矩阵名与摘要
- *  就是同一件事说两遍。非终态时副标题让位给状态文案。 */
+/** 固定标题与阅读提示；事实摘要留在正文，避免重复。 */
 function MatrixDrawerHead({
   type,
   title,
@@ -51,15 +62,20 @@ function MatrixDrawerHead({
   titleId: string;
   badge?: CardBadge;
 }) {
-  const summary = useMatrixDetailSummary(type);
-  const m = META[type];
-  const Icon = m.icon;
-  const sub = badge && badge.tone !== "done" ? badge.label : summary;
+  const sub =
+    badge && badge.tone !== "done"
+      ? badge.label
+      : type === "basic_info"
+        ? "采购事实与关键时间"
+        : type === "scoring"
+          ? "评审标准与计分依据"
+          : "招标要求与原文依据";
   return (
     <>
-      <Icon width={17} height={17} style={{ color: "var(--label-3)", flex: "0 0 auto" }} />
       <div className="cv-drawer-titlebox">
-        <div className="cv-drawer-title" id={titleId}>{title}</div>
+        <div className="cv-drawer-title" id={titleId}>
+          {title}
+        </div>
         {sub && <div className="cv-drawer-sub">{sub}</div>}
       </div>
     </>
@@ -68,11 +84,22 @@ function MatrixDrawerHead({
 
 /** 收窄 CardType → MatrixType 的类型出口(调用点已用 isMatrixCardType 守卫过) */
 function matrixTypeOf(t: CardType) {
-  return t as Extract<CardType, "basic_info" | "business" | "technical" | "scoring">;
+  return t as Extract<
+    CardType,
+    "basic_info" | "business" | "technical" | "scoring"
+  >;
 }
 
-export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntrance = false }: CanvasDrawerProps) {
+export function CanvasDrawer({
+  type,
+  cardType,
+  title,
+  onClose,
+  badge,
+  skipEntrance = false,
+}: CanvasDrawerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [focused, setFocused] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -80,7 +107,9 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
   const onCloseRef = useRef(onClose);
   const titleId = useId();
   const m = META[cardType];
-  const { ctx: traceCtx, activeDoc } = useTraceState(isMatrixCardType(cardType));
+  const { ctx: traceCtx, activeDoc } = useTraceState(
+    isMatrixCardType(cardType),
+  );
 
   const traceShown = activeDoc !== null;
   /** Esc / Tab 处理器读的是 ref(监听器只装一次,不随开合重挂) */
@@ -101,8 +130,16 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
   useGSAP(
     () => {
       if (skipEntrance || prefersReducedMotion()) return;
-      gsap.from(".cv-drawer-scrim", { autoAlpha: 0, duration: DUR_MICRO, ease: TRACE_EASE_ENTER });
-      gsap.from(".cv-drawer-panel", { xPercent: 100, duration: DUR_PANEL, ease: TRACE_EASE_ENTER });
+      gsap.from(".cv-drawer-scrim", {
+        autoAlpha: 0,
+        duration: DUR_MICRO,
+        ease: TRACE_EASE_ENTER,
+      });
+      gsap.from(".cv-drawer-panel", {
+        xPercent: 100,
+        duration: DUR_PANEL,
+        ease: TRACE_EASE_ENTER,
+      });
     },
     { scope: rootRef, dependencies: [skipEntrance] },
   );
@@ -112,10 +149,16 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
   useEffect(() => {
     if (!traceShown && prevTraceShownRef.current) {
       const active = document.activeElement;
-      if (active === document.body || (active instanceof HTMLElement && rootRef.current?.contains(active) === false)) {
+      if (
+        active === document.body ||
+        (active instanceof HTMLElement &&
+          rootRef.current?.contains(active) === false)
+      ) {
         const key = lastChipKeyRef.current;
         const chip = key
-          ? rootRef.current?.querySelector<HTMLElement>(`[data-chip-key="${CSS.escape(key)}"]`)
+          ? rootRef.current?.querySelector<HTMLElement>(
+              `[data-chip-key="${CSS.escape(key)}"]`,
+            )
           : null;
         (chip ?? closeRef.current)?.focus({ preventScroll: true });
       }
@@ -141,7 +184,12 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
       closeTraceRef.current();
       return;
     }
-    if (scrim) gsap.to(scrim, { autoAlpha: 0, duration: DUR_MICRO, ease: TRACE_EASE_EXIT });
+    if (scrim)
+      gsap.to(scrim, {
+        autoAlpha: 0,
+        duration: DUR_MICRO,
+        ease: TRACE_EASE_EXIT,
+      });
     gsap.to(panel, {
       autoAlpha: 0,
       scale: 0.98,
@@ -172,7 +220,11 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
       return;
     }
     closingRef.current = true;
-    gsap.to(scrim, { autoAlpha: 0, duration: DUR_MICRO, ease: TRACE_EASE_EXIT });
+    gsap.to(scrim, {
+      autoAlpha: 0,
+      duration: DUR_MICRO,
+      ease: TRACE_EASE_EXIT,
+    });
     gsap.to(panel, {
       xPercent: 100,
       duration: DUR_FLOAT,
@@ -182,7 +234,10 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
   }, []);
 
   useEffect(() => {
-    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     closeRef.current?.focus({ preventScroll: true });
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -200,7 +255,7 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
       if (traceShownRef.current) return;
       const focusable = Array.from(
         rootRef.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+          'button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, [tabindex]:not([tabindex="-1"])',
         ) ?? [],
       ).filter((el) => el.offsetParent !== null);
       if (!focusable.length) return;
@@ -222,6 +277,26 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
     };
   }, [requestClose, requestTraceClose]);
 
+  const toggleReading = () => {
+    const body = bodyRef.current;
+    const top = body?.getBoundingClientRect().top ?? 0;
+    const anchor = Array.from(
+      body?.querySelectorAll<HTMLElement>("[data-reading-item]") ?? [],
+    ).find((el) => el.getBoundingClientRect().bottom > top + 100);
+    const offset = anchor ? anchor.getBoundingClientRect().top - top : 0;
+    const scrollTop = body?.scrollTop ?? 0;
+    setFocused((v) => !v);
+    requestAnimationFrame(() => {
+      if (!body) return;
+      body.scrollTop = anchor
+        ? body.scrollTop +
+          anchor.getBoundingClientRect().top -
+          body.getBoundingClientRect().top -
+          offset
+        : scrollTop;
+    });
+  };
+
   return (
     <div ref={rootRef} className="cv-drawer">
       {/* 遮罩只做纯色调光:下方画布上浮着玻璃面(消息窗/看板/药丸),scrim 再上
@@ -229,7 +304,9 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
       <div className="cv-drawer-scrim" onPointerDown={requestClose} />
       <TraceContext.Provider value={providedCtx}>
         <div
-          className="cv-drawer-panel"
+          className={`cv-drawer-panel${focused ? " is-focused" : ""}`}
+          inert={traceShown}
+          aria-hidden={traceShown || undefined}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
@@ -237,45 +314,67 @@ export function CanvasDrawer({ type, cardType, title, onClose, badge, skipEntran
           <div className="cv-drawer-main">
             <div className="cv-drawer-head">
               {isMatrixCardType(cardType) ? (
-                <MatrixDrawerHead type={matrixTypeOf(cardType)} title={title} titleId={titleId} badge={badge} />
+                <MatrixDrawerHead
+                  type={matrixTypeOf(cardType)}
+                  title={title}
+                  titleId={titleId}
+                  badge={badge}
+                />
               ) : (
                 <>
-                  <IconTile icon={m.icon} />
                   <div className="cv-drawer-titlebox">
-                    <div className="cv-drawer-title" id={titleId}>{title}</div>
-                    <div className="cv-drawer-sub">{m.stage} · 产物</div>
+                    <div className="cv-drawer-title" id={titleId}>
+                      {title}
+                    </div>
+                    <div className="cv-drawer-sub">
+                      {m.stage} · {badge?.label ?? m.status}
+                    </div>
                   </div>
-                  <StatusBadge sc={badge?.sc ?? m.sc} label={badge?.label ?? m.status} />
                 </>
               )}
-              <button ref={closeRef} type="button" className="cv-drawer-close" aria-label="关闭" onClick={requestClose}>
+              <button
+                type="button"
+                className="cv-drawer-focus"
+                aria-pressed={focused}
+                onClick={toggleReading}
+              >
+                <FrameIcon width={16} height={16} />
+                <span>{focused ? "收起阅读" : "展开阅读"}</span>
+              </button>
+              <button
+                ref={closeRef}
+                type="button"
+                className="cv-drawer-close"
+                aria-label="关闭"
+                onClick={requestClose}
+              >
                 <XIcon width={16} height={16} />
               </button>
             </div>
 
             <div className="cv-drawer-body" ref={bodyRef}>
+              {traceCtx.registryStatus === "failed" &&
+                isMatrixCardType(cardType) && (
+                  <div className="cv-review-error" role="alert">
+                    原文索引加载失败，条目仍可阅读。
+                    <button type="button" onClick={traceCtx.retryRegistry}>
+                      重新加载原文
+                    </button>
+                  </div>
+                )}
               <CardDetail type={type} />
             </div>
 
             {!isMatrixCardType(cardType) && (
               <div className="cv-drawer-foot">
-                <button type="button" className="cv-drawer-btn primary">
-                  <DownloadIcon width={15} height={15} />
-                  插入到文档
-                </button>
-                <button type="button" className="cv-drawer-btn">
-                  <RefreshIcon width={15} height={15} />
-                  重新生成
-                </button>
-                <span style={{ flex: 1 }} />
-                <button type="button" className="cv-drawer-btn icon" aria-label="更多">
-                  <DotsThreeIcon width={17} height={17} />
-                </button>
+                演示产物 · 展示信息结构，不写入真实项目。
               </div>
             )}
           </div>
         </div>
-        {activeDoc && <TraceModal doc={activeDoc} onRequestClose={requestTraceClose} />}
+        {activeDoc && (
+          <TraceModal doc={activeDoc} onRequestClose={requestTraceClose} />
+        )}
       </TraceContext.Provider>
     </div>
   );

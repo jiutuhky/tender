@@ -372,7 +372,12 @@ def post_message(sid: str, body: MessageBody) -> StreamingResponse:
             manager.reject_run(run.id, str(exc))
             raise HTTPException(
                 status_code=503,
-                detail=str(exc),
+                detail={
+                    "code": "sandbox_capacity_unavailable",
+                    "reason": "pool_full" if isinstance(exc, PoolExhausted) else "host_capacity",
+                    "message": "任务执行资源暂时不足，请稍后在当前会话重试，无需重新上传文件。",
+                    "retry_after_seconds": 30,
+                },
                 headers={"Retry-After": "30"},
             ) from exc
         manager.interrupt_run_best_effort(

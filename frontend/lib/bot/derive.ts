@@ -1,81 +1,69 @@
-// hagent 事件 → Bot 状态。
-//
-// 映射的原则是**只映射看得出区别的事**：后端能区分二十种工具，但一个 24px 的图标上
-// 「在检索」和「在写」的差别才立得住，「在读第几个文件」立不住。所以工具按动作大类
-// 归三档：找（searching）、写（writing）、干（working）。
-//
-// 情绪一组状态在这里没有对应事件——它们由引擎在待命期随机穿插，或等后续接线。
-
-import type { ChatMsg } from "@/lib/hagent/timeline";
+// 产品适配层：只从可信生命周期与作用域活动派生通用状态。
+import type { ChatMsg, SubagentRun } from "@/lib/hagent/timeline";
 import type { RunPhase } from "@/lib/store/workspace";
-import type { BotState } from "./states";
+import {
+  activityBotState,
+  scopeActivity,
+  emptyBotSignals,
+  type BotSignals,
+} from "../hagent/botSignals";
+import type { BotPersistentState } from "./states";
 
-/** 回扫上限，与 runStatus.activityLine 同一策略：只关心「当前在做什么」。 */
-const SCAN_LIMIT = 120;
-
-const SEARCH_TOOLS = new Set([
-  "Read", "Glob", "glob", "Grep", "grep", "WebFetch", "WebSearch",
-  "prose_list_documents", "prose_get_matrix", "prose_query_matrix_items",
-  "prose_get_matrix_status",
-]);
-
-const WRITE_TOOLS = new Set([
-  "Write", "Edit", "NotebookEdit",
-  "prose_start_matrix_draft", "prose_submit_matrix_records", "prose_update_matrix_item",
-  "prose_drop_matrix_item", "prose_move_matrix_item", "prose_set_matrix_meta",
-  "prose_publish_matrix", "prose_set_item_response_status", "prose_confirm_matrix_item",
-]);
-
-function toolState(name: string): BotState {
-  if (SEARCH_TOOLS.has(name)) return "searching";
-  if (WRITE_TOOLS.has(name)) return "writing";
-  return "working";
-}
-
-/**
- * 主 Bot（画布消息窗）的状态。
- *
- * running 档要再往时间线里看一眼：同样是「正在跑」，派子代理、思考、检索、落笔是四件
- * 完全不同的事，头像应该分得出来——这正是把动效做成状态机而不是一段循环的理由。
- */
-export function deriveMainBotState(phase: RunPhase, timeline: ChatMsg[]): BotState {
-  switch (phase) {
-    case "idle":
-      return "idle";
-    case "creating":
-      return "spawning";
-    case "uploading":
-      return "uploading";
-    case "loading_results":
-      return "loading";
-    case "done":
-      return "idle";
-    case "error":
-      return "alerting";
-    case "running":
-      break;
-  }
-
-  const stop = Math.max(0, timeline.length - SCAN_LIMIT);
-  for (let i = timeline.length - 1; i >= stop; i -= 1) {
-    const m = timeline[i];
-    if (!m || m.role === "user") break;
-    if (m.role === "subagent") {
-      // 派了子代理还在跑 → 环绕形态：主 Bot 在「盯着一圈工人」
-      return m.run.status === "running" ? "orbit" : "working";
+/** 历史/静态数据没有实时投影时的回退；保留仍活跃的调用，而非只取最后一条消息。 */
+function timelineActivity(messages: ChatMsg[]): BotPersistentState {
+  const active: Record<string, string> = {};
+  let latest: "working" | "generating" | "thinking" = "thinking";
+  for (const message of messages) {
+    if (message.role === "user") {
+      for (const key of Object.keys(active)) delete active[key];
+      latest = "thinking";
     }
-    if (m.role === "tool") {
-      return m.call.status === "running" ? toolState(m.call.tool_name) : "working";
+    if (message.role === "thinking") latest = "thinking";
+    if (message.role === "assistant_text") latest = "generating";
+    if (message.role === "tool" || message.role === "subagent") {
+      const call = message.role === "tool" ? message.call : message.run.call;
+      const status =
+        message.role === "tool" ? message.call.status : message.run.status;
+      if (status === "running")
+        active[call.call_id] =
+          message.role === "subagent" ? "Agent" : call.tool_name;
+      else delete active[call.call_id];
+      latest = "working";
     }
-    if (m.role === "thinking") return "thinking";
-    if (m.role === "assistant_text") return "dictating";
-    if (m.role === "error") return "alerting";
   }
-  return "thinking";
+  return activityBotState({ active, latest });
 }
-
-/** 子代理看板一行的状态。看板上的 Bot 只有「在干活」和「干完了」两档。 */
-export function deriveSubagentBotState(status: "running" | "done", live: boolean): BotState {
-  if (status === "done") return "idle";
-  return live ? "working" : "bored";
+export function deriveMainBotState(
+  phase: RunPhase,
+  timeline: ChatMsg[],
+  signals: BotSignals = emptyBotSignals(),
+): BotPersistentState {
+  if (signals.failed || phase === "error") return "failed";
+  if (signals.attention) return signals.attention;
+  if (phase === "idle") return "idle";
+  if (phase === "creating") return "connecting";
+  if (phase === "uploading") return "sending";
+  if (phase === "loading_results") return "settling";
+  if (phase === "done") return signals.partial ? "partial" : "completed";
+  if (signals.reading) return "reading";
+  const activity = scopeActivity(signals);
+  return activity ? activityBotState(activity) : timelineActivity(timeline);
+}
+export function deriveSubagentBotState(
+  run: SubagentRun,
+  live: boolean,
+  signals?: BotSignals,
+): BotPersistentState {
+  if (run.status === "done") return "completed";
+  // 连接/主流结束不能证明子任务已取消；保持等待形态并由文字说明状态待确认。
+  if (!live || signals?.attention || signals?.failed) return "waiting";
+  const activity = signals
+    ? scopeActivity(signals, run.call.call_id)
+    : undefined;
+  return activity ? activityBotState(activity) : timelineActivity(run.children);
+}
+export function currentTurnKey(timeline: ChatMsg[]): string | undefined {
+  for (let i = timeline.length - 1; i >= 0; i--)
+    if (timeline[i]?.role === "user") return timeline[i]?.id;
+  return undefined;
 }

@@ -1,0 +1,33 @@
+.composer .composer-input { border: 1px solid var(--separator); padding: 18px 18px 62px; min-height: 132px; box-shadow: 0 2px 8px rgb(18 24 38 / 4%); }
+.composer .composer-input:focus-within { border-color: color-mix(in srgb, var(--blue) 50%, var(--separator)); box-shadow: 0 0 0 3px var(--blue-soft); }
+.composer .composer-input textarea { min-width: 0; font-size: 14px; font-weight: 400; line-height: 1.75; }
+.prose-app .composer textarea:focus-visible { outline: none; }
+.composer .composer-actions { bottom: 12px; left: 12px; right: 12px; gap: 6px; }
+.composer .composer-actions .icon-btn { min-height: 36px; padding: 7px 10px; font-size: 12px; background: transparent; box-shadow: none; cursor: pointer; }
+.composer .composer-actions .icon-btn svg { width: 15px; height: 15px; }
+.composer .composer-send { min-height: 36px; padding-inline: 14px; font-size: 12px; }
+.composer .composer-selection { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--separator); border-radius: var(--r-card); padding: 13px 16px; margin-bottom: 8px; }
+.composer .composer-selection-copy { min-width: 0; flex: 1; }
+.composer .composer-selection-copy strong { display: block; font-size: 13px; font-weight: 550; overflow-wrap: anywhere; }
+.composer .composer-selection-copy span { display: block; margin-top: 3px; font-size: 11px; color: var(--label-3); }
+.composer .composer-selection-icon { color: var(--label-2); }
+.composer .composer-selection > button { border: 0; background: transparent; color: var(--label-2); padding: 8px; min-height: 36px; font-size: 12px; border-radius: var(--r-control); flex: none; }
+.composer .composer-selection > button:hover { color: var(--blue); background: var(--surface-2); }
+.composer .composer-hint { color: var(--label-3); font-size: 11px; margin-top: 9px; line-height: 1.6; }
+.composer-error { background: var(--surface); padding: 8px 12px; margin: 8px 0 0; font-size: 12px; color: var(--orange-text); border-radius: var(--r-control); }
+.composer .composer-sample-menu { background: var(--surface); color: var(--label); border: 1px solid var(--separator); box-shadow: var(--elev-2); z-index: 50; max-width: min(380px,calc(100vw - 64px)); }
+.composer .composer-sample-item { min-height: 40px; line-height: 1.6; font-size: 13px; white-space: normal; }
+.composer-entry .composer-input { min-height: 172px; padding: 22px 22px 66px; box-shadow: 0 4px 20px rgb(18 24 38 / 5%); }
+.composer-entry .composer-input textarea { font-size: 15px; }
+.composer-drop-overlay { position: fixed; inset: 60px 0 0; z-index: 70; background: color-mix(in srgb,var(--surface) 90%,transparent); display: grid; place-items: center; pointer-events: none; }
+.composer-drop-overlay > div { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 32px; text-align: center; }
+.composer-drop-overlay svg { color: var(--blue); }
+.composer-drop-overlay strong { font-size: 22px; }
+.composer-drop-overlay span { font-size: 13px; color: var(--label-2); }
+@media (max-width: 600px) { .composer .composer-input { padding: 16px 14px 60px; } .composer .composer-actions { left: 8px; right: 8px; gap: 2px; } .composer .composer-actions .icon-btn { padding: 7px; font-size: 11px; } .composer .composer-send { padding-inline: 10px; } .composer .composer-hint { font-size: 10px; } }
+.composer .composer-send { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-left: auto; border: 0; border-radius: var(--r-control); background: var(--blue); color: #fff; font-weight: 600; box-shadow: var(--elev-1); }
+.composer .composer-send:hover:not(:disabled) { background: var(--blue-press); }
+.composer .composer-send svg { width: 14px; height: 14px; }
+.workspace-recovery { margin-top: 12px; }
+.workspace-recovery p { font-size: 13px; color: var(--label-2); }
+.workspace-recovery > div { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

@@ -6,6 +6,7 @@ import os
 import sqlite3
 import time
 import uuid
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,7 +44,7 @@ _MIGRATION_COLUMNS: tuple[tuple[str, str], ...] = ()
 class ProjectStore:
     def __init__(self, db_path: Path | str):
         self._db_path = str(db_path)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(_SCHEMA)
             self._migrate(conn)
 
@@ -63,7 +64,7 @@ class ProjectStore:
     def create(self, name: str, *, metadata_json: str | None = None) -> ProjectState:
         pid = uuid.uuid4().hex[:16]
         now = time.time()
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO projects (id, name, status, created_at, updated_at, metadata_json) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
@@ -79,14 +80,14 @@ class ProjectStore:
         )
 
     def get(self, pid: str) -> ProjectState | None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute("SELECT * FROM projects WHERE id = ?", (pid,)).fetchone()
         if row is None:
             return None
         return self._row_to_state(row)
 
     def list(self, *, include_deleted: bool = False) -> list[ProjectState]:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             if include_deleted:
                 rows = conn.execute("SELECT * FROM projects ORDER BY updated_at DESC").fetchall()
             else:
@@ -120,7 +121,7 @@ class ProjectStore:
             sets.append("updated_at = ?")
             params.append(time.time())
             params.append(pid)
-            with self._connect() as conn:
+            with closing(self._connect()) as conn, conn:
                 conn.execute(f"UPDATE projects SET {', '.join(sets)} WHERE id = ?", params)
         state = self.get(pid)
         if state is None:
@@ -128,7 +129,7 @@ class ProjectStore:
         return state
 
     def delete(self, pid: str) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "UPDATE projects SET status = ?, updated_at = ? WHERE id = ?",
                 (PROJECT_STATUS_DELETED, time.time(), pid),
@@ -136,11 +137,11 @@ class ProjectStore:
 
     def rollback_create(self, pid: str) -> None:
         """回滚尚未对外成功的创建；用户发起的删除始终走软删。"""
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute("DELETE FROM projects WHERE id = ?", (pid,))
 
     def touch(self, pid: str) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "UPDATE projects SET updated_at = ? WHERE id = ?",
                 (time.time(), pid),

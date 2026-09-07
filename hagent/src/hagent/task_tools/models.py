@@ -142,6 +142,8 @@ def task_to_todo(task: Task) -> dict[str, Any]:
         "description": task.description,
         "blockedBy": list(task.blockedBy),
     }
+    if task.activeForm:
+        todo["activeForm"] = task.activeForm
     if task.owner:
         todo["owner"] = task.owner
     return todo

@@ -26,7 +26,7 @@
 | W4 | 回写范围 | 全量回写 + 排除名单（`tmp/`、`.cache/`、`__pycache__/` 等 .gitignore 语义）；base prompt 约定临时产物写 `tmp/` | 宁可多存不可错丢（agent 写错位置最多脏不会丢）；否决白名单目录（写到名单外即丢）与显式登记（漏登记即丢，Manus 教训的反面） |
 | W5 | 租约粒度 | VM 租约绑**活跃 Project**：项目内首个 Run 触发租用，所有并行 Run 与会话共享一台；idle 降档/回收沿用 | 画布 fan-out 场景下容量友好（1 活跃项目 1 VM，生成任务 LLM-bound，2 vCPU 可承载多 agent 文件操作）；否决每节点独立 VM + 合并（池上限 4 台，单项目 fan-out 即超容，合并 UI 提前）与单轮编排子代理（交互被绑成批处理，与「随时独立启停节点」冲突） |
 | W6 | 执行单元 | `runs` 表一等实体；对话轮 = `Run(kind=chat_turn)`，节点生成 = `Run(kind=node_generation)`；锁/checkpoint/SSE/审计统一挂 Run；session 回归纯对话容器 | 一套机制不分叉；否决隐藏 session（语义污染，债迟早要还）与会话内消息轮（与并行正面冲突） |
-| W7 | 快照角色 | DISK 快照降级为 **project 键的 best-effort 唤醒缓存**：idle 驱逐先兜底 checkpoint 再落快照；恢复失败/容量不足**静默冷启动 + 注入**，拆掉「503 保快照」等数据事故语义 | 持久化职责已移交 workspace；快照剩余价值 = 唤醒速度 + agent 自装环境增量。对齐 Codex 12h 容器缓存 / CC web 环境快照的 best-effort 定位；否决砍掉（代码已存在且加固过，环境增量有真实价值） |
+| W7 | 快照角色 | DISK 快照降级为 **project 键的 best-effort 唤醒缓存**：idle 驱逐先兜底 checkpoint 再落快照；快照内容恢复失败时**冷启动 + 注入**；容量不足先经统一准入回收空闲环境，仍不足则保留缓存并返回可重试 503，避免无效冷启动重复申请相同资源 | 持久化职责已移交 workspace；快照剩余价值 = 唤醒速度 + agent 自装环境增量。对齐 Codex 12h 容器缓存 / CC web 环境快照的 best-effort 定位；否决砍掉（代码已存在且加固过，环境增量有真实价值） |
 | W8 | 并发写策略 | 三层：① 节点 Run 启动登记名下路径，自研文件工具对被锁路径拒绝并返回可读错误；② 对话轮之间互斥（第二个对话轮 409）；对话轮与节点 Run 自由并发；③ host 侧 git commit 操作短互斥。Run 启动时 VM 落后 HEAD 先注入差异追平 | 同 VM 同文件系统，写冲突发生在写入时刻，靠 commit 阶段防不住 → 利用「自研全部文件工具」的抓手在工具层拦截（Lovart「结构上不可能互踩」思路的文件层落地）。否决对话轮一律独占（问答被挡，两个核心交互打架）与完全放任（内容交错无提示） |
 
 **业界锚点**（速查）：Manus 每任务一 VM、回收只恢复 artifacts、Projects=指令+知识注入新沙箱；Claude Code cloud 每 session 新 VM + 环境快照缓存 + git 持久层 + transcript 独立存储；Codex 每任务容器 + per-repo 环境 + 12h 缓存 +「Local=前台单占」；Devin org 级机器快照模板 + session 一次性克隆不回写；Replit 主版本唯一写入路径 = apply（独占阶段）；Lovart 共享画布 append-only 消解冲突。共同不变量：**没有两个不受控写者同时命中主状态**。

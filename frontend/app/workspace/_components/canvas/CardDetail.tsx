@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Chip, Dot, StatusBadge } from "./bits";
 import { dotColor, isMatrixCardType, type CardType, type StatusColor } from "./cardMeta";
-import { MatrixCardDetail } from "./matrixViews";
+import { MatrixCardDetail } from "./matrixDetails";
 import {
   BuildingsIcon,
   CircleDashedIcon,

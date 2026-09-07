@@ -194,3 +194,21 @@ def test_task_to_todo_matches_existing_server_shape() -> None:
         "description": "Cover task store behavior.",
         "blockedBy": ["1"],
     }
+
+
+def test_task_to_todo_projects_active_form_when_set() -> None:
+    task = Task(
+        id="3",
+        subject="Draft the deviation table",
+        description="Fill in the technical deviation table.",
+        activeForm="Drafting the deviation table",
+        status="in_progress",
+        blocks=[],
+        blockedBy=[],
+    )
+
+    todo = task_to_todo(task)
+
+    assert todo["activeForm"] == "Drafting the deviation table"
+    # activeForm 缺省时不落键（与 owner 同策略），前端据此回落 content
+    assert "activeForm" not in task_to_todo(task.model_copy(update={"activeForm": None}))

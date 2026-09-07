@@ -4,8 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { gsap } from "gsap";
 import { useWorkspaceStore, type StreamSize } from "@/lib/store/workspace";
 import { ChevronIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
-import { ProseBot } from "@/components/ui/ProseBot";
-import { deriveMainBotState } from "@/lib/bot";
+import { ProseBot } from "@/components/ui/icons";
+import { deriveMainBotState, currentTurnKey } from "@/lib/bot/derive";
 import {
   DUR_FLOAT,
   DUR_MICRO,
@@ -43,17 +43,16 @@ const GLASS = {
  * 跳过重渲——所以绝大多数帧这一层是静止的，动的是引擎内部的 rAF。
  */
 function WindowBot() {
-  const state = useWorkspaceStore((s) => deriveMainBotState(s.phase, s.timeline));
-  const done = useWorkspaceStore((s) => s.phase === "done");
+  const state = useWorkspaceStore((s) => deriveMainBotState(s.phase, s.timeline, s.botSignals));
+  const turn = useWorkspaceStore((s) => currentTurnKey(s.timeline));
   return (
     <ProseBot
       state={state}
       followPointer
       idleMoods
       blinkOnHover
-      once="celebrate"
-      onceKey={done ? "done" : undefined}
-      onceMs={1900}
+      size={48}
+      completionKey={turn}
       aria-hidden="true"
     />
   );
@@ -69,14 +68,15 @@ function WindowStatus() {
   const docName = useWorkspaceStore((s) => s.currentDocName);
   const todos = useWorkspaceStore((s) => s.todos);
   const matrices = useWorkspaceStore((s) => s.matrices);
+  const signals = useWorkspaceStore((s) => s.botSignals);
 
   return (
     <div className="cv-msgwin-title">
       <div className="cv-msgwin-name">{docName ? `解析 ${docName}` : "标书智能解析"}</div>
       <div className="cv-msgwin-sub">
-        <span className={`cv-msgwin-dot ${runDotState(phase)}`} aria-hidden="true" />
+        <span className={`cv-msgwin-dot ${runDotState(phase, signals)}`} aria-hidden="true" />
         <span role="status" aria-live="polite">
-          {runStatusText(phase, todos.length, readyMatrixCount(matrices))}
+          {runStatusText(phase, todos.length, readyMatrixCount(matrices), signals)}
         </span>
       </div>
     </div>
@@ -115,9 +115,9 @@ function NewSessionButton() {
  */
 function MinTicker() {
   const phase = useWorkspaceStore((s) => s.phase);
-  const live = useWorkspaceStore((s) => activityLine(s.timeline, s.phase));
+  const live = useWorkspaceStore((s) => activityLine(s.timeline, s.phase, s.botSignals));
   const settled = useWorkspaceStore((s) =>
-    runStatusText(s.phase, s.todos.length, readyMatrixCount(s.matrices)),
+    runStatusText(s.phase, s.todos.length, readyMatrixCount(s.matrices), s.botSignals),
   );
   const text = isRunning(phase) ? live : settled;
 

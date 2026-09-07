@@ -5,14 +5,16 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from threading import Lock, RLock
 from typing import TYPE_CHECKING
 
 from hagent.sandbox import SandboxKind
-from hagent.sandbox.pool import SandboxLease, SandboxPool
+from hagent.sandbox.ledger import CapacityExceeded
+from hagent.sandbox.pool import PoolExhausted, SandboxLease, SandboxPool
 from hagent.server.leases import LeaseStore, ProjectLeaseState, SandboxState
 from hagent.server.sessions import SessionState, SessionStatus, SessionStore
 from hagent.server.sse import SandboxEvent, push_sandbox_event
@@ -101,6 +103,9 @@ class SessionManager:
             set_project_guard_fn = getattr(self._pool, "set_project_guard_fn", None)
             if callable(set_project_guard_fn):
                 set_project_guard_fn(self._lock_for)
+            set_try_guard = getattr(self._pool, "set_project_try_guard_fn", None)
+            if callable(set_try_guard):
+                set_try_guard(self._try_project_lock)
             set_activity_fns = getattr(self._pool, "set_activity_fns", None)
             if callable(set_activity_fns):
                 set_activity_fns(
@@ -403,6 +408,16 @@ class SessionManager:
                 after_drop()
             return True
 
+    @contextmanager
+    def _try_project_lock(self, project_id: str) -> Iterator[bool]:
+        lock = self._lock_for(project_id)
+        acquired = lock.acquire(blocking=False)
+        try:
+            yield acquired
+        finally:
+            if acquired:
+                lock.release()
+
     def persist_sandbox(self, runtime_lease: SandboxLease) -> bool:
         with self._lock_for(runtime_lease.project_id):
             return self._persist_sandbox_locked(runtime_lease)
@@ -418,7 +433,7 @@ class SessionManager:
         try:
             snapshot_id = persist()
         except Exception as exc:  # noqa: BLE001
-            logger.warning("project %s 快照持久化失败(退回驱逐): %s", project_id, exc)
+            logger.warning("project %s 快照持久化失败: %s", project_id, exc)
             return False
         self._leases.pop(project_id, None)
         self._close_project_agents(project_id)
@@ -426,7 +441,7 @@ class SessionManager:
         self._lease_store.clear_sandbox(project_id)
         self._lease_store.update_state(project_id, state=SandboxState.SNAPSHOTTED.value)
         self.emit_project_event(
-            "snapshotted", project_id, sandbox, reason="idle 超阈值,已休眠到快照"
+            "snapshotted", project_id, sandbox, reason="空闲环境已保存快照并释放资源"
         )
         logger.info("project %s 已快照持久化: %s", project_id, snapshot_id)
         return True
@@ -515,6 +530,13 @@ class SessionManager:
             runtime_lease = self._pool.acquire_restored(
                 project_id=project_id, snapshot_id=snapshot_id
             )
+        except (CapacityExceeded, PoolExhausted):
+            # 容量不足并不说明快照损坏；保留原快照，下一次请求继续恢复。
+            self._lease_store.update_state(
+                project_id, state=SandboxState.SNAPSHOTTED.value,
+                desired_state=SandboxState.SNAPSHOTTED.value,
+            )
+            raise
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "project %s 快照 %s 恢复失败,回退全新重建: %s",

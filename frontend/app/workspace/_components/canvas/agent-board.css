@@ -1,0 +1,233 @@
+/* 执行看板只有一张表面。内部用对齐、留白和分隔线组织，不再嵌套卡片。 */
+.cv-agentboard {
+  position: absolute;
+  top: var(--cv-float-inset);
+  right: var(--cv-float-inset);
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  width: 336px;
+  max-width: calc(100% - 2 * var(--cv-float-inset));
+  max-height: calc(100% - var(--cv-float-inset) - var(--cv-dock-band));
+  padding: 20px;
+  border: 1px solid var(--separator);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--elev-2);
+  color: var(--label);
+  contain: layout;
+  cursor: auto;
+  touch-action: auto;
+  transform-origin: top right;
+  transition:
+    opacity var(--t-float) var(--ease-std),
+    transform var(--t-float) var(--ease-std);
+}
+@starting-style {
+  .cv-agentboard {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.cv-agentboard-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--separator) transparent;
+}
+.cv-agentboard-scroll:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.cv-agentboard-sec + .cv-agentboard-sec {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--separator);
+}
+.cv-agentboard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 14px;
+}
+.cv-agentboard-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--label);
+}
+.cv-agentboard-head > span {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+.cv-agentboard-progress {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  margin: 0 0 16px;
+  border: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--surface-3);
+  color: var(--blue);
+}
+.cv-agentboard-progress::-webkit-progress-bar {
+  background: var(--surface-3);
+}
+.cv-agentboard-progress::-webkit-progress-value {
+  background: var(--blue);
+  border-radius: 2px;
+  transition: width var(--t-float) var(--ease-std);
+}
+.cv-agentboard-progress::-moz-progress-bar {
+  background: var(--blue);
+  border-radius: 2px;
+}
+.cv-agentboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cv-agentboard-task,
+.cv-agentboard-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.cv-agentboard-row {
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  margin-left: calc(var(--depth, 0) * 12px);
+}
+.cv-agentboard-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 21px;
+  color: var(--label-3);
+}
+.cv-agentboard-marker svg {
+  display: block;
+  flex: none;
+}
+.cv-agentboard-task.is-running .cv-agentboard-marker,
+.cv-agentboard-row.is-running .cv-agentboard-marker {
+  color: var(--blue);
+}
+.cv-agentboard-task.is-done .cv-agentboard-marker,
+.cv-agentboard-row.is-done .cv-agentboard-marker {
+  color: var(--green-text);
+}
+.cv-agentboard-row.is-stopped .cv-agentboard-marker {
+  color: var(--orange-text);
+}
+.cv-agentboard-task-copy,
+.cv-agentboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.cv-agentboard-task-text,
+.cv-agentboard-desc {
+  font-size: 13px;
+  line-height: 1.65;
+  font-weight: 400;
+  color: var(--label);
+  overflow-wrap: anywhere;
+}
+.cv-agentboard-task.is-running .cv-agentboard-task-text {
+  font-weight: 500;
+}
+.cv-agentboard-task.is-done .cv-agentboard-task-text,
+.cv-agentboard-row.is-done .cv-agentboard-desc {
+  color: var(--label-2);
+}
+.cv-agentboard-task-note,
+.cv-agentboard-summary {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--label-2);
+  overflow-wrap: anywhere;
+}
+.cv-agentboard-task.is-running .cv-agentboard-task-note {
+  color: var(--blue);
+}
+/* 概览已是一张完整工作面，看板就地排成两列，不再添加浮层外壳。 */
+.cv-overview .cv-agentboard {
+  display: block;
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  margin-top: 28px;
+  padding: 24px 0 0;
+  border: 0;
+  border-top: 1px solid var(--separator);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.cv-overview .cv-agentboard-scroll {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  overflow: visible;
+}
+.cv-overview .cv-agentboard-sec {
+  min-width: 0;
+}
+.cv-overview .cv-agentboard-sec + .cv-agentboard-sec {
+  margin: 0;
+  padding: 0 0 0 28px;
+  border-top: 0;
+  border-left: 1px solid var(--separator);
+}
+.cv-overview .cv-agentboard-sec:only-child {
+  grid-column: 1 / -1;
+}
+@media (max-width: 860px) {
+  .workspace-surface[data-view="canvas"] .cv-agentboard {
+    display: none;
+  }
+  .cv-overview .cv-agentboard-scroll {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .cv-overview .cv-agentboard-sec + .cv-agentboard-sec {
+    border-left: 0;
+    border-top: 1px solid var(--separator);
+    padding: 20px 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-agentboard,
+  .cv-agentboard-progress::-webkit-progress-value {
+    transition: none;
+  }
+  @starting-style {
+    .cv-agentboard {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* 子代理用有身份的角色头像，普通任务步骤仍使用紧凑状态符号。 */
+.cv-agentboard-avatar { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
+.cv-agentboard-row.is-stopped .cv-agentboard-summary { color: var(--label-2); }

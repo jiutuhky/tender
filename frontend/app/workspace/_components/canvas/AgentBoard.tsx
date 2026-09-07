@@ -1,173 +1,246 @@
 "use client";
 
-import { memo, type CSSProperties, useEffect, useRef } from "react";
+import { memo, useId, type CSSProperties } from "react";
 import { useWorkspaceStore } from "@/lib/store/workspace";
-import { ProseBot } from "@/components/ui/ProseBot";
-import { deriveSubagentBotState } from "@/lib/bot";
-import { DUR_FLOAT } from "./traceMotion";
-import { LiquidGlass } from "../LiquidGlass";
-import { collectSubagentRuns, isRunning } from "../runStatus";
+import { CheckIcon, CircleDashedIcon, ClockIcon, ProseBot } from "@/components/ui/icons";
+import {
+  TODO_STATUS_TEXT,
+  todoLabel,
+  type TodoStatus,
+  type TodoItem,
+} from "@/lib/hagent/todo";
+import type { BotPersistentState } from "@/lib/bot/states";
+import { collectSubagentRuns, isRunning, type SubagentBoardRow } from "../runStatus";
+import "./agent-board.css";
 
-/** callId → 色相：字符串 hash × 黄金角(137.5°)铺满色轮。伪随机但稳定——同一
- *  子代理重渲不变色（rAF 批帧下不闪），不同子代理均匀散开不扎堆。 */
-function hashHue(seed: string): number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  return ((h < 0 ? ~h + 1 : h) * 137.508) % 360;
+// 单层执行看板：任务步骤与子任务共享同一表面，只有列表本身滚动。
+// 分段订阅保持独立，流式摘要更新不会重绘未改变的任务清单。
+
+/** 已知矩阵标识与执行角色转成阅读文案，不修改原始任务描述或 SSE 数据。 */
+function readableLabel(text: string): string {
+  const labels: Record<string, string> = {
+    basic_info: "项目概要",
+    business: "商务要求",
+    technical: "技术要求",
+    scoring: "评分办法",
+  };
+  return text
+    .replace(
+      /抽取\s*(basic_info|business|technical|scoring)\s*矩阵/g,
+      (_, key: string) => `提取${labels[key]}`,
+    )
+    .replace(
+      /\b(basic_info|business|technical|scoring)\b/g,
+      (key) => labels[key] ?? key,
+    )
+    .replace(/抽取\s+worker\b/gi, "抽取任务")
+    .replace(/主\s+agent\s*/gi, "主智能体");
 }
 
-// 画布右上角的子代理状态看板：主智能体每派发一个子代理，这里长出一行——Bot 头像
-// （与左上消息窗同一形象，按 callId 派生一枚身份色，见 hashHue）+ 任务描述 +
-// 最近动作摘要。
-//
-// 结构约束（同 .cv-msgwin 的备案）：玻璃面禁不起在壳/玻璃上做 opacity 动画——
-// opacity 会把子树隔离成 backdrop root，玻璃只看见自己、塌成透明板。所以进出场
-// 拆成两半：壳走 transform 缩放，面板内容走 opacity 淡入淡出。
-//
-// 生命周期刻意做成零状态纯派生：rows 非空即挂载，data-state 随 live 翻转
-// "live" / "done"。本轮结束后看板**不退场**（用户定）：终态行保留在面板里，头像静止、
-// 标题翻成「N 已完成」，供用户回看本轮派发了什么；DOM 要到下一轮 user 消息令 rows
-// 清空才卸载，卸载时用户的注意力已在新一轮上。
-//
-// 性能：collectSubagentRuns 是 O(末段扫描) 纯函数，随 timeline 的 rAF 批帧跑；
-// 行组件收原始值 props 走默认浅比较，流式期只有内容真变了的那几行会重渲。
-
-// 液态玻璃参数：沿用 MessageWindow 的配方，圆角与壳的 16px 一致。
-const GLASS = {
-  displacementScale: 100,
-  blurAmount: 0.2,
-  saturation: 140,
-  aberrationIntensity: 0,
-  cornerRadius: 20,   // lens 面板档（规范：凝玻璃面板 20），与 globals.css .cv-agentboard 同步
-  mode: "standard",
-} as const;
-
+/** 看板只使用一个播报区域，避免流式过程中多段同时打断读屏。 */
+function announceProps(on: boolean) {
+  return on
+    ? ({ role: "status", "aria-live": "polite", "aria-atomic": true } as const)
+    : {};
+}
 
 export function AgentBoard() {
+  const todos = useWorkspaceStore((s) => s.todos);
   const timeline = useWorkspaceStore((s) => s.timeline);
-  const phase = useWorkspaceStore((s) => s.phase);
-  const rows = collectSubagentRuns(timeline);
-  const live = isRunning(phase);
-  const rootRef = useRef<HTMLElement | null>(null);
+  const signals = useWorkspaceStore((s) => s.botSignals);
+  const running = useWorkspaceStore((s) => isRunning(s.phase));
+  const live = running && !signals.attention && !signals.failed;
+  const rows = collectSubagentRuns(timeline,live,signals);
+  return <AgentBoardView todos={todos} rows={rows} live={live} />;
+}
 
-  // 规范 rule 4「Transitions run soft」：壳做 scale 补间时位移滤镜会逐帧在新尺寸上
-  // 重跑，这段期间按 data-tweening 换成纯毛玻璃，落位后再弯回来。
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    root.dataset.tweening = "1";
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const timer = window.setTimeout(
-      () => {
-        delete root.dataset.tweening;
-      },
-      reduce ? 0 : DUR_FLOAT * 1000,
-    );
-    return () => window.clearTimeout(timer);
-  }, [live]);
-
-  if (rows.length === 0) return null;
-
-  const runningCount = rows.filter((r) => r.status === "running").length;
+/** 产品和独立验收页共用展示组件；模拟数据不写入真实工作区 store。 */
+export function AgentBoardView({todos,rows,live}: {todos: TodoItem[];rows: SubagentBoardRow[];live: boolean}) {
+  const hasTasks = todos.length > 0;
+  const hasAgents = rows.length > 0;
+  if (!hasTasks && !hasAgents) return null;
 
   return (
     <section
-      ref={rootRef}
       className="cv-agentboard"
       data-state={live ? "live" : "done"}
-      aria-label="子代理执行看板"
+      aria-label="执行看板"
     >
-      {/* 玻璃是纯背景层（不装 children）：壳的高度由正常流的面板内容撑起——
-          若把面板塞进 LiquidGlass（absolute inset:0）里，壳就只剩绝对定位子元素，
-          高度塌成 0（消息窗不踩这个坑是因为它两档尺寸都写死）。 */}
-      <div className="cv-agentboard-glass">
-        <LiquidGlass className="cv-agentboard-lg" {...GLASS} />
-      </div>
-      <div className="cv-agentboard-panel">
-        <header className="cv-agentboard-head" role="status" aria-live="polite">
-          子代理 · {runningCount > 0 ? `${runningCount} 运行中` : `${rows.length} 已完成`}
-        </header>
-        <div className="cv-agentboard-list">
-          {rows.map((row, i) => (
-            <AgentRow
-              key={row.callId}
-              callId={row.callId}
-              description={row.description}
-              summary={row.summary}
-              running={row.status === "running"}
-              depth={row.depth}
-              index={i}
-              live={live}
-            />
-          ))}
-        </div>
+      <div
+        className="cv-agentboard-scroll"
+        tabIndex={0}
+        aria-label="任务与子任务进度"
+      >
+        <TaskSection todos={todos} announce />
+        <SubagentSection rows={rows} live={live} announce={!hasTasks} />
       </div>
     </section>
   );
 }
 
-type RowDotState = "running" | "done" | "stopped";
+const TaskSection = memo(function TaskSection({ announce,todos }: { announce: boolean; todos: TodoItem[] }) {
+  const headingId = useId();
+  if (!todos.length) return null;
+  const doneCount = todos.filter((t) => t.status === "completed").length;
 
-interface AgentRowProps {
-  callId: string;
-  description: string;
-  summary: string;
-  running: boolean;
-  depth: number;
-  index: number;
-  /** 本轮是否仍在运行。流出错/中断时 running 行降级为「已停止」，不撒谎也不永久流光。 */
+  return (
+    <section className="cv-agentboard-sec" aria-labelledby={headingId}>
+      <header className="cv-agentboard-head" {...announceProps(announce)}>
+        <h2 id={headingId}>任务进度</h2>
+        <span>
+          {doneCount} / {todos.length} 已完成
+        </span>
+      </header>
+      <progress
+        className="cv-agentboard-progress"
+        value={doneCount}
+        max={todos.length}
+        aria-label="任务完成进度"
+      />
+      <ol className="cv-agentboard-list cv-agentboard-tasks">
+        {todos.map((t) => (
+          <TaskRow
+            key={t.key}
+            label={readableLabel(todoLabel(t))}
+            status={t.status}
+            blocked={t.blocked}
+          />
+        ))}
+      </ol>
+    </section>
+  );
+});
+
+const TaskRow = memo(function TaskRow({
+  label,
+  status,
+  blocked,
+}: {
+  label: string;
+  status: TodoStatus;
+  blocked: boolean;
+}) {
+  const done = status === "completed";
+  const active = status === "in_progress";
+  const state = done
+    ? "已完成"
+    : active
+      ? "进行中"
+      : blocked
+        ? "等待前置任务"
+        : "待开始";
+  const Icon = done ? CheckIcon : active ? ClockIcon : CircleDashedIcon;
+  return (
+    <li
+      className={`cv-agentboard-task${done ? " is-done" : active ? " is-running" : ""}`}
+      aria-label={`${label} · ${TODO_STATUS_TEXT[status]}${blocked && !done && !active ? " · 等待前置任务" : ""}`}
+    >
+      <span className="cv-agentboard-marker" aria-hidden="true">
+        <Icon width={15} height={15} />
+      </span>
+      <div className="cv-agentboard-task-copy">
+        <span className="cv-agentboard-task-text">{label}</span>
+        {(active || (blocked && !done)) && (
+          <span className="cv-agentboard-task-note">{state}</span>
+        )}
+      </div>
+    </li>
+  );
+});
+
+function SubagentSection({
+  rows,
+  live,
+  announce,
+}: {
+  rows: SubagentBoardRow[];
   live: boolean;
+  announce: boolean;
+}) {
+  const headingId = useId();
+  if (!rows.length) return null;
+  const unfinished = rows.filter((r) => r.status === "running").length;
+  const completed = rows.length - unfinished;
+  const summary = [
+    unfinished ? `${unfinished} ${live ? "进行中" : "状态待确认"}` : "",
+    completed ? `${completed} 已完成` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <section className="cv-agentboard-sec" aria-labelledby={headingId}>
+      <header className="cv-agentboard-head" {...announceProps(announce)}>
+        <h2 id={headingId}>协作智能体</h2>
+        <span>{summary}</span>
+      </header>
+      <ul className="cv-agentboard-list">
+        {rows.map((row) => (
+          <AgentRow
+            key={row.callId}
+            identity={row.callId}
+            botState={row.botState}
+            description={readableLabel(row.description) || "协作智能体"}
+            summary={row.summary}
+            running={row.status === "running"}
+            depth={row.depth}
+            live={live}
+          />
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 const AgentRow = memo(function AgentRow({
-  callId,
+  identity,
+  botState,
   description,
   summary,
   running,
   depth,
-  index,
   live,
-}: AgentRowProps) {
-  const dotState: RowDotState = running ? (live ? "running" : "stopped") : "done";
-  const isRunningRow = dotState === "running";
+}: {
+  identity: string;
+  botState: BotPersistentState;
+  description: string;
+  summary: string;
+  running: boolean;
+  depth: number;
+  live: boolean;
+}) {
+  const state = running ? (live ? "running" : "stopped") : "done";
+  const statusLabel =
+    state === "running" ? "进行中" : state === "done" ? "已完成" : "状态待确认";
+  // 没有具体动作时仅显示一次状态；有动作时让摘要回答「正在做什么」。
+  const action =
+    state === "running" && summary && !/^运行中[.…\s]*$/.test(summary)
+      ? readableLabel(summary.replace(/[.…]+$/, ""))
+      : null;
   return (
-    <div
-      className={`cv-agentboard-row${isRunningRow ? " is-running" : ""}${dotState === "done" ? " is-done" : ""}`}
-      // 缩进走 --depth 进 CSS calc：内联 paddingLeft 会把行自身的左内边距整个盖掉，
-      // depth=0 时头像就顶出行边（曾出过这个 bug）。
-      style={{ "--i": index, "--depth": Math.min(depth, 2) } as CSSProperties}
+    <li
+      className={`cv-agentboard-row is-${state}`}
+      style={{ "--depth": Math.min(depth, 2) } as CSSProperties}
+      aria-label={`${description} · ${statusLabel}${action ? ` · ${action}` : ""}`}
     >
       <span className="cv-agentboard-avatar" aria-hidden="true">
-        {/* 头像出现时先播一次派生（spawn），跑完一档插播一次 proud 再落回待命。
-            视线不跟指针：一屏十几个头像同时盯着鼠标是灵异片。 */}
         <ProseBot
-          hue={hashHue(callId)}
-          state={deriveSubagentBotState(running ? "running" : "done", live)}
-          size={24}
-          spawn
-          once="proud"
-          onceKey={running ? undefined : "done"}
-          onceMs={2200}
+          state={botState}
+          identity={identity}
+          size={40}
+          intensity="quiet"
+          ribbons={false}
+          spawn={running && live}
+          completionKey={identity}
+          aria-hidden="true"
         />
       </span>
-      <span className="cv-agentboard-main">
-        <span className="cv-agentboard-line1">
-          <span className="cv-agentboard-desc">{description}</span>
-          <span className="cv-agentboard-state">
-            <span
-              className={`run-dot${dotState === "running" ? " running" : dotState === "done" ? " done" : ""}`}
-              aria-hidden="true"
-            />
-            {isRunningRow ? "运行中" : dotState === "done" ? "已完成" : "已停止"}
-          </span>
-        </span>
-        {isRunningRow && (
-          // keyed by summary：文本一变即重挂载，走上滑淡入（事件驱动的「滚动」，不跑马灯）。
-          <span className="cv-agentboard-sumline" key={summary}>
-            <span className="cv-agentboard-sum cv-shimmer">{summary}</span>
-          </span>
+      <div className="cv-agentboard-main">
+        <span className="cv-agentboard-desc">{description}</span>
+        {(action || state !== "running") && (
+          <span className="cv-agentboard-summary">{action || statusLabel}</span>
         )}
-      </span>
-    </div>
+      </div>
+    </li>
   );
 });

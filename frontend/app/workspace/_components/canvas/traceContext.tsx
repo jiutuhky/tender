@@ -50,6 +50,9 @@ export interface TraceContextValue {
   /** 层内来源步进:在当前条目的 refs 内环绕移动,自动跳过不可用的来源 */
   stepSource: (delta: 1 | -1) => void;
   closeTrace: () => void;
+  nextPending: () => void;
+  nextPendingCount: number;
+  retryRegistry: () => void;
 }
 
 export const TraceContext = createContext<TraceContextValue | null>(null);
@@ -66,6 +69,8 @@ export function useTraceState(enabled: boolean): {
   activeDoc: DocumentRecord | null;
 } {
   const projectId = useWorkspaceStore((s) => s.projectId);
+  const matrices = useWorkspaceStore((s) => s.matrices);
+  const [revision, setRevision] = useState(0);
   const [registry, setRegistry] = useState<Map<string, DocumentRecord> | null>(null);
   const [registryStatus, setRegistryStatus] = useState<RegistryStatus>("loading");
   const [active, setActive] = useState<{
@@ -94,7 +99,7 @@ export function useTraceState(enabled: boolean): {
     return () => {
       alive = false;
     };
-  }, [enabled, projectId]);
+  }, [enabled, projectId, revision]);
 
   const openTrace = useCallback(
     (ref: SourceRef, key: string, claim?: TraceClaim) =>
@@ -130,6 +135,35 @@ export function useTraceState(enabled: boolean): {
     [registry, registryStatus],
   );
 
+  const retryRegistry = useCallback(() => {
+    setRegistryStatus("loading");
+    setRevision((v) => v + 1);
+  }, []);
+  const pendingClaims = useMemo<TraceClaim[]>(() => {
+    const type = active?.claim?.matrixType;
+    if (type !== "business" && type !== "technical") return [];
+    const slot = matrices[type];
+    const rows = new Map((slot.itemRows ?? []).map((r) => [r.item_id, r]));
+    const items = slot.data?.items ?? [];
+    const start = items.findIndex((it) => it.id === active?.claim?.itemId);
+    const ordered = [...items.slice(start + 1), ...items.slice(0, Math.max(0, start))];
+    return ordered.flatMap((it): TraceClaim[] => {
+      if (!it.id || !rows.has(it.id) || rows.get(it.id)?.confirmed) return [];
+      const refs = it.source_refs ?? [];
+      const index = refs.findIndex((ref) => assessSourceRef(ref, registryStatus, registry).usable);
+      if (index < 0) return [];
+      return [{ itemKey: it.id, itemId: it.id, matrixType: type, label: it.id,
+        title: it.title || "未命名条目", requirementText: it.requirement_text ?? "",
+        mandatory: !!it.mandatory, paramNature: it.param_nature, highRisk: it.risk_level === "high",
+        refs, refIndex: index }];
+    });
+  }, [active?.claim, matrices, registryStatus, registry]);
+  const nextPending = useCallback(() => {
+    const claim = pendingClaims[0];
+    const ref = claim?.refs[claim.refIndex];
+    if (claim && ref) openTrace(ref, `${claim.itemKey}:${claim.refIndex}`, claim);
+  }, [pendingClaims, openTrace]);
+
   const ctx = useMemo<TraceContextValue>(
     () => ({
       registry,
@@ -142,8 +176,11 @@ export function useTraceState(enabled: boolean): {
       openTrace,
       stepSource,
       closeTrace,
+      nextPending,
+      nextPendingCount: pendingClaims.length,
+      retryRegistry,
     }),
-    [registry, registryStatus, projectId, active, openTrace, stepSource, closeTrace],
+    [registry, registryStatus, projectId, active, openTrace, stepSource, closeTrace, nextPending, pendingClaims.length, retryRegistry],
   );
   const activeDoc =
     (active?.ref.document_id ? registry?.get(active.ref.document_id) : undefined) ?? null;

@@ -1,0 +1,128 @@
+.botprobe {
+  max-width: 1180px;
+  padding: 32px;
+  margin: auto;
+  color: var(--label);
+}
+.botprobe > header h1 {
+  font-size: 26px;
+  margin: 0 0 10px;
+}
+.botprobe-hero h2,
+.botprobe-group > h2,
+.botprobe-board-demo > h2 {
+  font-size: 17px;
+  margin: 0 0 14px;
+}
+.botprobe p {
+  color: var(--label-2);
+  font-size: 13px;
+}
+.botprobe button {
+  font: inherit;
+  color: var(--label);
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.botprobe button[aria-pressed="true"] {
+  border-color: var(--blue);
+}
+.botprobe button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.botprobe-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.botprobe-runtime {
+  min-height: 20px;
+}
+.botprobe-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 24px;
+  background: var(--surface);
+  border-radius: 16px;
+}
+.botprobe-hero > div {
+  flex: 1;
+  min-width: 220px;
+}
+.botprobe-sizes {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+}
+.botprobe-sizes > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--label-2);
+}
+.botprobe-group {
+  margin-top: 28px;
+}
+.botprobe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 10px;
+}
+.botprobe-grid button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.botprobe-board-demo {
+  margin-top: 36px;
+}
+.botprobe-canvas {
+  position: relative;
+  min-height: 570px;
+  border: 1px solid var(--separator);
+  border-radius: 16px;
+  background: var(--canvas);
+  padding: 24px;
+  --cv-float-inset: 20px;
+  --cv-dock-band: 20px;
+}
+.botprobe-canvas > p {
+  max-width: 180px;
+}
+@media (max-width: 640px) {
+  .botprobe {
+    padding: 18px;
+  }
+  .botprobe-canvas {
+    min-height: 620px;
+    padding-top: 0;
+    --cv-float-inset: 12px;
+  }
+  .botprobe-canvas > p {
+    display: none;
+  }
+  .botprobe-hero {
+    gap: 14px;
+    padding: 16px;
+  }
+  .botprobe-hero > div {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+}
+@media (pointer: coarse) {
+  .botprobe button {
+    min-height: 44px;
+  }
+}

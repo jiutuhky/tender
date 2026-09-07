@@ -1,84 +1,13 @@
 import { AppShell } from "@/components/shell/AppShell";
 import { TopBar } from "@/components/shell/TopBar";
-import {
-  DownloadIcon,
-  FileTextIcon,
-  GridFourIcon,
-  MagnifyingGlassMinusIcon,
-  MagnifyingGlassPlusIcon,
-  PencilSimpleIcon,
-  ShareIcon,
-} from "@/components/ui/icons";
-import { Outline } from "./_components/Outline";
 import { CoolingDiagram } from "./_components/CoolingDiagram";
+import { PreviewReader } from "./_components/PreviewReader";
 import "./styles.css";
 
 export default function PreviewPage() {
-  return (
-    <AppShell>
-      <TopBar
-        crumbs={[
-          { label: "工作台" },
-          { label: "2026 年度项目" },
-          { label: "华东数据中心绿色改造工程 · 投标书", current: true },
-        ]}
-        actions={
-          <>
-            <button className="btn-ghost" type="button">
-              <ShareIcon />
-              分享
-            </button>
-            <button className="btn-primary" type="button">
-              <DownloadIcon />
-              导出完整标书
-            </button>
-          </>
-        }
-      />
-
-      <div className="main">
-        <Outline />
-
-        <section className="center">
-          <div className="doc-toolbar frost-glass frost-glass--soft frost-scroll-edge" data-thick="regular">
-            <div className="zoom-controls">
-              <button className="icon-btn" title="缩小" type="button">
-                <MagnifyingGlassMinusIcon />
-              </button>
-              <span style={{ minWidth: 40, textAlign: "center" }}>100%</span>
-              <button className="icon-btn" title="放大" type="button">
-                <MagnifyingGlassPlusIcon />
-              </button>
-            </div>
-
-            <div
-              style={{
-                width: 1,
-                height: 20,
-                background: "var(--separator)",
-              }}
-            />
-
-            <div className="page-indicator">
-              页 <strong>42</strong> / 78 &nbsp;·&nbsp; 第 4 章 第 3 页
-            </div>
-
-            <div className="doc-toolbar-right">
-              <div className="view-toggle">
-                <button className="active" type="button">单页</button>
-                <button type="button">双页</button>
-                <button type="button">连续</button>
-              </div>
-              <button className="btn-ghost" type="button">
-                <PencilSimpleIcon />
-                请求修改
-              </button>
-            </div>
-          </div>
-
-          <div className="pages-viewport centered">
-            {/* 第 42 页 */}
-            <article className="page" id="p42">
+  return <AppShell><TopBar crumbs={[{ label: "项目", href: "/projects" }, { label: "文档排版示例", current: true }]} />
+    <PreviewReader>
+            <article className="preview-paper" id="p42">
               <div className="page-running-head">
                 <span>华东数据中心绿色改造工程 · 投标书</span>
                 <span>第四章 绿色技术方案</span>
@@ -110,7 +39,7 @@ export default function PreviewPage() {
               </p>
 
               <h3>关键指标对比</h3>
-              <table>
+              <div className="preview-table-scroll" role="region" aria-label="关键指标对比，可横向滚动" tabIndex={0}><table>
                 <thead>
                   <tr>
                     <th style={{ width: "26%" }}>指标</th>
@@ -157,9 +86,9 @@ export default function PreviewPage() {
                     <td style={{ color: "var(--label-2)" }}>符合</td>
                   </tr>
                 </tbody>
-              </table>
+              </table></div>
 
-              <div className="annotation" style={{ top: 380 }}>
+              <div className="preview-example-annotation" style={{ top: 380 }}>
                 此处交叉引用招标第 38 页。系统已检测到指标{" "}
                 <strong>全部达标或优于要求</strong>。
               </div>
@@ -173,11 +102,11 @@ export default function PreviewPage() {
                 冗余设计，关键管路采用双路独立环网，任一管段故障不影响整体运行。
               </p>
 
-              <div className="page-num">— 42 —</div>
+              <div className="page-num">— 示例第 1 页 —</div>
             </article>
 
             {/* 第 43 页 */}
-            <article className="page" id="p43">
+            <article className="preview-paper" id="p43">
               <div className="page-running-head">
                 <span>华东数据中心绿色改造工程 · 投标书</span>
                 <span>第四章 绿色技术方案</span>
@@ -212,9 +141,9 @@ export default function PreviewPage() {
                 </li>
               </ul>
 
-              <div className="annotation" style={{ top: 570 }}>
+              <div className="preview-example-annotation">
                 此节已对照招标文件扣分项 <strong>T-42.3 冗余等级</strong> 与{" "}
-                <strong>T-43.1 可靠性承诺</strong>，0 扣分风险。
+                <strong>T-43.1 可靠性承诺</strong>，具体评分影响仍需人工核实。
               </div>
 
               <p>
@@ -222,153 +151,8 @@ export default function PreviewPage() {
                 区在二期扩容时同步接入，避免一次性停机带来的业务中断。详细施工窗口见第五章「实施与交付」。
               </p>
 
-              <div className="page-num">— 43 —</div>
+              <div className="page-num">— 示例第 2 页 —</div>
             </article>
-          </div>
-        </section>
-
-        {/* 右侧导出面板：霜玻璃 chrome（厚档、嵌入式），与中央内容以 .5px contact edge 相接（见 styles.css） */}
-        <aside
-          className="right-export frost-glass frost-glass--soft frost-glass--flush"
-          data-thick="thick"
-        >
-          <div className="section">
-            <h4>合规与校对</h4>
-            <div className="check-summary">
-              <div className="check-row pass">
-                <div className="status-icon" />
-                <div className="check-body">
-                  <div className="check-name">招标技术要求逐条响应</div>
-                  <div className="check-name-sub">19 / 19 条 · 全部响应</div>
-                </div>
-                <span className="count">通过</span>
-              </div>
-              <div className="check-row pass">
-                <div className="status-icon" />
-                <div className="check-body">
-                  <div className="check-name">历史扣分点规避</div>
-                  <div className="check-name-sub">47 条 · 全部规避</div>
-                </div>
-                <span className="count">通过</span>
-              </div>
-              <div className="check-row pass">
-                <div className="status-icon" />
-                <div className="check-body">
-                  <div className="check-name">引用资料交叉核验</div>
-                  <div className="check-name-sub">23 处 · 全部指向有效来源</div>
-                </div>
-                <span className="count">通过</span>
-              </div>
-              <div className="check-row live">
-                <div className="status-icon" />
-                <div className="check-body">
-                  <div className="check-name">格式与排版规范</div>
-                  <div className="check-name-sub">
-                    GB/T 9704-2012 · 部分章节待生成
-                  </div>
-                </div>
-                <span className="count">运行中</span>
-              </div>
-              <div className="check-row warn">
-                <div className="status-icon" />
-                <div className="check-body">
-                  <div className="check-name">报价表双盲一致性</div>
-                  <div className="check-name-sub">第 6.1 节待撰写后复核</div>
-                </div>
-                <span className="count">待审</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="section">
-            <h4>导出</h4>
-            <div className="export-card">
-              <div className="format-row">
-                <div className="format active">
-                  <FileTextIcon />
-                  <div className="format-name">PDF/A</div>
-                  <div className="format-size">~ 14.2 MB</div>
-                </div>
-                <div className="format">
-                  <FileTextIcon />
-                  <div className="format-name">Word</div>
-                  <div className="format-size">.docx</div>
-                </div>
-                <div className="format">
-                  <GridFourIcon />
-                  <div className="format-name">分册 ZIP</div>
-                  <div className="format-size">6 册</div>
-                </div>
-              </div>
-
-              <div className="export-options">
-                <div className="option">
-                  <span>嵌入水印 · 投标编号</span>
-                  <div className="toggle on" />
-                </div>
-                <div className="option">
-                  <span>保留智能体批注</span>
-                  <div className="toggle" />
-                </div>
-                <div className="option">
-                  <span>附加合规性证明</span>
-                  <div className="toggle on" />
-                </div>
-                <div className="option">
-                  <span>按章节拆分 PDF</span>
-                  <div className="toggle" />
-                </div>
-              </div>
-
-              <button className="export-btn" type="button">
-                <DownloadIcon />
-                生成 · PDF/A（78 页）
-              </button>
-            </div>
-          </div>
-
-          <div className="section">
-            <h4>修订记录</h4>
-            <div className="timeline">
-              <div className="timeline-item active">
-                <div className="time">10:14</div>
-                <div className="line" />
-                <div className="label">
-                  <strong>智能体</strong> 正在撰写 § 4.2 液冷子系统
-                </div>
-              </div>
-              <div className="timeline-item done">
-                <div className="time">09:57</div>
-                <div className="line" />
-                <div className="label">
-                  <strong>李慧</strong> 采纳图 4.2-1 原理示意图
-                </div>
-              </div>
-              <div className="timeline-item done">
-                <div className="time">09:42</div>
-                <div className="line" />
-                <div className="label">
-                  <strong>智能体</strong> 完成 § 4.1 总体技术路线初稿
-                </div>
-              </div>
-              <div className="timeline-item done">
-                <div className="time">08:30</div>
-                <div className="line" />
-                <div className="label">
-                  <strong>智能体</strong> 从知识库匹配 4 个历史项目
-                </div>
-              </div>
-              <div className="timeline-item done">
-                <div className="time">昨 22:10</div>
-                <div className="line" />
-                <div className="label">
-                  <strong>张工</strong> 上传招标补遗文件
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </AppShell>
-  );
+    </PreviewReader>
+  </AppShell>;
 }

@@ -98,6 +98,8 @@ class SandboxPool:
         # max_lifetime),由 manager 注入 RunStore 视图;未注入即无 hold
         self._active_run_fn: Callable[[str], bool] | None = None
         self._project_guard_fn: Callable[[str], AbstractContextManager] | None = None
+        self._project_try_guard_fn: Callable[[str], AbstractContextManager[bool]] | None = None
+        self._reclaim_lock = threading.Lock()
         self._restore_factory = restore_factory
         self._idle: Queue = Queue()
         self._leased: dict[str, SandboxLease] = {}
@@ -283,45 +285,116 @@ class SandboxPool:
 
     # —— acquire / release ————————————————————————————————————————
 
-    def acquire(self, *, project_id: str) -> SandboxLease:
-        sandbox: HagentSandboxProtocol | None = None
-        if self._project_factory is None:
+    def _reclaim_capacity(self, *, project_id: str, attempted: set[str]) -> bool:
+        """容量压力下优先回收 warm VM，再将最久未使用的空闲项目存为快照。
+
+        不等待别的项目锁，避免并发请求互持项目锁时死锁；同一时刻只有
+        一个回收者。任务活跃或快照失败均保留旧环境，失败项目本轮不重复尝试。
+        """
+        if not self._reclaim_lock.acquire(blocking=False):
+            return False
+        try:
             try:
-                sandbox = self._idle.get_nowait()
+                warm = self._idle.get_nowait()
             except Empty:
                 pass
-        if sandbox is None:
+            else:
+                self._teardown_sandbox(warm)
+                with self._lock:
+                    self._size = max(0, self._size - 1)
+                return True
+            if self._persist_fn is None:
+                return False
+            if self._project_guard_fn is not None and self._project_try_guard_fn is None:
+                # 已有项目协调锁时不能绕过它；调用方需提供非阻塞版本才能压力回收。
+                return False
+            with self._lock:
+                leases = list(self._leased.values())
+            candidates = []
+            for lease in leases:
+                if lease.project_id == project_id or lease.project_id in attempted:
+                    continue
+                last_used = lease.leased_at
+                if self._last_activity_fn is not None:
+                    try:
+                        activity = self._last_activity_fn(lease.project_id)
+                    except Exception:
+                        continue
+                    if isinstance(activity, (int, float)):
+                        last_used = activity
+                candidates.append((last_used, lease))
+            for _, lease in sorted(candidates, key=lambda item: item[0]):
+                guard = (self._project_try_guard_fn(lease.project_id)
+                         if self._project_try_guard_fn is not None else nullcontext(True))
+                with guard as acquired:
+                    if not acquired or not self._is_current(lease):
+                        continue
+                    if self._has_active_run(lease.project_id):
+                        continue
+                    attempted.add(lease.project_id)
+                    if self._try_persist_guarded(lease):
+                        logger.info("容量回收:项目 %s 已快照休眠，释放名额", lease.project_id)
+                        return True
+            return False
+        finally:
+            self._reclaim_lock.release()
+
+    def _admit_sandbox(
+        self, *, project_id: str, factory: Callable[[], HagentSandboxProtocol] | None,
+        allow_warm: bool,
+    ) -> HagentSandboxProtocol:
+        """新建和快照恢复共用有界准入：取 warm、原子占位、回收、等待重试。
+
+        池数量及宿主内存/CPU 两层额度都需满足；工厂失败归还占位。
+        等待期间重新检查可用名额，兼容 release 直接销毁 VM 的默认行为。
+        """
+        deadline = time.monotonic() + self._acquire_timeout
+        attempted: set[str] = set()
+        while True:
+            if allow_warm:
+                try:
+                    return self._idle.get_nowait()
+                except Empty:
+                    pass
             claimed_slot = False
             with self._lock:
                 if self._size < self._max_size:
                     self._size += 1
                     claimed_slot = True
+            capacity_error: CapacityExceeded | None = None
             if claimed_slot:
                 try:
-                    # 池空且额度足 → 冷启动;CapacityExceeded 原样上抛(503)
-                    factory = (
-                        (lambda: self._project_factory(project_id))
-                        if self._project_factory is not None
-                        else None
-                    )
-                    sandbox = self._create_sandbox(factory=factory)
+                    return self._create_sandbox(factory=factory)
+                except CapacityExceeded as exc:
+                    capacity_error = exc
+                    with self._lock:
+                        self._size = max(0, self._size - 1)
                 except BaseException:
                     with self._lock:
                         self._size = max(0, self._size - 1)
                     raise
-        if sandbox is None:
-            # Wait for someone to release
-            deadline = time.monotonic() + self._acquire_timeout
-            while time.monotonic() < deadline:
-                try:
-                    sandbox = self._idle.get(timeout=0.05)
-                    break
-                except Empty:
-                    continue
-            if sandbox is None:
+            if self._reclaim_capacity(project_id=project_id, attempted=attempted):
+                continue
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                logger.warning(
+                    "项目 %s 准入等待结束: 原因=%s, 回收尝试=%d, 池=%s",
+                    project_id, "host_capacity" if capacity_error is not None else "pool_full",
+                    len(attempted), self.stats(),
+                )
+                if capacity_error is not None:
+                    raise capacity_error
                 raise PoolExhausted(
                     f"sandbox pool exhausted (max={self._max_size}) after {self._acquire_timeout}s"
                 )
+            time.sleep(min(0.05, remaining))
+
+    def acquire(self, *, project_id: str) -> SandboxLease:
+        factory = ((lambda: self._project_factory(project_id))
+                   if self._project_factory is not None else None)
+        sandbox = self._admit_sandbox(
+            project_id=project_id, factory=factory, allow_warm=self._project_factory is None,
+        )
         self._bind_project(sandbox, project_id)
         lease = SandboxLease(sandbox=sandbox, project_id=project_id)
         with self._lock:
@@ -330,34 +403,25 @@ class SandboxPool:
         return lease
 
     def acquire_restored(self, *, project_id: str, snapshot_id: str) -> SandboxLease:
-        """快照恢复(Task C2):占位 → restore_factory → 提交 → lease。
-
-        恢复的 VM 同样吃内存,必须先过账本；本层将容量或恢复错误交给
-        manager，由其把快照视为缓存未命中并尝试 warm/cold 供给。
-        恢复本身不消费 warm 池、不触发补货——恢复与预热是两条独立供给线。
-        """
+        """快照恢复共用准入；容量不足保留快照，由调用方返回可重试错误。"""
         if self._restore_factory is None:
             raise RuntimeError("此池未配置 restore_factory,无法从快照恢复")
-        claimed_slot = False
-        with self._lock:
-            if self._size < self._max_size:
-                self._size += 1
-                claimed_slot = True
-        if not claimed_slot:
-            raise PoolExhausted(f"sandbox pool exhausted (max={self._max_size})")
-        try:
-            sandbox = self._create_sandbox(
-                factory=lambda: self._restore_factory(snapshot_id, project_id)
-            )
-        except BaseException:
-            with self._lock:
-                self._size = max(0, self._size - 1)
-            raise
+        sandbox = self._admit_sandbox(
+            project_id=project_id,
+            factory=lambda: self._restore_factory(snapshot_id, project_id),
+            allow_warm=False,
+        )
         self._bind_project(sandbox, project_id)
         lease = SandboxLease(sandbox=sandbox, project_id=project_id)
         with self._lock:
             self._leased[project_id] = lease
         return lease
+
+    def set_project_try_guard_fn(
+        self, guard_fn: Callable[[str], AbstractContextManager[bool]],
+    ) -> None:
+        """容量回收只尝试锁定候选项目，不阻塞正在进行的项目操作。"""
+        self._project_try_guard_fn = guard_fn
 
     def set_persist_fn(self, persist_fn: Callable[[SandboxLease], bool] | None) -> None:
         """装配期注入：manager 持项目租约记账，池只认布尔结果。"""
@@ -461,7 +525,7 @@ class SandboxPool:
             persisted = bool(self._persist_fn(lease))
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "project=%s 快照持久化失败,退回驱逐: %s", lease.project_id, exc
+                "project=%s 快照持久化失败: %s", lease.project_id, exc
             )
             return False
         if not persisted:

@@ -118,7 +118,7 @@ def test_snapshotted_project_restores_for_any_session(mgr_env):
 
 
 @pytest.mark.parametrize("error", [CapacityExceeded("full"), PoolExhausted("full")])
-def test_restore_capacity_error_falls_back_to_fresh_project_vm(
+def test_restore_capacity_error_preserves_snapshot_for_retry(
     mgr_env, error, monkeypatch
 ):
     manager, _, leases, pool, session = mgr_env
@@ -128,13 +128,16 @@ def test_restore_capacity_error_falls_back_to_fresh_project_vm(
     deleted: list[str] = []
     monkeypatch.setattr("hagent.server.manager._delete_snapshot_quiet", deleted.append)
 
-    assert manager.ensure_sandbox(session.id) is pool.sandbox
+    with pytest.raises(type(error)):
+        manager.ensure_sandbox(session.id)
 
     saved = leases.get("project-alpha")
-    assert deleted == ["snap-old"]
-    assert pool.acquire_calls == ["project-alpha"]
-    assert saved.snapshot_id is None
-    assert saved.sandbox_state == SandboxState.RUNNING.value
+    assert deleted == []
+    assert pool.acquire_calls == []
+    assert saved.snapshot_id == "snap-old"
+    assert saved.sandbox_state == SandboxState.SNAPSHOTTED.value
+    pool.restore_error = None
+    assert manager.ensure_sandbox(session.id) is pool.restored
 
 
 def test_genuine_restore_failure_falls_back_to_fresh_project_vm(mgr_env, monkeypatch):

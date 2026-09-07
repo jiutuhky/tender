@@ -15,7 +15,7 @@ import {
 import { gsap } from "gsap";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
-import { Newsreader, Noto_Serif_SC } from "next/font/google";
+import "./trace-fonts.css";
 // KaTeX 结构样式必须引入:它把 .katex-mathml 裁剪成 1px 隐藏起来,
 // 不引入的话 MathML 会和 HTML 两套一起显示(同一个公式渲染两遍)。
 // 它带的 20 个 KaTeX_* Web 字体在 globals.css 里被字族覆盖掉,一个都不会被请求。
@@ -35,23 +35,7 @@ import { RefreshIcon, WarningIcon } from "@/components/ui/icons";
 // 取数走 use() + Suspense:数据层按 document_id + sha256 缓存 promise(身份稳定),
 // 载入占位 = fallback,读取失败抛给错误边界,重试即换 key 重挂发新请求。
 
-// 「零 Web 字体」全局硬约束在此有一处有意破例(PRD 决策,CLAUDE.md 与 frost-design skill 已注记):
-// 公文式衬线排版在简体环境没有可靠的系统衬线栈,经 next/font 自托管引入
-// Newsreader(拉丁)+ Noto Serif SC(简体),构建期下载、零运行时外链;
-// CSS 变量类只挂在面板文档根节点(.cv-trace-doc),站点其余部分不受影响。
-const serifLatin = Newsreader({
-  weight: ["400", "600"],
-  subsets: ["latin"],
-  display: "swap",
-  preload: false,
-  variable: "--trace-serif-latin",
-});
-const serifCJK = Noto_Serif_SC({
-  weight: ["400", "600"],
-  display: "swap",
-  preload: false,
-  variable: "--trace-serif-cjk",
-});
+// 原文衬线字体按 Unicode 分片自托管，构建与运行均不依赖外部字体服务。
 
 /** 载入占位:静态骨架行(Frost 禁无限循环动效),形状呼应成稿后的标题 + 段落 */
 function TraceSkeleton() {
@@ -188,7 +172,7 @@ function DocView({ projectId, doc }: { projectId: string; doc: DocumentRecord })
           <span>未能定位：来源行号缺失、越界或未指向正文内容，请在原文中人工查找</span>
         </div>
       )}
-      <article ref={rootRef} className={`cv-trace-doc ${serifLatin.variable} ${serifCJK.variable}`}>
+      <article ref={rootRef} className="cv-trace-doc">
         {body}
       </article>
     </>

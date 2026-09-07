@@ -1,5 +1,7 @@
 "use client";
 
+import { RecoveryActions } from "./RecoveryActions";
+
 import { memo, useCallback, useEffect, useMemo, type MutableRefObject, type RefObject } from "react";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import type { ChatMsg } from "@/lib/hagent/timeline";
@@ -184,7 +186,6 @@ interface AgentStreamProps {
 export function AgentStream({ scrollRef, stickRef }: AgentStreamProps) {
   const phase = useWorkspaceStore((s) => s.phase);
   const timeline = useWorkspaceStore((s) => s.timeline);
-  const todos = useWorkspaceStore((s) => s.todos);
   const matrices = useWorkspaceStore((s) => s.matrices);
   const errorMsg = useWorkspaceStore((s) => s.errorMsg);
 
@@ -193,6 +194,8 @@ export function AgentStream({ scrollRef, stickRef }: AgentStreamProps) {
   // —— 跟随最新消息自动下滚 ——
   // 内容随流式增长时，把滚动容器贴到底部，让焦点始终在最新 message。仅当用户当前已在底部
   // 附近时才贴底，避免用户上滚回看历史时被强行拽回。
+  // todos 刻意不在依赖里：它不进 transcript（渲染在右上角执行看板），订阅它只会让整条
+  // 时间线跟着每次 todo.updated 白重渲一遍。
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -200,7 +203,7 @@ export function AgentStream({ scrollRef, stickRef }: AgentStreamProps) {
   useEffect(() => {
     const el = scrollRef.current;
     if (el && stickRef.current) el.scrollTop = el.scrollHeight;
-  }, [turns, phase, todos, matrices, scrollRef, stickRef]);
+  }, [turns, phase, matrices, scrollRef, stickRef]);
 
   return (
     <div className="stream-scroll" ref={scrollRef} onScroll={onScroll}>
@@ -210,11 +213,13 @@ export function AgentStream({ scrollRef, stickRef }: AgentStreamProps) {
             <div className="cm-assistant-response">
               <div className="cm-assistant-meta">Prose</div>
               <div className="cm-response">
-                <p>已就绪。请在下方输入区选择招标文件样本，或上传 <code>.md</code> 文件，我将调用解析技能提取结构化信息。</p>
+                <p>已就绪。请在下方输入区选择招标文件样本，或上传 <code>.md</code> 文件，我会提取项目概要、商务要求、技术要求与评分办法，供你逐项核验。</p>
               </div>
             </div>
           </div>
         )}
+
+        {turns.length === 0 && phase === "done" && <div className="cm-message-turn cm-assistant"><div className="cm-assistant-response"><div className="cm-assistant-meta">Prose</div><div className="cm-response"><p>项目结果已载入。选择一类矩阵查看要求与原文，或在下方提出新的问题。</p><p>此处展示本次打开后的对话，历史会话尚未恢复。</p></div></div></div>}
 
         {turns.map((t, i) => {
           if (t.kind === "user") return <UserTurn key={t.id} turn={t} sig={turnSignature(t)} />;
@@ -229,7 +234,8 @@ export function AgentStream({ scrollRef, stickRef }: AgentStreamProps) {
             <div className="cm-assistant-response">
               <div className="cm-assistant-meta">Prose</div>
               <div className="cm-response cm-error-message">
-                <p><span className="cm-error-mark" aria-hidden="true" />解析失败：{errorMsg}</p>
+                <p role="alert"><span className="cm-error-mark" aria-hidden="true" />本次操作未完成：{errorMsg}</p>
+                <RecoveryActions />
               </div>
             </div>
           </div>

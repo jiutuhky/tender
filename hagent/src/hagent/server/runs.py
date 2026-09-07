@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -76,7 +77,7 @@ def _now() -> str:
 class RunStore:
     def __init__(self, db_path: Path | str):
         self._db_path = str(db_path)
-        with sqlite3.connect(self._db_path) as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(_SCHEMA)
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_runs_project ON runs(project_id, created_at)"
@@ -101,7 +102,7 @@ class RunStore:
         run_id = uuid.uuid4().hex[:16]
         created_at = _now()
         metadata_json = json.dumps({"summary": summary}, ensure_ascii=False)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO runs "
                 "(id, project_id, kind, session_id, status, base_revision, "
@@ -122,7 +123,7 @@ class RunStore:
         return run
 
     def get(self, run_id: str) -> RunState | None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             row = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
         return self._row_to_state(row) if row is not None else None
 
@@ -146,7 +147,7 @@ class RunStore:
             RunStatus.REJECTED,
         }:
             raise ValueError(f"run 终态无效: {status.value}")
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             cursor = conn.execute(
                 "UPDATE runs SET status = ?, commit_sha = ?, error = ?, "
                 "finished_at = ? WHERE id = ?",
@@ -160,7 +161,7 @@ class RunStore:
 
     def active_for_project(self, project_id: str) -> list[RunState]:
         placeholders = ", ".join("?" for _ in _ACTIVE_STATUSES)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute(
                 f"SELECT * FROM runs WHERE project_id = ? AND status IN ({placeholders}) "
                 "ORDER BY created_at",
@@ -171,7 +172,7 @@ class RunStore:
     def interrupt_active(self, *, error: str) -> list[RunState]:
         placeholders = ", ".join("?" for _ in _ACTIVE_STATUSES)
         finished_at = _now()
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute(
                 f"SELECT id FROM runs WHERE status IN ({placeholders}) "
                 "ORDER BY created_at",
@@ -195,7 +196,7 @@ class RunStore:
         return recovered
 
     def _set_status(self, run_id: str, status: RunStatus) -> RunState:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             cursor = conn.execute(
                 "UPDATE runs SET status = ? WHERE id = ?",
                 (status.value, run_id),

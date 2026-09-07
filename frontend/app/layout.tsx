@@ -8,7 +8,7 @@ import "./globals.css";
    于是 .frost-glass 整层的磨砂与折射全部失效。这段内联样式不经 CSS 构建管线，
    把标准属性原样补回来——dev 与 prod 都生效。
    只补 backdrop-filter，其余光学层仍由 frost-materials.css 提供，
-   该文件因此保持与设计系统源逐字节一致。
+   材质样式统一在该文件维护。
    降低透明度的兜底带 !important，仍压过这里。 */
 const GLASS_BACKDROP_SHIM = `
 html .frost-glass{backdrop-filter:blur(var(--_blur)) saturate(var(--glass-sat))}

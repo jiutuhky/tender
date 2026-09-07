@@ -4,7 +4,7 @@ import type { SVGProps } from "react";
  * 图标唯一载体。
  *
  * 图标源：**Phosphor Icons regular 2.1.1 官方 path 内联**（256 网格、fill 式）。
- * 与 frost-design skill 的 ICONOGRAPHY 一节对齐：单一 regular 权重，不混
+ * 保持单一 regular 权重，不混
  * bold / fill / duotone，不手绘几何。
  *
  * 新增图标必须从官方资产取 path，**禁止手绘**：
@@ -383,3 +383,6 @@ export function BrandMark({ small, ...props }: IconProps & { small?: boolean }) 
     </svg>
   );
 }
+
+// 品牌角色走统一图标出口，动态绘制与通用动作由独立引擎负责。
+export { ProseBot, type ProseBotProps } from "../ProseBot";

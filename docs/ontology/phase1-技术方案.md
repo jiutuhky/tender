@@ -272,7 +272,7 @@ GET  /ontology/projects/{pid}/actions         # 审计流水（分页）
   - `SandboxStatusStrip.tsx` —— 状态带（三组数字，点「待裁决」开抽屉）。
   - `RulingDrawer.tsx` —— 裁决抽屉：队列 + 逐条 Action 按钮 + 对齐报告汇总行。
 - 触发链：现有「run 目录发现」逻辑完成矩阵下载后追加调用 `import` → 成功后拉 `sandbox` → 画布主视图切换为沙盘（矩阵卡片保留为次级 tab）。
-- 视觉：按 frost-design 出高保真，信息结构与主次以决策画布线框为准（ADR 0005）；三态用语义色 graphic/text 对，蓝色只给交互。
+- 视觉：沿用现有界面样式出高保真，信息结构与主次以决策画布线框为准（ADR 0005）；三态用语义色 graphic/text 对，蓝色只给交互。
 
 ## 9. 测试与验收
 

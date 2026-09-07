@@ -16,6 +16,7 @@ import os
 import sqlite3
 import threading
 import time
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -120,7 +121,7 @@ class SandboxEventStore:
 
     def __init__(self, db_path: Path | str) -> None:
         self._db_path = str(db_path)
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(_EVENTS_SCHEMA)
             columns = {row[1] for row in conn.execute("PRAGMA table_info(sandbox_events)")}
             if "project_id" not in columns:
@@ -151,7 +152,7 @@ class SandboxEventStore:
     ) -> None:
         if event not in SANDBOX_EVENT_KINDS:
             raise ValueError(f"未知 sandbox 事件: {event!r}")
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             conn.execute(
                 "INSERT INTO sandbox_events "
                 "(ts, project_id, session_id, vm_id, event, detail_json) "
@@ -189,7 +190,7 @@ class SandboxEventStore:
         # limit 指定时取最近 N 条(倒序,ops 事件尾随);不指定时正序全量(既有语义)
         order = "DESC" if limit is not None else "ASC"
         tail = f" LIMIT {int(limit)}" if limit is not None else ""
-        with self._connect() as conn:
+        with closing(self._connect()) as conn, conn:
             rows = conn.execute(
                 f"SELECT * FROM sandbox_events{where} ORDER BY id {order}{tail}", params
             ).fetchall()

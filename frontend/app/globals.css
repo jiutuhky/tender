@@ -3,8 +3,7 @@
 /* Migrated verbatim from prototype/archive/index.html (3 <style> blocks). */
 
 /* ===== Frost token 层 =====
-   与 .claude/skills/frost-design/tokens/*（colors/radius/motion/typography/elevation）
-   逐值同步；材质 token 见 ./frost-materials.css（同步自 tokens/materials.css）。
+   色彩、圆角、动效、字体与阴影 token 在此维护；材质 token 见 ./frost-materials.css。
    历史变量名（--bg/--fg/--accent/--border…）保留为规范 token 的别名，仅作兼容。 */
 :root {
     /* --- 中性阶（冷灰，light） --- */
@@ -124,25 +123,9 @@
     --radius-lg:   var(--r-card);
     --ease-drawer: var(--ease-std);
 
-    /* --- Prose Bot 角色令牌（lib/bot 引擎 + components/ui/ProseBot） ---
-       主 Agent 的本体是**黑**：三段渐变照 app icon 的结构（浅→中→深，135° 不变），
-       只把色相换成中性墨。暗色外观下整体翻成白，否则 Bot 会溶进 #161618 的画布里。
-       gloss / 描边 / 眼白跟着翻——它们在黑本体上是白高光，在白本体上必须变回暗色。
-       子代理头像不吃这组令牌：身份色是饱和色，在两种外观下都撑得住白高光。 */
-    --pb-ink-1: #4a4a4f;
+    /* Prose Bot 使用中性平色；彩带与身份色由 prose-bot.css 定义。 */
     --pb-ink-2: #1d1d1f;
-    --pb-ink-3: #000000;
-    --pb-gloss: #ffffff;
-    --pb-rim:   #ffffff;
-    --pb-eye:   #ffffff;
-    /* 特效层（思考点、雷达、进度环）的底色：主 Bot 走中性墨，子代理由组件换成身份色。
-       这是对 Frost「身份色止于超椭圆」的有意扩写——并排跑的四个子代理，光靠 24px 的
-       本体色块分不清谁在检索谁在落笔，特效层跟着染色之后一屏看板才读得出来。 */
-    --pb-fx:    var(--label);
-    /* 庆祝 / 兴奋的星火。语义色里没有「高兴」这一档，角色破例用金。 */
-    --pb-spark: #e0a021;
-    /* 侧面：转起来时露出的那个楔形，比正面暗一档，读作背光的那一面 */
-    --pb-side:  #2b2b30;
+    --pb-eye: #ffffff;
   }
 
   /* 暗色外观不是反色：近黑冷灰画布、深炭玻璃、强调色抬到 #409CFF。
@@ -163,15 +146,9 @@
     --orange-text: var(--d-orange-text);
     --red-text:    var(--d-red-text);
 
-    /* Bot 翻转：白本体 + 暗高光。三段仍是浅→中→深，只是整条降到暗侧。 */
-    --pb-ink-1: #ffffff;
+    /* 平面角色随主题反转，始终保持双眼对比度。 */
     --pb-ink-2: #e6e6eb;
-    --pb-ink-3: #bfbfc7;
-    --pb-gloss: #ffffff;
-    --pb-rim:   #1d1d1f;
-    --pb-eye:   #1d1d1f;
-    --pb-spark: #f5c451;
-    --pb-side:  #9b9ba6;
+    --pb-eye: #1d1d1f;
 
     color-scheme: dark;
   }
@@ -1025,7 +1002,7 @@
 /* ===== frost-theme overrides（Frost·霜：macOS 风格品牌层，uses !important）=====
    品牌事实来源：.design/prototype/frost/brand.html
    立场：冷灰中性 + 系统蓝唯一强调；半透明材质与投影代替细线；系统字体栈；连续大圆角。 */
-/* token 层已在文件顶部统一为 frost-design 规范值（含兼容别名），此处不再重复声明。 */
+/* token 层已在文件顶部统一维护（含兼容别名），此处不再重复声明。 */
 
 /* 品牌字标：squircle 图标 + 系统字体 Semibold */
 .brand {
@@ -1085,7 +1062,7 @@
 }
 .composer-input { border-radius: var(--r-card) !important; }
 .pill, .chip, .badge, .tag { border-radius: 999px !important; }
-.nav-tabs a, .doc-tab, .icon-btn, .btn-primary, .composer-send, .export-btn,
+.nav-tabs a, .doc-tab, .icon-btn, .btn-primary, .export-btn,
 .btn-ghost, .format, .view-toggle button {
   border-radius: var(--r-control) !important;
 }
@@ -1234,7 +1211,7 @@
 
 
 /* primary CTA: 发送 / 新建条目 / 导出 — Frost 系统蓝实心按钮（顶部高光 + 蓝晕投影） */
-.btn-primary, .composer-send, .export-btn {
+.btn-primary, .export-btn {
   background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%) !important;
   color: #ffffff !important;   /* 蓝底之上的固定前景，不随外观切换 */
   padding: 6px 12px !important;
@@ -1246,26 +1223,17 @@
   box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25) !important;
   transition: transform var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), background var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std) !important;
 }
-.btn-primary:hover, .composer-send:hover, .export-btn:hover {
+.btn-primary:hover, .export-btn:hover {
   background: linear-gradient(180deg, var(--blue-press) 0%, var(--blue-press) 100%) !important;
   color: #ffffff !important;   /* 蓝底之上的固定前景，不随外观切换 */
   transform: none !important;
   box-shadow: var(--elev-2), inset 0 1px 0 rgba(255, 255, 255, .25) !important;
 }
-.btn-primary:active, .composer-send:active, .export-btn:active {
+.btn-primary:active, .export-btn:active {
   transform: scale(.97) !important;
   box-shadow: var(--elev-1), inset 0 1px 2px rgba(0, 0, 0, .18) !important;
 }
-.btn-primary svg, .composer-send svg, .export-btn svg { width: 13px !important; height: 13px !important; }
-
-/* 发送按钮: vertical size aligns with the icon-btns on its left */
-.composer-send {
-  height: 28px !important;
-  min-height: 28px !important;
-  padding: 4px 12px !important;
-}
-.composer-send svg { width: 12px !important; height: 12px !important; }
-
+.btn-primary svg, .export-btn svg { width: 13px !important; height: 13px !important; }
 
 /* back-to-canvas pill */
 .ds-return {
@@ -2872,7 +2840,7 @@ body {
    否则一个 332×56 的透明盒会静默吃掉画布左上角的拖拽。 */
 .cv-msgwin {
   --cv-msgwin-pad: 10px;
-  --cv-msgwin-bot: 36px;
+  --cv-msgwin-bot: 48px;
   /* 播报与标题的起始 x：Bot 右缘再让 11px 呼吸 */
   --cv-msgwin-lane: calc(var(--cv-msgwin-pad) + var(--cv-msgwin-bot) + 11px);
   --cv-msgwin-max-h: calc(100% - var(--cv-float-inset) - var(--cv-dock-band));
@@ -2940,8 +2908,7 @@ body {
 }
 /* 过渡期换成纯毛玻璃（LiquidGlass 把 blur/saturate 版写在 --lg-plain 上）：
    壳每帧换尺寸 = 位移滤镜图每帧重跑一遍（论证见 MessageWindow）。 */
-.cv-msgwin[data-tweening="1"] .lg-warp,
-.cv-agentboard[data-tweening="1"] .lg-warp {
+.cv-msgwin[data-tweening="1"] .lg-warp {
   backdrop-filter: var(--lg-plain) !important;
   -webkit-backdrop-filter: var(--lg-plain) !important;
 }
@@ -3075,27 +3042,7 @@ body {
   outline: 2px solid var(--blue);
   outline-offset: 3px;
 }
-/* 运行中：一圈向外化开的白光，2.4s 一拍（与光束 2.6s 不整除，避免打成节拍器）。
-   环本身是常驻的 box-shadow，动的只有 transform / opacity——规范只许这两者进补间。
-   光是白的：蓝色的光只授予 border beam。 */
-.cv-msgwin-bot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, .55);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--t-float) var(--ease-std);
-}
-.cv-msgwin[data-busy="1"] .cv-msgwin-bot::after {
-  opacity: 1;
-  animation: cv-bot-halo 2.4s var(--ease-out) infinite;
-}
-@keyframes cv-bot-halo {
-  0%        { transform: scale(1);    opacity: .62; }
-  70%, 100% { transform: scale(1.26); opacity: 0; }
-}
+/* 头像自身的身体动作与彩带承担反馈，避免再叠一圈独立脉冲。 */
 /* 眼神与身体动效不再走 keyframes：眨眼、张望、歪头、呼吸全部由 lib/bot 的角色引擎
    逐帧驱动（弹簧积分 + 状态机），状态切换才接得住——keyframes 只能从头重播。
    这里只留下光晕（上面那段 ::after），它是与 data-busy 绑定的按钮级元素，不属于形本身。
@@ -3221,6 +3168,7 @@ body {
 .cv-msgwin-dot.running { background: var(--accent); }
 .cv-msgwin-dot.done { background: var(--green); }
 .cv-msgwin-dot.error { background: var(--red); }
+.cv-msgwin-dot.attention { background: var(--orange-text); }
 
 .cv-msgwin-tools {
   display: inline-flex;
@@ -3342,175 +3290,12 @@ body {
   pointer-events: none;
   /* 循环涟漪已撤：运行态由 border beam 唯一承担。 */
 }
-/* ---- 子代理状态看板（右上角）----
-   主智能体派发的每个子代理一行：Bot 头像（与消息窗同形象，色相按 callId 哈希错开、
-   明暗立体模型不变）+ 任务描述 + 最近动作摘要。摘要的「进行中」直接沿用 .cv-shimmer
-   文字流光（多行错拍见上方品牌立场备注）。
-   玻璃壳约束与 .cv-msgwin 相同：壳/玻璃上禁 opacity 动画（会塌 backdrop root），
-   进场拆成壳 transform 缩放 + 面板内容 opacity 两半，@starting-style 供进场起步。
-   没有退场：本轮结束后看板留在终态，下一轮 user 消息才卸载。 */
-.cv-agentboard {
-  position: absolute;
-  top: var(--cv-float-inset);
-  right: var(--cv-float-inset);
-  z-index: 9;                     /* 同 .cv-msgwin 档：< .cv-drawer(30)，抽屉能盖住 */
-  width: 300px;
-  max-height: calc(100% - var(--cv-float-inset) - var(--cv-dock-band));
-  /* 纵向 flex：面板是正常流子元素，壳高随内容长；列表在 max-height 内自行滚动 */
-  display: flex;
-  flex-direction: column;
-  contain: layout;
-  border-radius: 20px;   /* lens 面板档，与 AgentBoard 的 GLASS.cornerRadius 同步 */
-  transform-origin: top right;
-  transform: scale(.96);
-  transition: transform var(--t-float) var(--ease-std);
-  touch-action: auto;             /* 抵消 .canvas-viewport 的 touch-action:none */
-}
-.cv-agentboard[data-state="live"] {
-  transform: none;
-  transition: transform var(--t-float) var(--ease-std);
-}
-@starting-style {
-  .cv-agentboard[data-state="live"] { transform: scale(.96); }
-}
-/* 终态（data-state="done"）：看板不退场，停在原位供回看；只是行内动效全部停下。 */
-
-.cv-agentboard-glass {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-/* 投影沿用消息窗配方按面积缩一档（小卡浮得低些） */
-.cv-agentboard-lg > .lg-glass {
-  box-shadow: var(--glass-shadow-thick);   /* 凝 thick 面：厚度与深度成套 */
-}
-
-.cv-agentboard-panel {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 auto;
-  min-height: 0;                  /* 让列表能收到壳的 max-height 内滚动 */
-  display: flex;
-  flex-direction: column;
-  padding: 11px 11px 10px;
-  opacity: 1;
-  transition: opacity var(--t-float) var(--ease-std);
-}
-.cv-agentboard[data-state="live"] .cv-agentboard-panel {
-  transition: opacity var(--t-float) var(--ease-std);
-}
-@starting-style {
-  .cv-agentboard[data-state="live"] .cv-agentboard-panel { opacity: 0; }
-}
-
-.cv-agentboard-head {
-  flex: 0 0 auto;
-  padding: 0 2px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--muted);
-  letter-spacing: .04em;
-  font-variant-numeric: tabular-nums;
-}
-
-.cv-agentboard-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.cv-agentboard-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 9px;
-  /* 嵌套缩进叠在基础内边距上（--depth 由组件给，0/1/2）；头像永远在行边之内 */
-  padding-left: calc(9px + var(--depth, 0) * 12px);
-  border-radius: var(--r-window);
-  background: color-mix(in srgb, var(--surface) 62%, transparent);
-  box-shadow: inset 0 0 0 .5px var(--separator);
-  animation: cv-agentboard-row-in var(--t-float) var(--ease-std) both;
-  animation-delay: calc(var(--i) * var(--t-micro) / 3);
-}
-@keyframes cv-agentboard-row-in {
-  from { opacity: 0; transform: translateY(6px); }
-}
-/* 终态行退到次级：看板的主角永远是还在跑的 */
-.cv-agentboard-row:not(.is-running) { opacity: .72; }
-
-.cv-agentboard-avatar {
-  flex: 0 0 auto;
-  display: grid;
-  place-items: center;
-}
-.cv-agentboard-avatar svg { display: block; }
-/* 子代理头像的呼吸挤压与眼神同样交给角色引擎：运行中 working、完成后回落待命。
-   相位错开不再靠 --i 的负延迟，而是每个实例开机时抽一个随机相位——负延迟只是把同一
-   条曲线平移，凑巧同相时还是会打成节拍器。 */
-
-.cv-agentboard-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.cv-agentboard-line1 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.cv-agentboard-desc {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--fg);
-  letter-spacing: -.005em;
-}
-.cv-agentboard-state {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-/* 状态点比全局 run-dot（7px）小一档：对照 matrix 卡原型的 5px 信号点 */
-.cv-agentboard-state .run-dot { width: 5px; height: 5px; }
-
-/* 摘要行的「滚动」：文本一变 keyed 重挂载，走上滑淡入。动画挂外层——内层若与
-   .cv-shimmer 同元素会互抢 animation 属性，且外层 delay 会连进场一起推迟。 */
-.cv-agentboard-sumline {
-  overflow: hidden;
-  animation: cv-agentboard-sum-in var(--t-float) var(--ease-std);
-}
-@keyframes cv-agentboard-sum-in {
-  from { opacity: 0; transform: translateY(8px); }
-}
-.cv-agentboard-sum {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: -.002em;
-}
-
 /* 减弱动态：全部退化为静态。文字流光与状态涟漪已在常态下即静态，此处只撤光带与光束。 */
 @media (prefers-reduced-motion: reduce) {
   /* 光束整层撤掉：全局那条 iteration-count:1 只会让它跑完一圈定格，
      留下一段静止的亮弧——那比不画更奇怪。Bot 的生命体征退化为静止形态：
      光晕停在贴边的一圈白环（状态仍在，只是不再化开），眼神与身体归位。 */
   .cv-msgwin-beam { display: none; }
-  .cv-msgwin-bot::after { animation: none !important; }
 }
 
 /* Composer 在坞里的外壳：浮起卡片，不是侧栏页脚 */
@@ -3630,190 +3415,11 @@ body {
 .cv-dock-chip svg { color: var(--blue); flex: 0 0 auto; }
 
 /* ---- 右侧抽屉 ---- */
-.cv-drawer {
-  /* 抽屉体上下内边距,详情吸顶头(.cv-det-head)以负值抵消,两处必须同源 */
-  --cv-drawer-pad: 18px;
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  justify-content: flex-end;
-}
-.cv-drawer-scrim {
-  position: absolute;
-  inset: 0;
-  /* 纯色调光：下方是 LiquidGlass 浮窗与玻璃药丸，遮罩不得再上模糊（玻璃不叠玻璃） */
-  background: color-mix(in srgb, var(--label) 24%, transparent);
-}
-/* 抽屉面板 = 透明容器:表面材质与左投影下沉到主列(.cv-drawer-main) */
-.cv-drawer-panel {
-  position: relative;
-  width: min(548px, 100%);
-  height: 100%;
-  display: flex;
-}
-/* 主列:头 + 条目列表(+ mock 脚),恒定材质承载者 */
-.cv-drawer-main {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface);
-  box-shadow: var(--elev-3);
-}
-.cv-drawer-head {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 16px 18px;
-  box-shadow: inset 0 -.5px 0 var(--separator);   /* chrome 与内容交界：.5px 接触边，非 1px 分区线 */
-}
-.cv-drawer-titlebox { flex: 1; min-width: 0; }
-.cv-drawer-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: var(--label);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cv-drawer-sub { font-size: 11px; color: var(--label-3); margin-top: 1px; }
-.cv-drawer-close {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  border: 0;
-  background: var(--surface-2);
-  color: var(--label-2);
-  border-radius: var(--r-control);
-  cursor: pointer;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
-}
-.cv-drawer-close:hover { color: var(--fg); background: var(--surface-3); }
-.cv-drawer-close:active { transform: scale(.92); }
-.cv-drawer-close:focus-visible,
-.cv-drawer-btn:focus-visible,
 .cv-tool-btn:focus-visible,
-.cv-zoom button:focus-visible,
 .cv-dock-chip:focus-visible,
+.cv-zoom button:focus-visible,
 .cv-actbar:focus-visible,
 .cv-cite-btn:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
-}
-.cv-drawer-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: var(--cv-drawer-pad) 20px;
-}
-.cv-drawer-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
-  box-shadow: inset 0 .5px 0 var(--separator);   /* chrome 与内容交界：.5px 接触边，非 1px 分区线 */
-  background: var(--surface);
-}
-/* 次级按钮：对齐设计系统 .btn-ghost（macOS 白底默认按钮） */
-.cv-drawer-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 38px;
-  padding: 0 16px;
-  border: 0;   /* 深度代替描边：--elev-* 自带 .5px 接触环 */
-  border-radius: var(--r-window);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--label);
-  background: var(--surface);
-  cursor: pointer;
-  transition: transform var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), border-color var(--t-micro) var(--ease-std);
-}
-.cv-drawer-btn:hover { background: var(--surface-2); }
-.cv-drawer-btn:active { transform: scale(.97); }
-.cv-drawer-btn:disabled { opacity: 0.45; cursor: default; }
-.cv-drawer-btn:disabled:hover { background: var(--surface); }
-.cv-drawer-btn:disabled:active { transform: none; }
-/* 主行动按钮：对齐设计系统 .composer-send / .btn-primary（系统蓝渐变 + 顶高光 + 蓝晕投影） */
-.cv-drawer-btn.primary {
-  color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
-  background: linear-gradient(180deg, var(--blue) 0%, var(--blue-press) 100%);
-  border: 0;   /* 深度代替描边 */
-  box-shadow: var(--elev-1), inset 0 1px 0 rgba(255, 255, 255, .25);
-}
-.cv-drawer-btn.primary:hover {
-  background: linear-gradient(180deg, var(--blue-press) 0%, var(--blue-press) 100%);
-  transform: none;
-  box-shadow: var(--elev-2), inset 0 1px 0 rgba(255, 255, 255, .25);
-}
-.cv-drawer-btn.primary:active {
-  transform: scale(.97);
-  box-shadow: var(--elev-1), inset 0 1px 2px rgba(0, 0, 0, .18);
-}
-.cv-drawer-btn.icon { width: 38px; padding: 0; justify-content: center; color: var(--label-2); }
-.cv-drawer-btn.icon:hover { color: var(--fg); }
-
-/* ---- 溯源预览(票02/03):来源签 + 抽屉对照双栏 + 原文面板 + 定位高亮 ---- */
-/* 来源签:蓝 = 交互语义(与 .cv-chip 同族)。置灰签(溯源不可用)走 .is-disabled
-   而非 :disabled——保持可悬停/可聚焦,悬停原因说明(title)才到得了用户 */
-.cv-src-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 5px;
-}
-.cv-src-label { font-size: 11px; color: var(--label-3); }
-/* 表格单元内的签组(评分表「来源」列):列头已含语义,无标签行上边距 */
-.cv-src-row.is-cell { margin-top: 0; }
-/* 常态是一枚安静的文本签(hairline 描边、三级灰),悬停才染蓝:
-   一份技术矩阵有几十行,行行一枚蓝胶囊就成了满屏蓝斑,可点性靠悬停兑现即可。
-   活跃签(当前正被溯源定位的那一枚)仍是实心蓝,与常态拉开两档。 */
-.cv-src-chip {
-  display: inline-flex;
-  align-items: center;
-  border: 0;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--label-3);
-  background: transparent;
-  box-shadow: inset 0 0 0 .5px var(--separator);
-  padding: 2.5px 9px;
-  border-radius: 999px;
-  white-space: nowrap;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), box-shadow var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
-}
-.cv-src-chip:hover { background: var(--blue-soft); color: var(--blue); box-shadow: none; }
-/* 反馈在指针按下即时给出(apple-design):按压态走 :active 缩放 */
-.cv-src-chip:active { transform: scale(.97); }
-.cv-src-chip.is-active,
-.cv-src-chip.is-active:hover,
-.cv-src-chip.is-disabled,
-.cv-src-chip.is-disabled:hover { box-shadow: none; }
-.cv-src-chip.is-disabled,
-.cv-src-chip.is-disabled:hover {
-  color: var(--label-3);
-  background: var(--surface-2);
-  cursor: not-allowed;
-}
-.cv-src-chip.is-disabled:active { transform: none; }
-/* 活跃签点亮:全局单活跃 ref,实心蓝与常态浅染拉开 */
-.cv-src-chip.is-active,
-.cv-src-chip.is-active:hover {
-  color: #ffffff;   /* 蓝底之上的固定前景，不随外观切换 */
-  background: var(--blue);
-}
-.cv-src-chip:focus-visible,
-.cv-trace-close:focus-visible,
-.cv-trace-error button:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
@@ -3932,13 +3538,6 @@ body {
   cursor: pointer;
 }
 .cv-trace-claim-toggle:hover { text-decoration: underline; }
-.cv-trace-claim-foot {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.cv-trace-claim-foot .cv-item-actions { margin-top: 0; }
 /* 来源步进器:同一条目的多条来源在层内走完,不用退层再找下一枚签 */
 .cv-trace-step {
   display: flex;
@@ -3952,8 +3551,8 @@ body {
 .cv-trace-step button {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   border: 0;
   background: var(--surface);
   color: var(--label-2);
@@ -4052,7 +3651,7 @@ body {
 
 /* 成品排版:层级密度取 .design/prototype/archive/preview.html(文档预览与导出),
    颜色映射 Frost token。衬线栈保留原型序,Web 字体变量(--trace-serif-*)由
-   TracePanel 经 next/font 只挂在本节点——「零 Web 字体」硬约束的唯一破例范围。 */
+   trace-fonts.css 只挂在本节点——「零 Web 字体」硬约束的唯一破例范围。 */
 .cv-trace-doc {
   font-family: var(--trace-serif-latin), var(--trace-serif-cjk), "Source Han Serif SC", "Songti SC", Georgia, serif;
   font-size: 14px;
@@ -4211,642 +3810,16 @@ body {
   padding-left: 0;
 }
 
-/* ---- 抽屉详情定位(票4):过滤签 / 分类锚点 / 时间线 / 分值结构 / 否决项红区 ---- */
-/* 过滤签 + 锚点吸顶:滚到几百条深处仍可即点即筛、即点即跳。
-   top 抵消 .cv-drawer-body 的上内边距(同源变量),否则吸顶后上方露出滚动内容缝隙 */
-.cv-det-head {
-  position: sticky;
-  top: calc(-1 * var(--cv-drawer-pad));
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 -20px 2px;
-  padding: 10px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--separator);
-}
-/* macOS 分段控件形:选中段白底浮起,不动用系统蓝(蓝只留给交互/进行中) */
-.cv-det-seg {
-  display: flex;
-  gap: 2px;
-  width: max-content;
-  max-width: 100%;
-  padding: 2px;
-  border-radius: var(--r-field);
-  background: color-mix(in srgb, var(--separator) 67%, transparent);
-}
-.cv-det-seg button {
-  border: 0;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--label-2);
-  padding: 4px 11px;
-  border-radius: var(--r-control);
-  cursor: pointer;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
-}
-.cv-det-seg button:hover { color: var(--label); }
-.cv-det-seg button:active { transform: scale(.97); }
-.cv-det-seg button.is-active {
-  background: var(--surface);
-  color: var(--label);
-  box-shadow: var(--elev-1);
-}
-.cv-det-seg button:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 1px;
-}
-/* 分类锚点:与过滤段控同行,自身横向滚动(十几个类目平铺成第二行胶囊墙是旧版最吵的一处)。
-   右缘渐隐提示还可以再滚,滚动条不占位。 */
-.cv-det-anchors {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
-  mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
-}
-.cv-det-anchors::-webkit-scrollbar { display: none; }
-.cv-det-anchor {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  border: 0;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--label-2);
-  background: transparent;
-  padding: 3px 8px;
-  border-radius: var(--r-control);   /* 坡道档位 */
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
-}
-.cv-det-anchor:hover { background: var(--surface-2); color: var(--label); }
-.cv-det-anchor:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 1px;
-}
-.cv-det-anchor-n { font-variant-numeric: tabular-nums; color: var(--label-3); }
-
-/* ---- 条目分组与条目行(2026-08 重做) ----
-   分组不再是「卡中卡」:抽屉自身已是一个面,里面再套边框卡就成了三层盒子。
-   改用一条分组眉 + hairline 列表,靠留白分组。 */
-.cv-det-group + .cv-det-group { margin-top: 4px; }
-.cv-det-group-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 18px 0 5px;
-}
-.cv-det-group-head b { font-size: 12px; font-weight: 700; color: var(--label); letter-spacing: -.005em; }
-.cv-det-group-head span { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
-.cv-det-group-head .cv-det-group-mand,
-.cv-det-group-head .cv-det-group-imp,
-.cv-det-group-head .cv-det-group-note {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-/* 实质性条款数是警示,分值小计不是——后者只是中性事实,不该借警示色 */
-.cv-det-group-head .cv-det-group-mand { color: var(--orange-text); }
-.cv-det-group-head .cv-det-group-imp { color: var(--label-2); }
-/* 两枚并排时只有第一枚吃掉剩余空间,▲ 紧随 ★ 其后 */
-.cv-det-group-head .cv-det-group-mand + .cv-det-group-imp { margin-left: 0; }
-.cv-det-group-head .cv-det-group-note { color: var(--label-3); }
-.cv-det-item {
-  position: relative;
-  padding: 11px 0 12px;
-  border-top: 1px solid var(--separator);
-}
-.cv-det-item:first-of-type { border-top: 0; }
-.cv-det-item-top { display: flex; align-items: baseline; gap: 7px; }
-.cv-det-item-title {
-  flex: 1;
-  min-width: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.55;
-  color: var(--label);
-}
-.cv-det-item-text {
-  margin: 3px 0 0;
-  font-size: 12.5px;
-  line-height: 1.75;
-  color: var(--label-2);
-}
-/* 条款原文默认两行:几十条全展开时,列表会长到没人愿意滚 */
-.cv-det-item-text.is-clamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.cv-det-foot {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 7px;
-  min-height: 20px;
-}
-.cv-det-id { font-size: 11px; color: var(--label-3); font-variant-numeric: tabular-nums; }
-/* 关联格式:该评分项的材料挂载位置。它是一句索引而非强调项,压在脚注一行里 */
-.cv-det-relfmt {
-  font-size: 11px;
-  color: var(--label-3);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cv-det-more {
-  border: 0;
-  background: transparent;
-  font-size: 11.5px;
-  color: var(--blue);
-  padding: 0;
-  cursor: pointer;
-}
-.cv-det-more:hover { text-decoration: underline; }
-.cv-det-more:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 3px;   /* 装饰细件，坡道外 */ }
-/* 行尾状态标记:常驻的是状态(读),按需的是操作(点)——两者共用同一个槽,互斥切换 */
-.cv-det-state {
-  --sig: var(--label-3);
-  margin-left: auto;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  font-size: 11.5px;
-  color: var(--label-2);
-  white-space: nowrap;
-  transition: opacity var(--t-micro) var(--ease-std);
-}
-.cv-det-state::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--sig);
-  flex: 0 0 auto;
-  transform: translateY(-2px);
-}
-.cv-det-state.is-compliant { --sig: var(--green); }
-.cv-det-state.is-positive { --sig: var(--label-2); }   /* 语义色只有三对；正偏离用中性刻度 */
-.cv-det-state.is-negative { --sig: var(--orange); }
-.cv-det-state.is-idle { --sig: color-mix(in srgb, var(--label-3) 28%, transparent); color: var(--label-3); }
-.cv-det-item:hover .cv-det-state,
-.cv-det-item:focus-within .cv-det-state { opacity: 0; }
-
-/* 条目行人工动作:应答状态标注(合规/正偏离/负偏离)+ 确认,落对象库(审计 actor=user)。
-   常驻形态留给溯源预览层的对照条(那里就是要就地标注);抽屉条目列表里它包在
-   .cv-det-act 浮层里——几十条各常驻四枚控件就是几百枚按钮,静止时读、指到才操作。 */
-.cv-item-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.cv-det-act {
-  position: absolute;
-  right: 0;
-  bottom: 8px;
-  z-index: 2;
-  max-width: 74%;
-  background: var(--surface);
-  box-shadow: var(--elev-1);
-  border-radius: var(--r-window);
-  padding: 3px 4px;
-  opacity: 0;
-  transform: translateY(2px);
-  pointer-events: none;
-  transition: opacity var(--t-micro) var(--ease-std), transform var(--t-float) var(--ease-std);
-}
-.cv-det-item:hover .cv-det-act,
-.cv-det-item:focus-within .cv-det-act {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
-}
-.cv-det-act .cv-item-actions { margin-top: 0; gap: 6px; }
-.cv-item-actions .cv-det-seg button { padding: 2.5px 9px; font-size: 11px; }
-.cv-item-actions .cv-det-seg button:disabled { cursor: default; opacity: .55; }
-/* 选中态语义色:偏离状态一眼可辨(绿=合规、蓝=正偏离、橙=负偏离) */
-.cv-item-actions .cv-det-seg button.is-active.is-compliant { color: var(--green-text); }
-.cv-item-actions .cv-det-seg button.is-active.is-positive { color: var(--blue); }
-.cv-item-actions .cv-det-seg button.is-active.is-negative { color: var(--orange-text); }
-.cv-item-confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--label-2);
-  background: var(--surface-2);
-  padding: 3.5px 10px;
-  border-radius: 999px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
-}
-.cv-item-confirm:hover { background: var(--blue-soft); color: var(--blue); }
-.cv-item-confirm:active { transform: scale(.97); }
-.cv-item-confirm:disabled { cursor: default; opacity: .6; }
-.cv-item-confirm.is-on {
-  background: transparent;
-  color: var(--green-text);
-  opacity: 1;
-}
-.cv-item-confirm.is-on:hover { background: var(--surface-2); color: var(--green-text); }
-.cv-item-confirm:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 1px;
-}
-.cv-item-note { font-size: 11px; color: var(--label-3); }
-.cv-item-action-err { font-size: 11px; color: var(--orange-text); }
-
-/* 提取质量提示(extraction_summary 非 complete):同样不做黄块,
-   一枚橙图标 + 一行字,底下靠留白与详情内容分开 */
-.cv-det-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  margin: 0 0 14px;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--label-2);
-}
-.cv-det-notice > svg { flex: 0 0 auto; margin-top: 3px; color: var(--orange); }
-.cv-det-notice b { font-weight: 600; color: var(--label); }
-
-/* 概要详情主指标区:倒计时与预算升格为两个大数,其余字段退回定义列表 */
-.cv-det-hero {
-  display: flex;
-  align-items: flex-end;
-  gap: 24px;
-  padding: 0 0 15px;
-  border-bottom: 1px solid var(--separator);
-  margin-bottom: 15px;
-}
-.cv-det-hero-cell b {
-  display: block;
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -.028em;
-  color: var(--label);
-  font-variant-numeric: tabular-nums;
-}
-.cv-det-hero-cell span { font-size: 11.5px; color: var(--label-3); }
-.cv-det-hero-cell.is-warn b { color: var(--orange-text); }
-.cv-det-hero-cell.is-past b { color: var(--label-2); }
-.cv-det-dl {
-  display: grid;
-  grid-template-columns: 76px 1fr;
-  gap: 9px 14px;
-  margin: 0 0 16px;
-  font-size: 12.5px;
-}
-.cv-det-dl dt { color: var(--label-3); }
-.cv-det-dl dd { margin: 0; color: var(--label); overflow-wrap: anywhere; }
-.cv-det-sub { font-size: 12px; font-weight: 700; color: var(--label); margin-bottom: 7px; }
-
-/* 概要详情纵向时间线:截止节点橙点高亮 + 倒计时文字,已过期节点整体淡化 */
-.cv-det-timeline { position: relative; }
-.cv-det-timeline::before {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 16px;
-  bottom: 16px;
-  width: 2px;
-  border-radius: 999px;
-  background: var(--separator);
-}
-.cv-det-tl-node { position: relative; padding: 7px 0 7px 26px; }
-.cv-det-tl-dot {
-  position: absolute;
-  left: 0;
-  top: 12px;
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--surface);
-  border: 2.5px solid color-mix(in srgb, var(--label-3) 28%, transparent);
-}
-.cv-det-tl-node.is-deadline .cv-det-tl-dot {
-  background: var(--orange);
-  border-color: var(--orange);
-  /* 语义点用饱和值即可，不加彩色光晕 */
-}
-.cv-det-tl-node.is-past { opacity: .55; }
-.cv-det-tl-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--label);
-}
-.cv-det-tl-node.is-deadline .cv-det-tl-title { font-weight: 700; }
-.cv-det-tl-count {
-  margin-left: auto;
-  font-size: 11.5px;
-  color: var(--label-3);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.cv-det-tl-node.is-deadline .cv-det-tl-count { color: var(--orange-text); font-weight: 600; }
-.cv-det-tl-meta {
-  margin-top: 1px;
-  font-size: 12px;
-  color: var(--label-2);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-/* 分值构成环形图 + 当前一级项读数(2026-08 重做,替代原堆叠条 + 图例)。
-   ---------------------------------------------------------------------------
-   原来的堆叠条只是一张静态图,与下方列表各说各话;现在环 / 读数 / 分段控件是同一
-   状态的三个面 —— 环报构成、读数报当前项的事实、滑块负责切换,所以不再另立图例
-   (滑块上已经带着分值,图例就是把同一件事说第三遍)。
-   孔里放总分:省掉「总分 100」那行字,数字本身就是标题。 */
-.cv-det-struct {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 2px 0 12px;
-}
-.cv-det-donut { flex: 0 0 auto; }
-/* 段色走中性灰阶:分值结构是构成关系,不是四种状态,不该动用四档蓝
-   (蓝在 Frost 只归可交互 / 进行中)。深→浅按名次,与卡面结构条同一套语汇。
-   选中段提到实色 --label、其余压暗 —— 选中态靠明度而非色相,与分段控件
-   「白底浮起、不动用系统蓝」同源。 */
-.cv-det-arc {
-  fill: none;
-  stroke-linecap: butt;
-  transition: stroke var(--t-micro) var(--ease-std), opacity var(--t-micro) var(--ease-std);
-}
-.cv-det-arc.is-pickable { cursor: pointer; }
-.cv-det-arc.is-rank1 { stroke: color-mix(in srgb, var(--label) 52%, transparent); }
-.cv-det-arc.is-rank2 { stroke: color-mix(in srgb, var(--label) 34%, transparent); }
-.cv-det-arc.is-rank3 { stroke: color-mix(in srgb, var(--label) 22%, transparent); }
-.cv-det-arc.is-rank4,
-.cv-det-arc.is-other { stroke: color-mix(in srgb, var(--label) 10%, transparent); }
-.cv-det-arc.is-dim { opacity: .38; }
-.cv-det-arc.is-on { stroke: var(--label); opacity: 1; }
-.cv-det-donut:hover .cv-det-arc.is-dim.is-pickable { opacity: .58; }
-.cv-det-donut-num {
-  font-size: 25px;
-  font-weight: 700;
-  fill: var(--label);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.02em;
-}
-.cv-det-donut-cap { font-size: 10px; font-weight: 500; fill: var(--label-3); letter-spacing: .04em; }
-
-.cv-det-readout { flex: 1; min-width: 0; }
-.cv-det-ro-name { font-size: 12px; font-weight: 700; color: var(--label); letter-spacing: -.005em; }
-.cv-det-ro-line { display: flex; align-items: baseline; gap: 7px; margin-top: 3px; }
-.cv-det-ro-big {
-  font-size: 27px;
-  font-weight: 700;
-  letter-spacing: -.022em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.cv-det-ro-unit { font-size: 12px; font-weight: 600; color: var(--label-2); }
-.cv-det-ro-pct { margin-left: auto; font-size: 11.5px; color: var(--label-3); font-variant-numeric: tabular-nums; }
-.cv-det-ro-meta { margin-top: 5px; font-size: 11.5px; color: var(--label-3); font-variant-numeric: tabular-nums; }
-.cv-det-ro-hint {
-  margin-top: 9px;
-  padding-top: 9px;
-  border-top: 1px solid var(--separator);
-  font-size: 11.5px;
-  line-height: 1.6;
-  color: var(--label-2);
-}
-.cv-det-ro-hint b { font-weight: 600; color: var(--label); }
-
-/* 评分详情否决项:折叠带,排在分值构成之后。
-   ---------------------------------------------------------------------------
-   它是「读一次就不再看」的信息,分值构成才需要反复参照 —— 所以让环形图占住顶部,
-   否决项收成一条恒定高度的带排在其后。折叠态高度不随条数变化,9 条与 20 条一个样,
-   环形图不会被挤出首屏(这正是旧版把红区顶在最上时的毛病:条数一多,构成图就出屏了)。
-   折叠不等于藏起来:条数报在标题行,最要命的第一条报在下面一行。
-
-   不做彩色填充块、不立彩色边线 —— 那是便利贴,不是提示。语义色只落在**图标与
-   标题**上(destructive 的通行做法:iOS 的破坏性操作、macOS 系统设置的危险区
-   都只染字与符号,不染面积),条文本身用主色照常读,分区交给 hairline 与留白。
-   「最该先看」由那枚红图标与红标题字承担 —— 在一片灰阶环形图旁边,红反而更跳;
-   条文前的中性序号让否决项读作一份清单,而不是一堆警告。 */
-.cv-det-veto {
-  margin: 0 0 4px;
-  padding: 12px 0;
-  border-top: 1px solid var(--separator);
-}
-.cv-det-veto-btn {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: calc(100% + 12px);
-  margin: 0 -6px;
-  padding: 3px 6px;
-  border: 0;
-  background: transparent;
-  border-radius: var(--r-control);
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: -.005em;
-  color: var(--red-text);
-  transition: background-color var(--t-micro) var(--ease-std);
-}
-.cv-det-veto-btn:hover { background: var(--surface-2); }
-.cv-det-veto-btn:active { transform: scale(.99); }
-.cv-det-veto-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-.cv-det-veto-btn > svg { flex: 0 0 auto; }
-.cv-det-veto-count {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--label-3);
-  font-variant-numeric: tabular-nums;
-}
-.cv-det-veto-caret {
-  flex: 0 0 auto;
-  color: var(--label-3);
-  transition: transform var(--t-micro) var(--ease-std);
-}
-.cv-det-veto-caret.is-open { transform: rotate(180deg); }
-/* 折叠态的一行摘要:与标题行的图标对齐(15px 图标 + 7px 间距) */
-.cv-det-veto-peek {
-  margin-top: 5px;
-  padding-left: 22px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--label-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cv-det-veto-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 8px 0;
-  border-top: 1px solid var(--separator);
-  font-size: 12.5px;
-  line-height: 1.75;
-  color: var(--label);
-  overflow-wrap: anywhere;
-}
-.cv-det-veto-row:first-of-type { margin-top: 8px; }
-.cv-det-veto-no {
-  flex: 0 0 auto;
-  min-width: 15px;
-  font-size: 11px;
-  color: var(--label-3);
-  font-variant-numeric: tabular-nums;
-}
-/* 清单里的来源签自明,不再挂「来源」标签 */
-.cv-det-veto .cv-src-label { display: none; }
-.cv-det-veto .cv-src-row { margin-top: 3px; }
-
-/* 偏离计分规则带:复用否决项带的骨架,只换掉那抹红——
-   它是算分规则不是废标线,占用红区会把真正的否决项冲淡。 */
-.cv-det-veto.is-dev .cv-det-veto-btn { color: var(--label); }
-/* 结构化摘要:能直接算账的一句(「负偏离 −0.3 分/项」),等宽数字让一列规则读成一张表 */
-.cv-det-dev-sum {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--label);
-}
-/* 摘要在上时,原文退作依据 */
-.cv-det-dev-text { display: block; margin-top: 2px; font-size: 12px; color: var(--label-3); }
-
-/* 评分项行式呈现:548px 的抽屉里塞四列窄表,「评分规则」列只剩两三个字的宽度。
-   改成一行一项——标题在左、分值靠右成一条数字轴、规则与来源退到次行。 */
-.cv-det-srow {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 10px 0;
-  border-top: 1px solid var(--separator);
-}
-.cv-det-srow.is-first { border-top: 0; }
-.cv-det-srow-main { flex: 1; min-width: 0; }
-.cv-det-srow-title {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--label);
-}
-.cv-det-srow-rule {
-  margin: 3px 0 0;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--label-3);
-}
-/* 规则默认两行:真实招标文件一条评分规则 100～200 字,几十项全展开时
-   列表会长到没人愿意滚。与条目详情的 .cv-det-item-text.is-clamped 同一套办法。 */
-.cv-det-srow-rule.is-clamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-/* 分值列:数字 + 一条正比微条。一列数字读成一条形状,0.5 分与 13 分的差距
-   不必逐个比对数字就能看见。
-   带 track:满分跨度大时(13 分 vs 0.5 分)裸条只剩三四个像素,悬在右边读作渲染杂点
-   而不是数据 —— 极浅的空槽既给出「相对于谁」的参照,也让短条读作有意为之。 */
-.cv-det-srow-cell { flex: 0 0 auto; width: 46px; text-align: right; }
-.cv-det-srow-track {
-  display: block;
-  height: 3px;
-  margin-top: 5px;
-  border-radius: 999px;   /* 装饰细件，坡道外 */
-  background: color-mix(in srgb, var(--label) 8%, transparent);
-  overflow: hidden;
-}
-.cv-det-srow-score {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--label);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -.01em;
-}
-.cv-det-srow-bar {
-  display: block;
-  height: 100%;
-  min-width: 2px;
-  border-radius: 999px;   /* 装饰细件，坡道外 */
-  background: color-mix(in srgb, var(--label) 40%, transparent);
-}
-.cv-det-srow.is-total { border-top-width: 1px; }
-.cv-det-srow.is-total .cv-det-srow-title { font-weight: 700; }
-.cv-det-srow.is-total .cv-det-srow-score { font-weight: 700; }
-/* 展开 / 收起:与来源签同处次行,走无框文本钮(签已经占了描边那一档) */
-.cv-det-more {
-  border: 0;
-  background: transparent;
-  padding: 2.5px 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--label-3);
-  border-radius: var(--r-control);
-  cursor: pointer;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std);
-}
-.cv-det-more:hover { color: var(--blue); background: var(--blue-soft); }
-.cv-det-more:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-
-/* 一级项分段控件上的分值:比标签轻一档,读作注脚而不是第二个标签 */
-.cv-det-seg-n { margin-left: 4px; font-weight: 600; color: var(--label-3); }
-.cv-det-seg button.is-active .cv-det-seg-n { color: var(--label-2); }
-/* 排序切换:吸顶条右端的无框文本钮,不与左侧分段控件抢层级 */
-.cv-det-sort {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  padding: 4px 7px;
-  border-radius: var(--r-control);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--label-3);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
-}
-.cv-det-sort:hover { background: var(--surface-2); color: var(--label); }
-.cv-det-sort:active { transform: scale(.97); }
-.cv-det-sort:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-.cv-det-sort > svg { flex: 0 0 auto; }
-
 /* ---- 降级：减少透明度时实底化玻璃 ----
    .cv-toolbar / .cv-dock-chip / .cv-viewport-hint / .cv-actbar 已改用 .frost-glass 工具类，
-   其兜底由 frost-materials.css 统一提供，此处不再重复。仅 LiquidGlass 两面需要单独撤：
+   其兜底由 frost-materials.css 统一提供，此处不再重复。消息浮窗的 LiquidGlass 需要单独撤：
    它的滤镜写在 JSX 内联（构建期会剥离样式表里的无前缀属性），媒体查询够不到。 */
 @media (prefers-reduced-transparency: reduce) {
   /* 液态玻璃整套撤掉：折射与高光边都以「看得见背后」为前提，实底之后它们只剩噪点 */
-  .cv-msgwin-lg > .lg-glass,
-  .cv-agentboard-lg > .lg-glass { background: rgba(250, 251, 253, .98); }
-  .cv-msgwin-lg .lg-warp,
-  .cv-agentboard-lg .lg-warp { filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-  .cv-msgwin-lg > .lg-rim,
-  .cv-agentboard-lg > .lg-rim { display: none; }
-  .cv-msgwin-lg .lg-illum,
-  .cv-agentboard-lg .lg-illum { display: none; }
+  .cv-msgwin-lg > .lg-glass { background: rgba(250, 251, 253, .98); }
+  .cv-msgwin-lg .lg-warp { filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  .cv-msgwin-lg > .lg-rim { display: none; }
+  .cv-msgwin-lg .lg-illum { display: none; }
   /* 面板底一旦实心，正文那套半透明元件就失去了「不戳补丁」的理由，还回实底更清楚 */
   .cv-msgwin .cm-tool-results,
   .cv-msgwin .cm-markdown [data-streamdown="code-block"] { background: var(--surface); }
@@ -4874,6 +3847,7 @@ body {
   .cv-dock-chips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
   .cv-dock .composer-input { min-height: 76px; padding: 10px 10px 42px; }
   .stream-inner { padding: 16px 18px 18px; }
+
 }
 
 /* 触控设备不保留鼠标 hover 洗色，按压反馈仍由 :active 承担。 */
