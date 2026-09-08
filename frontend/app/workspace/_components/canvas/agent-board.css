@@ -167,6 +167,44 @@
 .cv-agentboard-task.is-running .cv-agentboard-task-note {
   color: var(--blue);
 }
+
+/* 原文字形保持静止；同位置的高亮文字只通过窄遮罩显现，不移动或模糊字形。 */
+.cv-agentboard-sweep {
+  display: none;
+}
+@keyframes cv-agentboard-silver-sweep {
+  0% { mask-position: -2.5em 0; }
+  25%, 100% { mask-position: calc(100% + 2.5em) 0; }
+}
+@supports (mask-image: linear-gradient(90deg, transparent, black)) {
+  @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+    .cv-agentboard[data-state="live"] :is(
+      .cv-agentboard-task.is-running .cv-agentboard-task-text,
+      .cv-agentboard-row.is-running .cv-agentboard-desc
+    ) {
+      position: relative;
+      width: fit-content;
+      max-width: 100%;
+      color: var(--label-2);
+    }
+    .cv-agentboard[data-state="live"] :is(
+      .cv-agentboard-task.is-running .cv-agentboard-task-text,
+      .cv-agentboard-row.is-running .cv-agentboard-desc
+    ) > .cv-agentboard-sweep {
+      display: block;
+      position: absolute;
+      inset: 0;
+      color: var(--label);
+      pointer-events: none;
+      user-select: none;
+      mask-image: linear-gradient(90deg, transparent, black 50%, transparent);
+      mask-size: 2.5em 100%;
+      mask-repeat: no-repeat;
+      mask-position: -2.5em 0;
+      animation: cv-agentboard-silver-sweep 4s linear infinite;
+    }
+  }
+}
 /* 概览已是一张完整工作面，看板就地排成两列，不再添加浮层外壳。 */
 .cv-overview .cv-agentboard {
   display: block;

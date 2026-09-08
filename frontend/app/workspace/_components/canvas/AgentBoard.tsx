@@ -139,7 +139,10 @@ const TaskRow = memo(function TaskRow({
         <Icon width={15} height={15} />
       </span>
       <div className="cv-agentboard-task-copy">
-        <span className="cv-agentboard-task-text">{label}</span>
+        <span className="cv-agentboard-task-text">
+          {label}
+          {active && <span className="cv-agentboard-sweep" aria-hidden="true">{label}</span>}
+        </span>
         {(active || (blocked && !done)) && (
           <span className="cv-agentboard-task-note">{state}</span>
         )}
@@ -236,7 +239,12 @@ const AgentRow = memo(function AgentRow({
         />
       </span>
       <div className="cv-agentboard-main">
-        <span className="cv-agentboard-desc">{description}</span>
+        <span className="cv-agentboard-desc">
+          {description}
+          {state === "running" && (
+            <span className="cv-agentboard-sweep" aria-hidden="true">{description}</span>
+          )}
+        </span>
         {(action || state !== "running") && (
           <span className="cv-agentboard-summary">{action || statusLabel}</span>
         )}
