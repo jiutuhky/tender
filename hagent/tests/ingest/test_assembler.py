@@ -2,8 +2,8 @@
 
 不碰网络不碰磁盘——OCR 服务在缝外，真实响应样本进仓当夹具：
 
-- ``single-page.json``：`.scratch/pdf-source-trace/reference/ocr-response-sample.json`
-  的修复版。原样本为人工裁剪稿，`block_content` 与 `markdown.text` 都带
+- ``single-page.json``：单页 OCR 响应样本的修复版。
+  原样本为人工裁剪稿，`block_content` 与 `markdown.text` 都带
   「（截断）」标记因而自相矛盾；此处补全被截断的表格并补入 header /
   number / footer 三个被忽略标签的块（真实页面必有，原样本恰好没有）。
 - ``multipage-crosspage.json``：真实招标文件第 21–24 页经 `/restructure-pages`

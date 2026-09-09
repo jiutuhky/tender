@@ -62,7 +62,7 @@ cd web && npm run dev                              # Web 前端（需 Server 已
 | `assets/` | 结构化资产管理面（spec `2026-07-13-structured-assets-mcp.md`）：store/service/validators 唯一写入口 + FastMCP 工具面（15 个 `prose_*`，server 挂 `/mcp`、CLI stdio）+ loopback guard + actor 归属注入 + projection（发布物化：publish 后旧路径 final JSON 投影，`HAGENT_PUBLISH_PROJECTION` 开关，前端切 REST 后默认关）+ REST adapter（router.py：前端读端点 + 人工动作，输出模型与 MCP 共用 schemas.py） |
 | `mcp_tools.py` | agent 侧真 MCP client（langchain-mcp-adapters）：loopback HTTP / stdio 连接构造 + sync 桥，经 `create_hagent(mcp_connection=...)` 注入工具面 |
 | `sandbox/` | sandbox 抽象：protocol / docker（HagentDockerSandbox + image）/ **smolvm**（HagentSmolVMSandbox：image 烘焙（启动期）+ lifecycle（含 DISK 快照 persist/restore）+ reconciler + audit（命令 JSONL + sandbox_events 事件表）+ health（连败杀重建）+ metrics（/proc 采样）,Firecracker microVM,server 默认）/ daytona stub / providers（shell、file 适配）/ pool（prewarm + idle GC + max_lifetime + warm recycle + 快照休眠 + ledger 准入 + 补货熔断 + drain）/ ledger（容量账本）/ node（NodeClient 多机接缝,仅接口）/ supervisor（启动对账 + reaper/health/metrics 三循环） / **errors（沙箱基础设施错误契约：`SandboxUnavailable{reason}` + `[sandbox_unavailable:<reason>]` 中性文案表,两 provider 共用,SDK 原文只进日志）** |
-| `ingest/` | PDF 入库管线（`.scratch/pdf-source-trace/`）：上传 PDF → OCR → 规范化 md + sidecar。`assembler.py` 是**唯一测试缝**（纯函数，版面块 →(md, sidecar)，行号一边追加一边记账）；`ocr_client.py` 分批调 PaddleOCR-VL HPS Gateway 并做页级断点续跑；`pdf.py` 出预览版（**页数与逐页页面尺寸必须与原件一致**）；`blobs.py` 把原件/预览版按 sha256 存到 workspace 之外（不进 git）；`tasks.py` 登记在跑的解析，消息流据此在起 agent 前等它跑完 |
+| `ingest/` | PDF 入库管线：上传 PDF → OCR → 规范化 md + sidecar。`assembler.py` 是**唯一测试缝**（纯函数，版面块 →(md, sidecar)，行号一边追加一边记账）；`ocr_client.py` 分批调 PaddleOCR-VL HPS Triton HTTP 并做页级断点续跑；`pdf.py` 出预览版（**页数与逐页页面尺寸必须与原件一致**）；`blobs.py` 把原件/预览版按 sha256 存到 workspace 之外（不进 git）；`tasks.py` 登记在跑的解析，消息流据此在起 agent 前等它跑完 |
 | `server/` | FastAPI app、SessionStore + ProjectStore（同一 SQLite、软删级联）、SessionManager、SSE、`routers/{sessions,messages,files,projects,project_files}` |
 | `cli.py` / `__main__.py` | argparse 入口（demo、sandbox 运维子命令）；`__main__` 只路由不放业务逻辑 |
 
@@ -100,7 +100,7 @@ cd web && npm run dev                              # Web 前端（需 Server 已
 ### PDF 入库：两条不可动的约束
 
 - **`use_doc_preprocessor` 恒为 false**：PaddleOCR-VL 的 unwarping 会让返回的 bbox 与原件错位，置 true 全文高亮整体失效。
-- **预览版的页数与逐页页面尺寸必须与原件逐页一致**：sidecar 的归一化 bbox 是按这套几何算出来的，改了页面几何全文高亮就整体错位，而且错得看不出来。`pdf.build_preview` 因此只压图片流与内容流，从不新建页、从不缩放页。
+- **预览版的页序、MediaBox、CropBox、Rotate、UserUnit 必须与原件逐页一致**：sidecar 的归一化 bbox 是按这套几何算出来的，改了页面几何全文高亮就整体错位，而且错得看不出来。`pdf.build_preview` 因此只压图片流与内容流，从不新建页、从不缩放页。
 
 还有一条派生约束：**OCR 产出的 md 只读**（`file_tools/readonly.py` 在工具层拒写 `sources/` 下的 md 与 sidecar）。`line_span` 的正确性完全建立在这之上，放松它溯源会静默错位。
 
@@ -118,7 +118,6 @@ cd web && npm run dev                              # Web 前端（需 Server 已
 
 ## 相关文档
 
-- 工作项：新工作项一律走仓根 `.scratch/<feature>/`（约定见仓根 `docs/agents/issue-tracker.md`）；仓根 `tickets.md` 是约定前的 M1 拆票，仍有效
 - 历史任务分解：`docs/plans/`（superpowers 时期存档，只读；plan-5 docker-backend 已被 sandbox spec 取代，勿按其实施）
 - 提交与交付规范、sandbox 门控验证：见 `AGENTS.md`，记录实际结果而非仅列命令。
 - 部署手册：`docs/deploy/smolvm.md`（KVM/kvm 组/sudoers/WSL2 固化/btrfs 建议/systemd 样例/`SMOLVM_DATABASE_URL`/出口白名单局限）

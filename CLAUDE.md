@@ -26,11 +26,14 @@ pnpm typecheck  # tsc --noEmit（strict + noUncheckedIndexedAccess）
 
 前端代码改动的质量门是 `pnpm typecheck` + `pnpm lint`，当前无独立测试框架。纯文档或技能指令改动检查内容、链接和格式即可；视觉改动另检查受影响界面。检查通过后，只有新改动、失败或未解决疑点才需要扩大或重复验证。
 
-后端联调（`hagent/`，需 8000 端口，详见 `hagent/README.md`）：
+后端联调（`hagent/`，默认端口 8000，详见 `hagent/README.md`）：
 
 ```bash
 uvicorn hagent.server.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
+
+启动或重启后端时，必须将进程工作目录设为 `hagent/`，确保发现 `.hagent/` 下的技能、子代理及 hooks 配置。
+使用非默认端口时，必须同步设置 `HAGENT_MCP_URL=http://127.0.0.1:<实际端口>/mcp`，与后端监听端口一致。
 
 ## 技术栈
 

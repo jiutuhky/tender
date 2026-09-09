@@ -29,6 +29,7 @@ export function isRunning(phase: RunPhase): boolean {
 function botStatusOverride(phase: RunPhase, signals?: BotSignals): string | null {
   if (phase === "error" || signals?.failed) return PHASE_STATUS.error;
   if (signals?.attention) return BOT_DEFINITIONS[signals.attention].name;
+  if (signals?.reading) return signals.ingestLabel ?? "正在解析原文";
   if (phase === "done" && signals?.partial) return "部分完成";
   return null;
 }

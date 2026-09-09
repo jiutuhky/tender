@@ -18,6 +18,7 @@ PaddleOCR-VL 渲染 md 时会做块数据里不存在的加工——标题按层
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Sequence
@@ -75,6 +76,7 @@ class _Group:
     rects: list[dict[str, Any]] = field(default_factory=list)
     md_start: int | None = None
     md_end: int | None = None
+    invalid: bool = False
 
 
 def parse_layout_parsing_response(
@@ -120,7 +122,10 @@ def failed_page(index: int, *, width: int = 0, height: int = 0) -> OcrPage:
     return OcrPage(index=index, width=width, height=height, markdown="", failed=True)
 
 
-def assemble_document(pages: Sequence[OcrPage]) -> AssembledDocument:
+def assemble_document(
+    pages: Sequence[OcrPage], *, origin_sha256: str | None = None,
+    preview_sha256: str | None = None,
+) -> AssembledDocument:
     """一趟走完：追加 md 的同时记账行号，产出 md 与 sidecar。"""
     ordered = sorted(pages, key=lambda page: page.index)
     md_lines: list[str] = []
@@ -155,12 +160,15 @@ def assemble_document(pages: Sequence[OcrPage]) -> AssembledDocument:
             "rects": group.rects,
         }
         for group in (groups[key] for key in order)
-        if group.md_start is not None
+        if group.md_start is not None and not group.invalid
     ]
     return AssembledDocument(
         markdown=markdown,
         sidecar={
-            "schema": SIDECAR_SCHEMA_VERSION,
+            "schema": 2 if origin_sha256 and preview_sha256 else SIDECAR_SCHEMA_VERSION,
+            **({"coordinateSpace": "page-display-normalized",
+                "originSha256": origin_sha256, "previewSha256": preview_sha256,
+                "mdLineCount": len(md_lines)} if origin_sha256 and preview_sha256 else {}),
             "mdSha256": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
             "pages": [
                 {"index": page.index, "width": page.width, "height": page.height}
@@ -185,6 +193,8 @@ def _collect_rects(
         if group is None:
             group = groups[key] = _Group(label=block.label)
             order.append(key)
+        if (span is None and block.content.strip()) or not _valid_bbox(block.bbox, page.width, page.height):
+            group.invalid = True
         group.rects.append(
             {"page": page.index, "bbox": _normalize(block.bbox, page.width, page.height)}
         )
@@ -329,3 +339,10 @@ def _ignore_labels(pruned: dict[str, Any]) -> frozenset[str]:
     settings = pruned.get("model_settings") or {}
     labels = settings.get("markdown_ignore_labels")
     return frozenset(labels) if labels else DEFAULT_IGNORE_LABELS
+
+
+def _valid_bbox(bbox: tuple[float, ...], width: int, height: int) -> bool:
+    """拒绝缺失、非有限和倒置的坐标；允许检测框在页缘轻微外扩。"""
+    return (width > 0 and height > 0 and all(math.isfinite(v) for v in bbox)
+            and bbox[0] < bbox[2] and bbox[1] < bbox[3]
+            and bbox[2] > 0 and bbox[3] > 0 and bbox[0] < width and bbox[1] < height)

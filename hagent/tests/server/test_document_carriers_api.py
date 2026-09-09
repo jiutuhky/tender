@@ -127,19 +127,19 @@ def test_sidecar_404_when_missing(client, project):
 # —— 404 与归属 ——
 
 
-@pytest.mark.parametrize("suffix", ["preview", "sidecar"])
+@pytest.mark.parametrize("suffix", ["preview", "sidecar", "original"])
 def test_unknown_project_or_document_is_404(client, project, document, suffix):
     assert client.get(f"/projects/nope/documents/{document}/{suffix}").status_code == 404
     assert client.get(f"/projects/{project}/documents/doc-nope/{suffix}").status_code == 404
 
 
-@pytest.mark.parametrize("suffix", ["preview", "sidecar"])
+@pytest.mark.parametrize("suffix", ["preview", "sidecar", "original"])
 def test_document_of_another_project_is_404(client, project, document, suffix):
     other = client.post("/projects", json={"name": "另一个项目"}).json()["id"]
     assert client.get(f"/projects/{other}/documents/{document}/{suffix}").status_code == 404
 
 
-@pytest.mark.parametrize("suffix", ["preview", "sidecar"])
+@pytest.mark.parametrize("suffix", ["preview", "sidecar", "original"])
 def test_requires_api_key(tmp_path, monkeypatch, suffix):
     monkeypatch.setenv("HAGENT_WORKSPACE_ROOT", str(tmp_path))
     monkeypatch.setenv("HAGENT_DB_PATH", str(tmp_path / "h.sqlite"))
@@ -154,3 +154,46 @@ def test_requires_api_key(tmp_path, monkeypatch, suffix):
 def test_document_listing_flags_preview_availability(client, project, document):
     documents = client.get(f"/projects/{project}/documents").json()["documents"]
     assert [d["has_preview"] for d in documents if d["id"] == document] == [True]
+
+
+@pytest.mark.parametrize("suffix", ["preview", "original"])
+def test_pdf_range_and_head(client, project, document, suffix):
+    from hagent.ingest.blobs import BLOB_KIND_ORIGIN, get_blob_store
+    # 原件夹具的固定寻址键只用于路由测试。
+    original = get_blob_store().path_for(BLOB_KIND_ORIGIN, "a" * 64)
+    original.parent.mkdir(parents=True, exist_ok=True)
+    original.write_bytes(PREVIEW_BYTES)
+    url = f"/projects/{project}/documents/{document}/{suffix}"
+    head = client.head(url)
+    assert head.status_code == 200 and not head.content
+    assert head.headers["accept-ranges"] == "bytes"
+    response = client.get(url, headers={"Range": "bytes=0-7", "If-Range": head.headers["etag"]})
+    assert response.status_code == 206 and response.content == PREVIEW_BYTES[:8]
+    assert response.headers["content-range"] == f"bytes 0-7/{len(PREVIEW_BYTES)}"
+    assert client.get(url, headers={"Range": "bytes=99999-"}).status_code == 416
+    assert client.get(url, headers={"Range": "invalid"}).status_code == 400
+    assert client.get(url, headers={"Range": "bytes=0-7", "If-Range": '"old"'}).status_code == 200
+
+
+def test_sidecar_rejects_mismatched_version(client, project, document):
+    workspace = get_project_workspace()
+    bad = {**SIDECAR, "schema": 2}
+    workspace.apply_changes(project, updated={sidecar_path_for(MARKDOWN_PATH): json.dumps(bad).encode()}, deleted=())
+    assert client.get(f"/projects/{project}/documents/{document}/sidecar").status_code == 409
+
+
+def test_blob_binding_cannot_replace_original(client, project, document):
+    from hagent.assets.errors import AssetError
+    service = get_asset_service()
+    old = service.get_document(project, document)
+    with pytest.raises(AssetError, match="固定原件"):
+        service.attach_document_blobs(project, document, origin_sha256="b" * 64, preview_sha256=old.preview_sha256, actor=SYSTEM)
+    assert service.get_document(project, document).origin_sha256 == old.origin_sha256
+
+
+@pytest.mark.parametrize("path", [MARKDOWN_PATH, sidecar_path_for(MARKDOWN_PATH)])
+def test_registered_source_cannot_be_replaced_by_upload(client, project, document, path):
+    before = get_project_workspace().read_file(project, path)
+    response = client.post(f"/projects/{project}/files", data={"path": path}, files={"file": ("x.md", b"changed")})
+    assert response.status_code == 409
+    assert get_project_workspace().read_file(project, path) == before

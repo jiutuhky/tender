@@ -1,0 +1,62 @@
+.pdf-reader { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; position: relative; }
+.pdf-stage { flex: 1; min-height: 0; overflow: auto; background: var(--surface-3); overscroll-behavior: contain; overflow-anchor: none; }
+.pdf-page-list { position: relative; }
+.pdf-page { position: absolute; background: #fff; box-shadow: 0 1px 4px #00000016, 0 0 0 .5px #00000006; isolation: isolate; }
+.pdf-page canvas { position: absolute; inset: 0; display: block; }
+.pdf-page-number { position: absolute; top: 100%; left: 0; width: 100%; height: 24px; line-height: 24px; color: var(--label-3); font-size: 10px; text-align: center; font-variant-numeric: tabular-nums; }
+.pdf-page-loading { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: #888; }
+.pdf-regions { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.pdf-region { fill: rgba(218, 164, 53, .06); stroke: rgba(164, 118, 32, .35); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pdf-region.is-selected { fill: rgba(218, 164, 53, .12); stroke: rgba(164, 118, 32, .7); }
+.pdf-controls-position { position: absolute; z-index: 4; bottom: 18px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; }
+.pdf-control-dock { position: relative; pointer-events: auto; }
+.pdf-toolbar { display: flex; align-items: center; gap: 9px; padding: 4px 6px; border: 1px solid var(--separator); border-radius: 10px; background: var(--surface); color: var(--label-2); box-shadow: 0 3px 16px #0000000d, 0 1px 3px #00000008; font-size: 11px; }
+.pdf-controls { display: flex; align-items: center; gap: 2px; }
+.pdf-controls form { display: flex; align-items: center; gap: 3px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pdf-controls form > span { color: var(--label-3); padding-right: 4px; }
+.pdf-toolbar button { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 32px; padding: 0; background: transparent; border: 0; border-radius: 5px; color: inherit; cursor: pointer; }
+.pdf-toolbar button:hover:not(:disabled) { background: var(--surface-3); color: var(--label); }
+.pdf-toolbar button:disabled { opacity: .25; cursor: default; }
+.pdf-toolbar input { width: 30px; height: 28px; border: 0; border-radius: 4px; background: transparent; color: var(--label); font: inherit; font-variant-numeric: tabular-nums; text-align: center; }
+.pdf-toolbar input:hover, .pdf-toolbar input:focus { background: var(--surface-3); }
+.pdf-control-divider { width: 1px; height: 16px; background: var(--separator); }
+.pdf-zoom-picker { position: relative; width: 58px; height: 32px; border-radius: 5px; }
+.pdf-zoom-picker > span { display: flex; align-items: center; justify-content: center; gap: 4px; height: 100%; font-variant-numeric: tabular-nums; }
+.pdf-zoom-picker select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.pdf-zoom-picker:hover { background: var(--surface-3); }
+.pdf-zoom-picker:focus-within { outline: 2px solid var(--blue); outline-offset: 1px; }
+.pdf-toolbar :is(button, input):focus-visible, .pdf-stage:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.pdf-return { position: absolute; right: calc(100% + 10px); top: 0; min-height: 42px; white-space: nowrap; padding: 0 14px; border: 1px solid var(--separator); border-radius: 10px; background: var(--surface); color: var(--label-2); box-shadow: 0 3px 16px #0000000d; font: inherit; font-size: 11px; cursor: pointer; }
+.pdf-return:hover { color: var(--blue); }
+.pdf-warning { position: absolute; z-index: 4; top: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; white-space: nowrap; padding: 7px 8px 7px 12px; border-radius: 8px; background: var(--surface); box-shadow: 0 2px 10px #0000000d; color: var(--label-2); font-size: 12px; }
+.pdf-warning > svg { color: var(--orange, #b47a25); }
+.pdf-warning button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; cursor: pointer; }
+.pdf-warning button:hover { background: var(--surface-3); }
+.pdf-page-error { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: #fff; color: #555; font-size: 13px; }
+.pdf-page-error button, .pdf-loading button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--separator); border-radius: 6px; background: var(--surface); color: var(--label-2); font: inherit; cursor: pointer; }
+.pdf-loading { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 28px; overflow: hidden; background: var(--surface-3); color: var(--label-3); font-size: 13px; }
+.pdf-loading-sheet { width: min(480px, 80%); height: 90%; max-height: 680px; padding: 70px 50px; background: var(--surface); box-shadow: 0 1px 4px #00000008; }
+.pdf-loading-sheet i { display: block; height: 7px; margin-bottom: 18px; border-radius: 2px; background: var(--surface-3); }
+.pdf-loading-sheet i:first-child { width: 55%; margin-bottom: 40px; }
+.pdf-loading-sheet i:last-child { width: 65%; }
+.pdf-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 999px) { .pdf-return { right: 50%; top: -48px; transform: translateX(50%); min-height: 36px; } }
+@media (pointer: coarse) { .pdf-toolbar button { width: 36px; height: 40px; flex-basis: 36px; } .pdf-zoom-picker { height: 40px; } }
+/* 与 PDF.js TextLayer 的定位变量对应，不套用文档排版字体。 */
+.pdf-text-layer { position: absolute; inset: 0; z-index: 2; overflow: clip; text-align: initial; opacity: 1; line-height: 1; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; caret-color: CanvasText; }
+.pdf-text-layer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+.pdf-text-layer > :not(.markedContent), .pdf-text-layer .markedContent span:not(.markedContent) { z-index: 1; }
+.pdf-text-layer span.markedContent { top: 0; height: 0; }
+.pdf-text-layer ::selection { background: rgba(60, 120, 200, .3); }
+.pdf-text-layer br::selection { background: transparent; }
+@media (forced-colors: active) { .pdf-region { fill: transparent; stroke: Highlight; stroke-width: 2; } }
+
+.pdf-text-layer { --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
+.pdf-text-layer > :not(.markedContent), .pdf-text-layer .markedContent span:not(.markedContent) { --font-height: 0; font-size: calc(var(--text-scale-factor) * var(--font-height)); --scale-x: 1; --rotate: 0deg; transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
+/* 文本选择层由 PDF.js 输出未旋转的页内布局，再按页面固有旋转到显示空间。 */
+.pdf-text-layer { --scale-round-x: 1px; --scale-round-y: 1px; letter-spacing: normal; word-spacing: normal; }
+.pdf-text-layer[data-main-rotation="90"] { transform: rotate(90deg) translateY(-100%); }
+.pdf-text-layer[data-main-rotation="180"] { transform: rotate(180deg) translate(-100%, -100%); }
+.pdf-text-layer[data-main-rotation="270"] { transform: rotate(270deg) translateX(-100%); }
+.pdf-text-layer .markedContent { display: contents; }
+.pdf-text-layer :is(span, br) { user-select: text; }

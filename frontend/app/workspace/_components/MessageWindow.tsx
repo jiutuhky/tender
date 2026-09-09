@@ -20,21 +20,14 @@ import { StreamScrollbar } from "./StreamScrollbar";
 
 import { LiquidGlass } from "./LiquidGlass";
 
-// 液态玻璃参数。骨架取上游 demo（liquid-glass.maxrovensky.com）里 User Info 卡那一组
-// （位移 100 / 饱和 140），两处按本产品的浅色画布调过：
-//   · blurAmount 0.5（=20px）→ 0.2（≈10px）：20px 下背后只剩色块，读作毛玻璃；10px 能认出
-//     卡片轮廓在弯，才读作一块透明的厚玻璃。可读性由 Frost 深色文字对浅底的对比保证。
-//   · aberrationIntensity 2 → 0：色散在照片底上是"真实感"，在近白画布上只剩一圈蓝边线
-//     （蓝通道位移最大、最先露出来）——用户明确不要。边缘的"玻璃感"改由 LiquidGlass 的
-//     边缘光（.lg-rim）承担。
-// 圆角 20px 与壳的 border-radius 一致（壳、光束、玻璃三者必须一致）。玻璃**不加底色**。
+// 大面积浮层：中央渐变散射承托正文，22px 边缘带呈现柔和的透镜折射。
+// 圆角与窗口外壳保持一致；缩放期间由 Hyalite 等待尺寸稳定后重建透镜。
 const GLASS = {
-  displacementScale: 100,
-  blurAmount: 0.2,
-  saturation: 140,
-  aberrationIntensity: 0,
-  cornerRadius: 20,
-  mode: "standard",
+  bevel: 22,
+  thickness: 9,
+  blur: 0.8,
+  rim: 0.24,
+  cornerRadius: 28,
 } as const;
 
 /**
@@ -168,10 +161,12 @@ export function MessageWindow() {
   // 下一次档位变化是「初始状态修正」而非用户转场时置位：直切，不播动画。
   const skipAnimRef = useRef(false);
 
-  // prev = 已落定的上一档。转场期间它先不推进，好让退场那一棵继续在场。
-  const [prev, setPrev] = useState<StreamSize>(size);
-  const showMin = size === "min" || prev === "min";
-  const showOpen = size === "open" || prev === "open";
+  // 改档时保留两份内容，动画落定后卸载退场内容；反向操作也复用当前节点。
+  const [presence, setPresence] = useState({ target: size, min: size === "min", open: size === "open" });
+  if (presence.target !== size) setPresence({ target: size, min: true, open: true });
+  const showMin = presence.min;
+  const showOpen = presence.open;
+  const previousTargetRef = useRef<StreamSize>(size);
 
   const settleScroll = useCallback(() => {
     const sc = scrollRef.current;
@@ -179,110 +174,88 @@ export function MessageWindow() {
   }, []);
 
   useLayoutEffect(() => {
-    if (prev === size) return;
+    const previousTarget = previousTargetRef.current;
+    previousTargetRef.current = size;
+    if (previousTarget === size) return;
     const root = rootRef.current;
+    const finishPresence = () => setPresence({ target: size, min: size === "min", open: size === "open" });
     if (!root) {
-      setPrev(size);
+      finishPresence();
       return;
     }
-    // 初始状态修正（窄屏首帧收 min）不是转场，直切。
     if (skipAnimRef.current) {
       skipAnimRef.current = false;
-      setPrev(size);
+      finishPresence();
       return;
     }
     const min = minRef.current;
     const panel = panelRef.current;
     const sc = scrollRef.current;
-    const reduce = prefersReducedMotion();
-    gsap.killTweensOf([root, min, panel].filter((el) => el !== null));
+    if (prefersReducedMotion()) {
+      for (const element of [root, min, panel]) {
+        if (!element) continue;
+        for (const property of ["width", "height", "opacity", "visibility"]) element.style.removeProperty(property);
+      }
+      root.style.removeProperty("--cv-msgwin-cw");
+      delete root.dataset.tweening;
+      settleScroll();
+      finishPresence();
+      return;
+    }
+    const reversing = root.dataset.tweening === "1";
 
-    // —— 量盒 ——
-    // useLayoutEffect 跑在 DOM 提交之后，此刻 data-state 已经是目标档，退场那一档的盒
-    // 得临时翻回去量。三次强制重排，只在用户点开/收起时各发生一次，不在流式热路径上。
+    // 先读取屏幕上的实际尺寸，再量目标盒；中途反向时保留正在显示的宽高与透明度。
+    root.dataset.state = previousTarget;
+    const from = root.getBoundingClientRect();
     gsap.set(root, { clearProps: "width,height" });
     root.dataset.state = "open";
     const openBox = root.getBoundingClientRect();
-    // 时间线的内容宽必须量**开启档**的滚动口：面板 inset:0，收起时它已经跟着壳缩了。
-    // .stream-scroll 的原生滚动条是隐藏的（scrollbar-width:none），clientWidth 即满宽。
     const contentWidth = sc ? sc.clientWidth : openBox.width;
     root.dataset.state = "min";
     const minBox = root.getBoundingClientRect();
-    root.dataset.state = size; // 回到 React 已提交的值，中途重渲不会与命令式写入打架
-    const from = prev === "open" ? openBox : minBox;
+    root.dataset.state = size;
     const to = size === "open" ? openBox : minBox;
 
-    // 重新打开即落到最新消息：min 的含义就是「我没在看 transcript」，
-    // 回来时应当看见最新的一条，而非上次离开时的滚动位置。刻意如此，勿当 bug 修。
     if (size === "open" && sc) {
       sc.scrollTop = sc.scrollHeight;
       stickRef.current = true;
     }
 
-    // —— 尺寸动画 ——
-    // 本系统只允许 transform/opacity 动画，这里动 width/height 是既有例外
-    // （论证见 globals.css「画布浮层」段）：
-    // 1) 壳是 position:absolute + contain:layout，逐帧改宽高不脏化任何祖先；
-    // 2) tween 开始前把 .stream-inner 的布局宽钉在**目标**像素上（--cv-msgwin-cw），
-    //    整条时间线在整个过渡中只重排一次（tween 前那次），文字全程不换行；
-    //    面板靠 overflow:hidden 把钉宽的内容裁开/让出，读作「窗框生长，内容原地不动」；
-    // 3) scrollHeight 因此从第 0 帧就是终值，贴底数学全程稳定。
-    //
-    // 减弱动态不另走一条分支，而是把所有时长压成 0：终态、清理与 prev 推平的次序
-    // 全部照旧走同一条时间线，只是一跳到位。少一条分支就少一处会漂移的等价实现。
-    const d = (v: number) => (reduce ? 0 : v);
+    // 外壳以 contain:layout 限定布局影响，正文钉在展开宽度，逐帧仅裁切而不重新换行。
     root.style.setProperty("--cv-msgwin-cw", `${contentWidth}px`);
-    // 过渡期把玻璃换成纯毛玻璃（CSS 里按 data-tweening 给 .lg-warp 换 backdrop-filter）。
-    // 壳每帧换尺寸 = 滤镜图每帧在一张新画布上重跑一遍，实测中位帧从 16.6ms 掉到 30ms、
-    // 偶发 400ms 长帧；而这 320ms 里玻璃本来就在淡入，折射看不看得见没人分辨得出来。
     root.dataset.tweening = "1";
-    const settle = () => {
-      root.style.removeProperty("--cv-msgwin-cw");
-      delete root.dataset.tweening;
-      settleScroll();
-    };
+    const enter = size === "open" ? panel : min;
+    const exit = size === "open" ? min : panel;
+    if (enter && !reversing) gsap.set(enter, { autoAlpha: 0 });
 
-    const opening = size === "open";
-    // 交叉淡入的两个把手是「面板内容」与「播报条」，**玻璃本身不淡**：backdrop-filter 只能
-    // 看见到最近 backdrop root 为止的画面，而 opacity<1 的祖先自己就是一个 root——淡玻璃的
-    // 那 200ms 里它什么也看不见，整块变透明再"啪"地糊上。所以玻璃从第 0 帧就满不透明地
-    // 跟着壳长大/缩小，读作「一块霜面从 Bot 旁边长出来」，只有字在淡。
-    const enter = opening ? panel : min;
-    const exit = opening ? min : panel;
+    // 只淡入淡出正文，玻璃持续采样背景；反向时取消旧时间线，立刻接续当前形态。
     const tl = gsap.timeline({
       onComplete: () => {
-        settle();
-        setPrev(size);
+        root.style.removeProperty("--cv-msgwin-cw");
+        delete root.dataset.tweening;
+        settleScroll();
+        finishPresence();
       },
     });
-    tl.fromTo(
-      root,
-      { width: from.width, height: from.height },
-      {
-        width: to.width,
-        height: to.height,
-        duration: d(DUR_PANEL),
-        ease: TRACE_EASE_ENTER,
-        clearProps: "width,height",
-        onUpdate: settleScroll,
-      },
-      0,
-    );
-    if (exit) tl.to(exit, { autoAlpha: 0, duration: d(DUR_FLOAT), ease: TRACE_EASE_EXIT }, 0);
-    if (enter) {
-      tl.fromTo(
-        enter,
-        { autoAlpha: 0 },
-        {
-          autoAlpha: 1,
-          duration: d(DUR_FLOAT),
-          ease: TRACE_EASE_ENTER,
-          clearProps: "opacity,visibility",
-        },
-        d(DUR_MICRO),
-      );
-    }
-  }, [size, prev, settleScroll]);
+    tl.fromTo(root, { width: from.width, height: from.height }, {
+      width: to.width,
+      height: to.height,
+      duration: DUR_PANEL,
+      ease: TRACE_EASE_ENTER,
+      clearProps: "width,height",
+      onUpdate: settleScroll,
+    }, 0);
+    if (exit) tl.to(exit, { autoAlpha: 0, duration: DUR_FLOAT, ease: TRACE_EASE_EXIT }, 0);
+    if (enter) tl.to(enter, {
+      autoAlpha: 1,
+      duration: DUR_FLOAT,
+      ease: TRACE_EASE_ENTER,
+      clearProps: "opacity,visibility",
+    }, reversing ? 0 : DUR_MICRO);
+
+    // 保留当前内联形态供下一次操作接续；卸载时也取消时间线的延迟回调。
+    return () => { tl.kill(); };
+  }, [size, settleScroll]);
 
   // 收起时把焦点从即将卸载的面板交给 Bot，别让它掉回 <body>（对齐 CanvasDrawer 的焦点交接）。
   const collapse = useCallback(() => {
@@ -302,6 +275,7 @@ export function MessageWindow() {
   // 打上 skipAnim：这是初始状态修正，不是用户发起的转场，一进页面不该播退场动画。
   useEffect(() => {
     if (!window.matchMedia("(max-width: 640px)").matches) return;
+    if (useWorkspaceStore.getState().streamSize === "min") return;
     skipAnimRef.current = true;
     setStreamSize("min");
   }, [setStreamSize]);

@@ -9,6 +9,8 @@ from pathlib import PurePosixPath
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
+from hagent.assets.errors import AssetError
+from hagent.assets.service import get_asset_service
 from hagent.ingest.pipeline import UploadRejected, check_upload
 from hagent.ingest.tasks import get_ingest_registry
 from hagent.server.auth import require_api_key
@@ -63,9 +65,12 @@ def _accept_pdf(pid: str, relative_path: str, data: bytes) -> dict:
     except UploadRejected as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    job = get_ingest_registry().submit(
-        pid, data=data, pdf_path=relative_path, total_pages=total_pages
-    )
+    try:
+        job = get_ingest_registry().submit(
+            pid, data=data, pdf_path=relative_path, total_pages=total_pages
+        )
+    except UploadRejected as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     return {
         "path": job.pdf_path,
         "size": len(data),
@@ -89,6 +94,17 @@ async def upload_project_file(
         return _accept_pdf(pid, relative_path, data)
 
     workspace = get_project_workspace()
+    try:
+        previous = workspace.read_file(pid, relative_path)
+    except FileNotFoundError:
+        previous = None
+    except (ValueError, IsADirectoryError, NotADirectoryError) as exc:
+        raise HTTPException(status_code=400, detail="无效的上传文件路径") from exc
+    if previous is not None and previous != data:
+        try:
+            get_asset_service().assert_source_writable(pid, relative_path)
+        except AssetError as exc:
+            raise HTTPException(status_code=409, detail=exc.message) from exc
     try:
         workspace.apply_changes(pid, updated={relative_path: data}, deleted=())
     except ValueError as exc:

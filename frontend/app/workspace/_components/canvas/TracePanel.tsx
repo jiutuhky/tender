@@ -1,5 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
+const PdfTracePanel = dynamic(() => import("./PdfTracePanel"), { ssr: false });
+
 import {
   Component,
   Suspense,
@@ -206,7 +209,7 @@ class DocErrorBoundary extends Component<
 
 /** 原文正文:舞台(滚动容器)→ 纸面 → 文档。标题栏与关闭钮由 TraceModal 承担。
  *  arrival = 挂载处的到场动画时长(秒),浮层入场期间持骨架,避免长帧冻住动画 */
-export function TracePanel({ doc, arrival = DUR_PANEL }: { doc: DocumentRecord; arrival?: number }) {
+function MarkdownTracePanel({ doc, arrival = DUR_PANEL }: { doc: DocumentRecord; arrival?: number }) {
   const trace = useTrace();
   const projectId = trace?.projectId ?? null;
   const [retryTick, setRetryTick] = useState(0);
@@ -265,4 +268,9 @@ export function TracePanel({ doc, arrival = DUR_PANEL }: { doc: DocumentRecord; 
       </div>
     </div>
   );
+}
+
+/** 有原件的文档走固定版面阅读器，历史 Markdown 保持行号预览。 */
+export function TracePanel(props: { doc: DocumentRecord; arrival?: number; locationsTarget?: HTMLElement | null }) {
+  return props.doc.has_preview ? <PdfTracePanel doc={props.doc} locationsTarget={props.locationsTarget ?? null} /> : <MarkdownTracePanel {...props} />;
 }

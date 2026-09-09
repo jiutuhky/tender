@@ -2839,7 +2839,7 @@ body {
    于是壳整块 pointer-events:none，只有 Bot / 玻璃面 / 面板三处按需要收回事件——
    否则一个 332×56 的透明盒会静默吃掉画布左上角的拖拽。 */
 .cv-msgwin {
-  --cv-msgwin-pad: 10px;
+  --cv-msgwin-pad: 14px;
   --cv-msgwin-bot: 48px;
   /* 播报与标题的起始 x：Bot 右缘再让 11px 呼吸 */
   --cv-msgwin-lane: calc(var(--cv-msgwin-pad) + var(--cv-msgwin-bot) + 11px);
@@ -2868,53 +2868,94 @@ body {
    翻 data-state 后要能立刻量到真终值而非在途值。 */
 .cv-msgwin[data-state="min"] {
   width: 332px;
-  height: calc(var(--cv-msgwin-bot) + var(--cv-msgwin-pad) * 2);   /* 56px */
-  border-radius: 20px;   /* lens 面板档（规范：凝玻璃面板取 20，鳞光需要转角余量） */
+  height: calc(var(--cv-msgwin-bot) + var(--cv-msgwin-pad) * 2);
+  border-radius: 28px;
 }
 .cv-msgwin[data-state="open"] {
   width: 404px;
   height: min(552px, var(--cv-msgwin-max-h));
-  /* 比 Frost 的 panel 档（18px）略大一点：液态玻璃的高光棱与折射带都在贴着边的那一圈，
-     圆角太紧会把它们挤成一个尖角。改这里必须同步 MessageWindow 的 GLASS.cornerRadius。 */
-  border-radius: 20px;
+  /* 圆角与 MessageWindow 的 GLASS.cornerRadius 同步，给透镜边缘留出连续曲面。 */
+  border-radius: 28px;
 }
 
-/* ---- 玻璃面：LiquidGlass（本地移植自 liquid-glass-react，见 MessageWindow/LiquidGlass.tsx）----
-   这一层只做定位盒与淡入把手。玻璃**不铺底色**：位移滤镜弯的是玻璃后面的画面，
-   垫任何一层白都会把折射糊没——上游 demo 那张卡的通透感全靠"没有底"。
-   可读性由 20px 模糊 + Frost 深色文字对浅色画布的对比保证，标题栏另加一层极淡的
-   顶部渐变压住卡片边线（.cv-msgwin-head 上）。
-
-   注意 backdrop root：backdrop-filter 只能"看见"到最近 backdrop root 为止的画面。
-   **别**在 .cv-msgwin 或 .cv-msgwin-glass 上加 filter / mask / opacity / isolation /
-   mix-blend-mode / will-change:opacity 之类的属性（连转场动画也不行——所以改档时淡的是
-   面板内容，不是玻璃），否则玻璃塌成一块透明板。 */
+/* ---- 玻璃面：Hyalite 按窗口尺寸生成 SDF 透镜 ----
+   玻璃祖先保持正常合成，开合时只淡入淡出内容层，让透镜始终能够采样画布。 */
 .cv-msgwin-glass {
   position: absolute;
   inset: 0;
   z-index: 0;
 }
-
-/* 投影比 Frost 浮层阶（--elev-3）重一档：玻璃没有底色，浅色画布上它与背景的分界只剩
-   投影与接触环两样东西。四层各管一件事——
-     · 环境影（0 32px 72px）：浮起的高度
-     · 中层影（0 12px 28px）：边缘正下方那一圈明显的暗带，浅色模式下"看得见边"靠它
-     · 近影（0 2px 6px）：贴边 1-2px 的一道深线，压住玻璃与卡片边线糊在一起
-     · 全向晕（0 0 20px，无偏移）：上边与左边也要有一圈暗，否则只有下缘"看得见边"
-     · 接触环（.5px）：这里有一条边
-   上游是纯黑 25% 的一坨，那是照片背景的配方。 */
-.cv-msgwin-lg > .lg-glass {
-  box-shadow: var(--glass-shadow-thick);
+.cv-msgwin-lg {
+  --lg-edge: rgba(255, 255, 255, .88);
+  --lg-edge-soft: rgba(255, 255, 255, .18);
+  --lg-contact: rgba(32, 42, 56, .14);
+  --lg-shadow: rgba(28, 39, 56, .15);
+  --lg-sheen: rgba(255, 255, 255, .32);
 }
-/* 过渡期换成纯毛玻璃（LiquidGlass 把 blur/saturate 版写在 --lg-plain 上）：
-   壳每帧换尺寸 = 位移滤镜图每帧重跑一遍（论证见 MessageWindow）。 */
+[data-appearance="dark"] .cv-msgwin-lg {
+  --lg-edge: rgba(255, 255, 255, .36);
+  --lg-edge-soft: rgba(255, 255, 255, .045);
+  --lg-contact: rgba(0, 0, 0, .36);
+  --lg-shadow: rgba(0, 0, 0, .32);
+  --lg-sheen: rgba(255, 255, 255, .065);
+}
+.cv-msgwin-lg > .lg-glass {
+  box-shadow:
+    0 24px 64px -18px var(--lg-shadow),
+    0 8px 22px -10px var(--lg-shadow),
+    0 2px 5px -2px var(--lg-contact),
+    0 0 0 .5px var(--lg-contact);
+}
+.cv-msgwin-lg .lg-diffusion {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  mask-image:
+    linear-gradient(to right, transparent 4px, #000 28px, #000 calc(100% - 28px), transparent calc(100% - 4px)),
+    linear-gradient(to bottom, transparent 4px, #000 28px, #000 calc(100% - 28px), transparent calc(100% - 4px));
+  mask-composite: intersect;
+}
+.cv-msgwin-lg .lg-illum {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(155deg,
+    color-mix(in srgb, var(--surface) 46%, transparent),
+    color-mix(in srgb, var(--surface) 18%, transparent) 44%,
+    color-mix(in srgb, var(--surface) 30%, transparent));
+}
+.cv-msgwin-lg .lg-sheen {
+  position: absolute;
+  inset: -40px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 360px 260px at 0 0, var(--lg-sheen), transparent 75%),
+    radial-gradient(ellipse 300px 200px at 100% 100%, var(--lg-sheen), transparent 75%);
+  transform: translate(var(--lg-light-x, 0px), var(--lg-light-y, 0px));
+  transition: transform var(--t-float) var(--ease-std);
+}
+/* 方向性高光与接触环分别合成，弧线亮度随光向变化。 */
+.cv-msgwin-lg > .lg-rim {
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(145deg,
+    var(--lg-edge) 0%, var(--lg-edge-soft) 36%,
+    transparent 50%, var(--lg-edge-soft) 64%, var(--lg-edge) 100%);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-msgwin-lg .lg-sheen { transform: none; transition: none; }
+}
+/* 开合期间先使用相同模糊量；Hyalite 在尺寸稳定后恢复折射。 */
 .cv-msgwin[data-tweening="1"] .lg-warp {
   backdrop-filter: var(--lg-plain) !important;
   -webkit-backdrop-filter: var(--lg-plain) !important;
 }
-
-/* 运行中不再给玻璃染蓝环/蓝雾（用户定：边缘不要蓝线）——「活着」由旋转的边框光束、
-   Bot 光晕与扫描眼交代，玻璃本身在静息与运行中长得一样。 */
 
 /* ---- 边框光束（运行中，仅 open 档）----
    照 Jakub Antalik 的 border-beam 重做（github.com/Jakubantalik/Libraries）。
@@ -3125,6 +3166,7 @@ body {
   align-items: flex-start;
   gap: 8px;
   min-height: var(--cv-msgwin-bot);
+  padding-top: 5px;
   padding-bottom: 2px;
   min-width: 0;
 }
@@ -3477,110 +3519,6 @@ body {
   white-space: nowrap;
 }
 
-/* 对照条:预览层盖住条目列表后的补偿 —— 「正在核验什么」+ 人工动作 + 来源步进
-   同屏可用(PRD 故事 5/6)。玻璃一档与下方纸面舞台分层。 */
-.cv-trace-claim {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 11px 18px 12px;
-  box-shadow: inset 0 -.5px 0 var(--separator);   /* chrome 与内容交界：.5px 接触边，非 1px 分区线 */
-  background: var(--surface-2);
-}
-.cv-trace-claim-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.cv-trace-claim-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--label-3);
-  font-variant-numeric: tabular-nums;
-}
-.cv-trace-claim-title {
-  min-width: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--label);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cv-trace-claim-text {
-  position: relative;
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.7;
-  color: var(--label-2);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-.cv-trace-claim-text.is-open {
-  display: block;
-  -webkit-line-clamp: none;
-  max-height: 30vh;
-  overflow: auto;
-}
-.cv-trace-claim-toggle {
-  margin-left: 6px;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--blue);
-  cursor: pointer;
-}
-.cv-trace-claim-toggle:hover { text-decoration: underline; }
-/* 来源步进器:同一条目的多条来源在层内走完,不用退层再找下一枚签 */
-.cv-trace-step {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  font-size: 11.5px;
-  color: var(--label-3);
-  font-variant-numeric: tabular-nums;
-}
-.cv-trace-step button {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  background: var(--surface);
-  color: var(--label-2);
-  border-radius: var(--r-control);   /* 坡道档位 */
-  cursor: pointer;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
-}
-.cv-trace-step button:hover { color: var(--fg); background: var(--surface-3); }
-.cv-trace-step button:active { transform: scale(.97); }
-.cv-trace-step button:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
-}
-.cv-trace-close {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  border: 0;
-  background: var(--surface-2);
-  color: var(--label-2);
-  border-radius: var(--r-control);
-  cursor: pointer;
-  transition: color var(--t-micro) var(--ease-std), background-color var(--t-micro) var(--ease-std), transform var(--t-micro) var(--ease-std);
-}
-.cv-trace-close:hover { color: var(--fg); background: var(--surface-3); }
-.cv-trace-close:active { transform: scale(.92); }
 /* 舞台 = 滚动容器,纸面在其中居中(对齐原型 .pages-viewport.centered)。
    定位滚动的容器身份在此,TracePanel 里 closest(".cv-trace-stage") 依赖它。 */
 .cv-trace-stage {
@@ -3814,12 +3752,12 @@ body {
    .cv-toolbar / .cv-dock-chip / .cv-viewport-hint / .cv-actbar 已改用 .frost-glass 工具类，
    其兜底由 frost-materials.css 统一提供，此处不再重复。消息浮窗的 LiquidGlass 需要单独撤：
    它的滤镜写在 JSX 内联（构建期会剥离样式表里的无前缀属性），媒体查询够不到。 */
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   /* 液态玻璃整套撤掉：折射与高光边都以「看得见背后」为前提，实底之后它们只剩噪点 */
-  .cv-msgwin-lg > .lg-glass { background: rgba(250, 251, 253, .98); }
+  .cv-msgwin-lg > .lg-glass { background: var(--surface); outline: 1px solid var(--label-2); }
   .cv-msgwin-lg .lg-warp { filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .cv-msgwin-lg > .lg-rim { display: none; }
-  .cv-msgwin-lg .lg-illum { display: none; }
+  .cv-msgwin-lg :is(.lg-illum, .lg-diffusion, .lg-sheen) { display: none; }
   /* 面板底一旦实心，正文那套半透明元件就失去了「不戳补丁」的理由，还回实底更清楚 */
   .cv-msgwin .cm-tool-results,
   .cv-msgwin .cm-markdown [data-streamdown="code-block"] { background: var(--surface); }

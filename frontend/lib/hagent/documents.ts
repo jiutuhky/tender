@@ -10,6 +10,10 @@ import {
 
 export type { DocumentRecord };
 
+import { documentAssetUrl } from "@/lib/trace/pdf-runtime";
+
+const mappingCache = new Map<string, Promise<unknown>>();
+
 interface ContentEntry {
   sha256: string;
   content: Promise<string>;
@@ -25,6 +29,7 @@ function ensureProject(pid: string): void {
     cacheProjectId = pid;
     registryPromise = null;
     contentCache.clear();
+    mappingCache.clear();
   }
 }
 
@@ -63,4 +68,22 @@ export function resetDocumentCaches(): void {
   cacheProjectId = null;
   registryPromise = null;
   contentCache.clear();
+  mappingCache.clear();
+}
+
+/** 映射独立于 PDF 渲染生命周期，按完整文档版本复用，失败允许重试。 */
+export function getDocumentMapping(pid: string, doc: DocumentRecord): Promise<unknown> {
+  ensureProject(pid);
+  const key = `${pid}:${doc.id}:${doc.sha256}:${doc.origin_sha256}:${doc.preview_sha256}`;
+  const cached = mappingCache.get(key);
+  if (cached) return cached;
+  const promise = fetch(documentAssetUrl(pid, doc.id, "sidecar"), { cache: "no-store" }).then(async (response) => {
+    if (!response.ok) throw new Error("原文映射暂不可用，请重试或重新解析文档。");
+    return response.json() as Promise<unknown>;
+  }).catch((error: unknown) => {
+    if (mappingCache.get(key) === promise) mappingCache.delete(key);
+    throw error;
+  });
+  mappingCache.set(key, promise);
+  return promise;
 }

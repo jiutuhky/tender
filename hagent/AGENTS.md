@@ -9,9 +9,8 @@
 - `prompts/` —— 中文 base prompt（协议级文件，见「关键约束」）；`scripts/` —— 辅助脚本；`web/` —— 独立 Next.js 工程，有自己的 `web/AGENTS.md` 与 `web/CLAUDE.md`。
 - `docs/specs/` —— 设计规格（当前实施对象：`2026-07-10-project-workspace-design.md`）；`docs/plans/` —— 只读历史存档，**勿按其实施**；`docs/hooks/` 使用指南；`docs/deploy/` 部署手册。
 
-## 工作项与领域文档
+## 领域文档
 
-- 新工作项一律走仓库根 `.scratch/<feature>/`，约定见根 `docs/agents/issue-tracker.md`；仓库根 `tickets.md` 是该约定之前的 M1 拆票，内容仍有效。
 - 领域词汇与架构决策：根 `CONTEXT-MAP.md` 索引各上下文的 `CONTEXT.md`（多上下文布局），全局 ADR 在根 `docs/adr/`，消费规则见根 `docs/agents/domain.md`。
 
 ## 构建、测试与开发命令
@@ -73,7 +72,7 @@ PR 和交付说明，只描述最终采用的状态，假设读者没看过本�
 ## 提交与交付
 
 - Conventional Commit 风格带 scope：`feat(web):`、`fix(server):`、`test(server):`、`docs(spec):` 等；提交保持小而聚焦。
-- 本仓库以根 `.scratch/` 跟踪工作项，无远程 PR 请求入口。交付记录说明行为变化、实际验证结果与相关 spec / 工作项；若用户另外要求 PR，采用相同内容。可见改动在浏览器可用时附截图。
+- 交付记录说明行为变化、实际验证结果与相关 spec；若用户另外要求 PR，采用相同内容。可见改动在浏览器可用时附截图。
 - 涉及 sandbox 实现的改动，交付记录须包含以下验证结果：
 
 ```bash

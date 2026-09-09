@@ -6,24 +6,24 @@ import { getDocumentRegistry, type DocumentRecord } from "@/lib/hagent/documents
 import { assessSourceRef, type RegistryStatus } from "@/lib/trace/refs";
 import type { MatrixType, SourceRef } from "@/lib/hagent/matrix";
 
-// 溯源预览的抽屉层局部状态:文档注册表 + 活跃 ref + 被核验条目(对照条数据)。
+// 溯源预览的抽屉层局部状态:文档注册表 + 活跃 ref + 被核验条目(对照区数据)。
 // 有意不进全局 workspace store(SSE 批处理是 store 的性能关键路径);
 // 状态挂在 CanvasDrawer 上,随抽屉卸载整体销毁 = 「关抽屉整体重置」的生命周期决策。
 
-/** 对照条数据:预览层盖住条目列表后,把「正在核验什么」随签一起带进浮层。
- *  一律是纯数据 —— 不要往里塞 ReactNode,快照会僵死(点完确认对照条不刷新)。
- *  行级管理状态(确认/应答)由对照条按 matrixType + itemId 自行从 store 读实时值。 */
+/** 对照区数据:预览层盖住条目列表后,把「正在核验什么」随签一起带进浮层。
+ *  一律是纯数据 —— 不要往里塞 ReactNode,快照会僵死(点完确认对照区不刷新)。
+ *  行级管理状态(确认/应答)由对照区按 matrixType + itemId 自行从 store 读实时值。 */
 export interface TraceClaim {
-  /** 签身份命名空间,与 SourceChips 的 itemKey 同源;来源步进要靠它重建 activeKey */
+  /** 签身份命名空间,与 SourceChips 的 itemKey 同源;切换来源文件时据此重建 activeKey */
   itemKey: string;
   matrixType: MatrixType;
-  /** null = 评分项/否决项等无行级管理状态的来源,对照条只呈现文案不给人工动作 */
+  /** null = 评分项/否决项等无行级管理状态的来源,对照区只呈现文案不给人工动作 */
   itemId: string | null;
   label: string;
   title: string;
   requirementText: string;
   mandatory?: boolean;
-  /** 「参数性质」列原文符号(★/▲);对照条据此与条目列表用同一枚标记 */
+  /** 「参数性质」列原文符号(★/▲);对照区据此与条目列表用同一枚标记 */
   paramNature?: "★" | "▲" | null;
   highRisk?: boolean;
   /** 该条目的全部来源,供层内步进器逐条走完 */
@@ -47,11 +47,12 @@ export interface TraceContextValue {
   /** 被核验条目;null = 无对照数据(mock 详情或未带 claim 的调用) */
   activeClaim: TraceClaim | null;
   openTrace: (ref: SourceRef, key: string, claim?: TraceClaim) => void;
-  /** 层内来源步进:在当前条目的 refs 内环绕移动,自动跳过不可用的来源 */
-  stepSource: (delta: 1 | -1) => void;
   closeTrace: () => void;
   nextPending: () => void;
   nextPendingCount: number;
+  claimIndex: number;
+  claimCount: number;
+  stepClaim: (delta: 1 | -1) => void;
   retryRegistry: () => void;
 }
 
@@ -108,56 +109,39 @@ export function useTraceState(enabled: boolean): {
   );
   const closeTrace = useCallback(() => setActive(null), []);
 
-  // 层内步进:沿 delta 方向找下一枚「可用」来源(跳过缺 document_id / 不在注册表的),
-  // 环绕一圈回到原点即放弃 —— 与来源签的置灰口径同源,不会步进到点不开的来源上。
-  const stepSource = useCallback(
-    (delta: 1 | -1) => {
-      setActive((prev) => {
-        const claim = prev?.claim;
-        if (!prev || !claim) return prev;
-        const n = claim.refs.length;
-        if (n <= 1) return prev;
-        for (let hop = 1; hop <= n; hop++) {
-          const i = (((claim.refIndex + delta * hop) % n) + n) % n;
-          const next = claim.refs[i];
-          if (!next) continue;
-          if (!assessSourceRef(next, registryStatus, registry).usable) continue;
-          return {
-            ref: next,
-            key: `${claim.itemKey}:${i}`,
-            seq: prev.seq + 1,
-            claim: { ...claim, refIndex: i },
-          };
-        }
-        return prev;
-      });
-    },
-    [registry, registryStatus],
-  );
-
   const retryRegistry = useCallback(() => {
     setRegistryStatus("loading");
     setRevision((v) => v + 1);
   }, []);
-  const pendingClaims = useMemo<TraceClaim[]>(() => {
+  const reviewClaims = useMemo<TraceClaim[]>(() => {
     const type = active?.claim?.matrixType;
     if (type !== "business" && type !== "technical") return [];
     const slot = matrices[type];
-    const rows = new Map((slot.itemRows ?? []).map((r) => [r.item_id, r]));
-    const items = slot.data?.items ?? [];
-    const start = items.findIndex((it) => it.id === active?.claim?.itemId);
-    const ordered = [...items.slice(start + 1), ...items.slice(0, Math.max(0, start))];
-    return ordered.flatMap((it): TraceClaim[] => {
-      if (!it.id || !rows.has(it.id) || rows.get(it.id)?.confirmed) return [];
-      const refs = it.source_refs ?? [];
+    const rows = new Set((slot.itemRows ?? []).map((row) => row.item_id));
+    return (slot.data?.items ?? []).flatMap((item): TraceClaim[] => {
+      if (!item.id || !rows.has(item.id)) return [];
+      const refs = item.source_refs ?? [];
       const index = refs.findIndex((ref) => assessSourceRef(ref, registryStatus, registry).usable);
       if (index < 0) return [];
-      return [{ itemKey: it.id, itemId: it.id, matrixType: type, label: it.id,
-        title: it.title || "未命名条目", requirementText: it.requirement_text ?? "",
-        mandatory: !!it.mandatory, paramNature: it.param_nature, highRisk: it.risk_level === "high",
+      return [{ itemKey: item.id, itemId: item.id, matrixType: type, label: item.id,
+        title: item.title || "未命名条目", requirementText: item.requirement_text ?? "",
+        mandatory: !!item.mandatory, paramNature: item.param_nature, highRisk: item.risk_level === "high",
         refs, refIndex: index }];
     });
-  }, [active?.claim, matrices, registryStatus, registry]);
+  }, [active?.claim?.matrixType, matrices, registryStatus, registry]);
+  const claimIndex = reviewClaims.findIndex((claim) => claim.itemKey === active?.claim?.itemKey);
+  const pendingClaims = useMemo(() => {
+    const type = active?.claim?.matrixType;
+    if (type !== "business" && type !== "technical") return [];
+    const confirmed = new Set((matrices[type].itemRows ?? []).filter((row) => row.confirmed).map((row) => row.item_id));
+    return [...reviewClaims.slice(claimIndex + 1), ...reviewClaims.slice(0, Math.max(0, claimIndex))]
+      .filter((claim) => claim.itemId && !confirmed.has(claim.itemId));
+  }, [reviewClaims, claimIndex, active?.claim?.matrixType, matrices]);
+  const stepClaim = useCallback((delta: 1 | -1) => {
+    const claim = reviewClaims[claimIndex + delta];
+    const ref = claim?.refs[claim.refIndex];
+    if (claim && ref) openTrace(ref, `${claim.itemKey}:${claim.refIndex}`, claim);
+  }, [reviewClaims, claimIndex, openTrace]);
   const nextPending = useCallback(() => {
     const claim = pendingClaims[0];
     const ref = claim?.refs[claim.refIndex];
@@ -174,13 +158,15 @@ export function useTraceState(enabled: boolean): {
       activeSeq: active?.seq ?? 0,
       activeClaim: active?.claim ?? null,
       openTrace,
-      stepSource,
       closeTrace,
       nextPending,
       nextPendingCount: pendingClaims.length,
+      claimIndex,
+      claimCount: reviewClaims.length,
+      stepClaim,
       retryRegistry,
     }),
-    [registry, registryStatus, projectId, active, openTrace, stepSource, closeTrace, nextPending, pendingClaims.length, retryRegistry],
+    [registry, registryStatus, projectId, active, openTrace, closeTrace, nextPending, pendingClaims.length, claimIndex, reviewClaims.length, stepClaim, retryRegistry],
   );
   const activeDoc =
     (active?.ref.document_id ? registry?.get(active.ref.document_id) : undefined) ?? null;

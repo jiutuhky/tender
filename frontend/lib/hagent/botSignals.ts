@@ -10,6 +10,7 @@ export interface BotSignals {
   scopes: Readonly<Record<string, BotActivity>>;
   attention: "awaiting-input" | "blocked" | null;
   reading: boolean;
+  ingestLabel?: string;
   partial: boolean;
   failed: boolean;
   ended: boolean;
@@ -53,7 +54,7 @@ export function reduceBotSignals(
       reading: false,
     };
   if (event.event === "ingest.progress")
-    return signals.reading ? signals : { ...signals, reading: true };
+    return { ...signals, reading: true, ingestLabel: typeof data.label === "string" ? data.label : "正在解析原文" };
   if (event.event === "ingest.completed")
     return {
       ...signals,

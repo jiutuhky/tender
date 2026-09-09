@@ -11,7 +11,7 @@ import type { SVGProps } from "react";
  *   curl -s https://unpkg.com/@phosphor-icons/core@2.1.1/assets/regular/{name}.svg
  * 取出其中的 d="…" 原样落成下面的 P_* 常量，再用 phosphorIcon() 包一层导出。
  *
- * 三个备案例外（不走 Phosphor，见 .scratch/frost-compliance/README.md）：
+ * 三个品牌标识使用各自字形：
  *   BrandMark —— 品牌 app icon（其拟人化身 Prose Bot 已独立为 components/ui/ProseBot，
  *     由 lib/bot 的角色引擎驱动，不再是静态图标）；
  *   WechatWorkIcon / DingtalkIcon —— 第三方品牌标识，须保留官方字形。

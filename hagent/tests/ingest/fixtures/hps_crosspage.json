@@ -1,0 +1,136 @@
+{
+  "result": {
+    "layoutParsingResults": [
+      {
+        "prunedResult": {
+          "width": 1191,
+          "height": 1684,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": true,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "table",
+              "block_content": "<table><tr><td></td><td>由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20%递减，最低分为 0 分，净利润为负值的得 0 分。\\n说明：1.以第三方会计师事务所出具的近三年的财务审计报告中显示的数据为准（军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算代替），如投标（报价）供应商同时提供其报表和合并报表，以其报表为准，如仅有合并报表导致无法拆分投标（报价）供应商的相关数据，按照 0 分处理。审计报告中无相关数据的，按照 0 分处理。\\n2.近三年的说明详见“特别提示”第十三条。”</td><td></td><td></td><td>近 3 年会计师事务所出具的审计报告</td></tr><tr><td>财务状况</td><td>\"2.根据投标（报价）供应商近三年平均资产负债率低于 50%（含）的得标准分值，50%~70%（含）得标准分值的 50%，70%以上的为 0 分。\\n说明：1.以第三方会计师事务所出具的近三年的财务审计报告中显示的数据为准（军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算代替），如投标（报价）供应商同时提供其报表和合并报表，以其报表为准，如仅有合并报表导致无法拆分投标（报价）供应商的相关数据，按照 0 分处理。审计报告中无相关数据的，按照 0 分处理。\\n2.近三年的说明详见“特别提示”第十三条。”</td><td>1.00</td><td>客观</td><td>财务社保数据统计表\\n近 3 年会计师事务所出具的审计报告</td></tr><tr><td>财务状况</td><td>\"3.根据投标（报价）供应</td><td>2.00</td><td>客观</td><td>财务社保数据统计</td></tr><tr><td></td><td>商近三年平均营业收入金额由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20%递减，最低分为 0 分。\\n说明：1.以第三方会计师事务所出具的近三年的财务审计报告中显示的数据为准（军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算代替），如投标（报价）供应商同时提供其报表和合并报表，以其报表为准，如仅有合并报表导致无法拆分投标（报价）供应商的相关数据，按照 0 分处理。审计报告中无相关数据的，按照 0 分处理。\\n2.近三年的说明详见“特别提示”第十三条。”</td><td></td><td></td><td>计表\\n近 3 年会计师事务所出具的审计报告</td></tr><tr><td>企业信誉</td><td>\"1.投标（报价）供应商近三年连续三年连续取得税务部门颁发的企业纳税信用 A 级评价证书的得标准分值，取得过两次的得标准分值的 50%，取得过一次的得标准分值的 25%，没有或无效的为 0 分。（网上公示的，须提供截图和查询网址）\\n军队单位、事业单位可提供上年度 12 个月的纳税凭证，得标准分值。\\n说明：投标截止时间在 5 月 1 日(不含)前，近 3 年企业纳税信用 A 级评价证书指上年度之前的 3 年 (不含上年度)，投标截止时间在 5 月 1 日(含)后，近 3 年企业纳税信用 A 级评价证书指本年度之前的 3 年(含上年度)。”</td><td>2.00</td><td>客观</td><td>企业信誉</td></tr><tr><td>企业信誉</td><td>2.投标（报价）供应商近三</td><td>2.00</td><td>客观</td><td>企业信誉</td></tr></table>",
+              "block_bbox": [
+                168,
+                143,
+                1004,
+                1520
+              ],
+              "block_id": 0,
+              "block_order": null,
+              "group_id": 0,
+              "global_block_id": 0,
+              "global_group_id": 0,
+              "block_polygon_points": [
+                [
+                  168.0,
+                  143.0
+                ],
+                [
+                  1004.0,
+                  143.0
+                ],
+                [
+                  1004.0,
+                  1520.0
+                ],
+                [
+                  168.0,
+                  1520.0
+                ]
+              ]
+            }
+          ]
+        },
+        "markdown": {
+          "text": "\n<table border=1 style='margin: auto; word-wrap: break-word;'><tr><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20%递减，最低分为 0 分，净利润为负值的得 0 分。\\n说明：1.以第三方会计师事务所出具的近三年的财务审计报告中显示的数据为准（军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算代替），如投标（报价）供应商同时提供其报表和合并报表，以其报表为准，如仅有合并报表导致无法拆分投标（报价）供应商的相关数据，按照 0 分处理。审计报告中无相关数据的，按照 0 分处理。\\n2.近三年的说明详见“特别提示”第十三条。”</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>近 3 年会计师事务所出具的审计报告</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>财务状况</td><td style='text-align: center; word-wrap: break-word;'>\"2.根据投标（报价）供应商近三年平均资产负债率低于 50%（含）的得标准分值，50%~70%（含）得标准分值的 50%，70%以上的为 0 分。\\n说明：1.以第三方会计师事务所出具的近三年的财务审计报告中显示的数据为准（军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算代替），如投标（报价）供应商同时提供其报表和合并报表，以其报表为准，如仅有合并报表导致无法拆分投标（报价）供应商的相关数据，按照 0 分处理。审计报告中无相关数据的，按照 0 分处理。\\n2.近三年的说明详见“特别提示”第十三条。”</td><td style='text-align: center; word-wrap: break-word;'>1.00</td><td style='text-align: center; word-wrap: break-word;'>客观</td><td style='text-align: center; word-wrap: break-word;'>财务社保数据统计表\\n近 3 年会计师事务所出具的审计报告</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>财务状况</td><td style='text-align: center; word-wrap: break-word;'>\"3.根据投标（报价）供应</td><td style='text-align: center; word-wrap: break-word;'>2.00</td><td style='text-align: center; word-wrap: break-word;'>客观</td><td style='text-align: center; word-wrap: break-word;'>财务社保数据统计</td></tr><tr><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>商近三年平均营业收入金额由大至小排序，排名第一的得标准分值，其余依次按标准分值的 20%递减，最低分为 0 分。\\n说明：1.以第三方会计师事务所出具的近三年的财务审计报告中显示的数据为准（军队单位、事业单位无法提供审计报告的，可由上级管理部门批复的决算代替），如投标（报价）供应商同时提供其报表和合并报表，以其报表为准，如仅有合并报表导致无法拆分投标（报价）供应商的相关数据，按照 0 分处理。审计报告中无相关数据的，按照 0 分处理。\\n2.近三年的说明详见“特别提示”第十三条。”</td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'></td><td style='text-align: center; word-wrap: break-word;'>计表\\n近 3 年会计师事务所出具的审计报告</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>企业信誉</td><td style='text-align: center; word-wrap: break-word;'>\"1.投标（报价）供应商近三年连续三年连续取得税务部门颁发的企业纳税信用 A 级评价证书的得标准分值，取得过两次的得标准分值的 50%，取得过一次的得标准分值的 25%，没有或无效的为 0 分。（网上公示的，须提供截图和查询网址）\\n军队单位、事业单位可提供上年度 12 个月的纳税凭证，得标准分值。\\n说明：投标截止时间在 5 月 1 日(不含)前，近 3 年企业纳税信用 A 级评价证书指上年度之前的 3 年 (不含上年度)，投标截止时间在 5 月 1 日(含)后，近 3 年企业纳税信用 A 级评价证书指本年度之前的 3 年(含上年度)。”</td><td style='text-align: center; word-wrap: break-word;'>2.00</td><td style='text-align: center; word-wrap: break-word;'>客观</td><td style='text-align: center; word-wrap: break-word;'>企业信誉</td></tr><tr><td style='text-align: center; word-wrap: break-word;'>企业信誉</td><td style='text-align: center; word-wrap: break-word;'>2.投标（报价）供应商近三</td><td style='text-align: center; word-wrap: break-word;'>2.00</td><td style='text-align: center; word-wrap: break-word;'>客观</td><td style='text-align: center; word-wrap: break-word;'>企业信誉</td></tr></table>",
+          "images": {}
+        }
+      },
+      {
+        "prunedResult": {
+          "width": 1191,
+          "height": 1684,
+          "model_settings": {
+            "use_doc_preprocessor": false,
+            "use_layout_detection": true,
+            "use_chart_recognition": false,
+            "use_seal_recognition": false,
+            "use_ocr_for_image_block": false,
+            "format_block_content": false,
+            "merge_layout_blocks": true,
+            "markdown_ignore_labels": [
+              "number",
+              "footnote",
+              "header",
+              "header_image",
+              "footer",
+              "footer_image",
+              "aside_text"
+            ],
+            "return_layout_polygon_points": true
+          },
+          "parsing_res_list": [
+            {
+              "block_label": "table",
+              "block_content": "",
+              "block_bbox": [
+                167,
+                144,
+                1004,
+                1520
+              ],
+              "block_id": 0,
+              "block_order": null,
+              "group_id": 0,
+              "global_block_id": 1,
+              "global_group_id": 0,
+              "block_polygon_points": [
+                [
+                  167.0,
+                  144.0
+                ],
+                [
+                  1004.0,
+                  144.0
+                ],
+                [
+                  1004.0,
+                  1520.0
+                ],
+                [
+                  167.0,
+                  1520.0
+                ]
+              ]
+            }
+          ]
+        },
+        "markdown": {
+          "text": "\n",
+          "images": {}
+        }
+      }
+    ]
+  },
+  "errorCode": 0,
+  "errorMsg": "Success"
+}

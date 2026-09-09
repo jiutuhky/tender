@@ -28,7 +28,7 @@ from hagent.server.workspace_checkpoint import (
     CheckpointFailure,
     CheckpointResult,
 )
-from hagent.task_tools.models import task_to_todo
+from hagent.task_tools.models import Task, task_to_todo
 
 
 logger = logging.getLogger(__name__)
@@ -93,13 +93,34 @@ def _expand_skill_message(content: str) -> str:
     return _build_skill_message(rest, None)
 
 
+def _order_tasks_for_progress(tasks: list[Task]) -> list[Task]:
+    """前置任务优先；可排任务按原顺序选取，状态变化不改变步骤位置。"""
+    remaining = {task.id: task for task in tasks}
+    ordered: list[Task] = []
+    while remaining:
+        ready = next(
+            (
+                task for task in remaining.values()
+                if not any(task_id in remaining for task_id in task.blockedBy)
+            ),
+            None,
+        )
+        if ready is None:
+            # 循环依赖无法排出先后，剩余任务按原顺序展示，保证列表完整。
+            ordered.extend(remaining.values())
+            break
+        ordered.append(remaining.pop(ready.id))
+    return ordered
+
+
 def _task_store_todos(agent: Any) -> list[dict[str, Any]] | None:
     store = getattr(agent, "_hagent_task_store", None)
     list_tasks = getattr(store, "list_tasks", None)
     if store is None or not callable(list_tasks):
         return None
     try:
-        tasks = list_tasks()
+        # 使用完整依赖排序，再过滤已完成的阻塞提示，避免完成后步骤换位。
+        tasks = _order_tasks_for_progress(list_tasks())
         todos = [task_to_todo(task) for task in tasks]
         list_task_items = getattr(store, "list_task_items", None)
         if callable(list_task_items):

@@ -581,48 +581,6 @@
   color: var(--label);
   font-weight: 600;
 }
-/* 原文层：核验操作成组，来源导航与条目导航放在同一侧。 */
-.cv-trace-claim-foot {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px 24px;
-  align-items: end;
-}
-.rd-trace-review {
-  min-width: 0;
-}
-.rd-trace-review .cv-item-actions {
-  margin-top: 0;
-}
-.rd-trace-review .rd-response {
-  flex: none;
-}
-.rd-trace-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.rd-trace-navigation .cv-next-review,
-.rd-trace-navigation .cv-trace-step {
-  margin-left: 0;
-}
-.cv-trace-claim-foot > .rd-action-hint,
-.cv-trace-claim-foot > .cv-review-saved {
-  grid-column: 1 / -1;
-  margin: 0;
-}
-@media (max-width: 900px) {
-  .cv-trace-claim-foot {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-  }
-  .rd-trace-navigation {
-    justify-content: flex-start;
-  }
-}
-
 /* 概要：事实列与绝对时间优先。 */
 .rd-project-intro h2 {
   font-size: 22px;

@@ -68,6 +68,8 @@ class DocumentModel(BaseModel):
     sha256: str
     doc_type: str | None
     registered_at: str
+    origin_sha256: str | None = None
+    preview_sha256: str | None = None
     has_preview: bool = Field(
         default=False,
         description="是否有可下发的 PDF 预览版；false 时溯源预览降级到 md 渲染",
@@ -142,6 +144,8 @@ def document_model(record: DocumentRecord) -> DocumentModel:
         doc_type=record.doc_type,
         registered_at=record.registered_at,
         has_preview=record.preview_sha256 is not None,
+        origin_sha256=record.origin_sha256,
+        preview_sha256=record.preview_sha256,
         created=record.created,
     )
 

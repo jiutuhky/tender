@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import tempfile
 from pathlib import Path
 
 DEFAULT_BLOB_ROOT = "/tmp/hagent/blobs"
@@ -43,9 +44,14 @@ class BlobStore:
             return digest
         target.parent.mkdir(parents=True, exist_ok=True)
         # 先写临时文件再改名：并发/中断下不会留下半截 blob
-        staging = target.with_name(f"{digest}.{os.getpid()}.partial")
-        staging.write_bytes(data)
-        staging.replace(target)
+        with tempfile.NamedTemporaryFile(dir=target.parent, suffix=".partial", delete=False) as f:
+            staging = Path(f.name)
+            try:
+                f.write(data)
+                f.flush()
+                staging.replace(target)
+            finally:
+                staging.unlink(missing_ok=True)
         return digest
 
     def get(self, kind: str, digest: str) -> bytes:

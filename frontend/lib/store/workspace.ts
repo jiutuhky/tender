@@ -49,6 +49,7 @@ function toUserMessage(e: unknown): string {
   console.error("[workspace]", e);
   return "执行过程中出现异常，请稍后重试。";
 }
+import { resetDocumentCaches } from "@/lib/hagent/documents";
 import { prettyLabel } from "@/lib/hagent/naming";
 
 export type RunPhase = "idle" | "creating" | "uploading" | "running" | "loading_results" | "done" | "error";
@@ -223,7 +224,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     pending = [];
     const toLoading = new Set<MatrixType>();
     const toLoad = new Set<MatrixType>();
-    for (const ev of batch) trackProseEvent(ev, toLoading, toLoad);
+    for (const ev of batch) {
+      trackProseEvent(ev, toLoading, toLoad);
+      if (ev.event === "ingest.completed") resetDocumentCaches();
+    }
     set((s) => {
       let timeline = s.timeline;
       let todos = s.todos;
@@ -432,7 +436,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let docName: string;
       if (file) {
         await uploadProjectFile(proj.id, file);
-        docName = file.name;
+        docName = file.name.replace(/\.pdf$/i, ".md");
       } else if (sampleName) {
         await uploadProjectSample(proj.id, sampleName);
         docName = "招标文件.md"; // upload-sample 统一改名

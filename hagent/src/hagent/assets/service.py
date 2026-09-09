@@ -109,6 +109,20 @@ class AssetService:
                 return doc_id
         raise AssetError("document_id_exhausted", f"无法为 sha256={sha256} 生成唯一文档 ID")
 
+    def assert_source_writable(self, project_id: str, path: str) -> None:
+        """来源文件一经注册，上传入口不能覆盖已有引用的文本或映射。"""
+        document_path = path[:-len(".sidecar.json")] + ".md" if path.endswith(".sidecar.json") else path
+        with self._store.transaction() as conn:
+            row = conn.execute("SELECT id FROM documents WHERE project_id = ? AND path = ? LIMIT 1",
+                               (project_id, document_path)).fetchone()
+        if row is not None:
+            raise AssetError("source_readonly", "该文件已用于来源引用，请更换文件名以保留原文版本")
+
+    def find_document_by_sha(self, project_id: str, sha256: str) -> DocumentRecord | None:
+        """入库发布前核对已有文档的固定原件绑定。"""
+        with self._store.transaction() as conn:
+            return self._store.get_document_by_sha(conn, project_id, sha256)
+
     def register_workspace_document(
         self,
         project_id: str,
@@ -168,6 +182,12 @@ class AssetService:
         """给文档挂上原件与预览版的 blob 寻址键（入库管线在 OCR 收尾时调用）。"""
         record = self.get_document(project_id, doc_id)
         with self._store.transaction() as conn:
+            current = self._store.get_document(conn, doc_id)
+            if current is not None and (
+                (current.origin_sha256 is not None and current.origin_sha256 != origin_sha256)
+                or (current.preview_sha256 is not None and current.preview_sha256 != preview_sha256)
+            ):
+                raise AssetError("document_binding_conflict", "文档已关联固定原件，请使用新的文档版本")
             self._store.set_document_blobs(
                 conn,
                 doc_id=doc_id,

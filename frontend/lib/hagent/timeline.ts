@@ -263,5 +263,12 @@ function reduceIntoList(msgs: ChatMsg[], ev: ChatStreamEvent): ChatMsg[] {
 }
 
 export function reduceChatEvent(msgs: ChatMsg[], ev: ChatStreamEvent): ChatMsg[] {
+  if (ev.event === "ingest.failed") {
+    return [...msgs, { id: newId("ingest"), role: "error", content: "招标文件原文解析失败，请重新上传后重试。" }];
+  }
+  if (ev.event === "ingest.completed") {
+    const pages = (ev.data as { failed_pages?: unknown })?.failed_pages;
+    if (Array.isArray(pages) && pages.length) return [...msgs, { id: newId("ingest"), role: "error", content: `原文有 ${pages.length} 页未能解析，这些页面的信息可能缺失，请在原件中核对。` }];
+  }
   return reduceIntoList(msgs, ev);
 }

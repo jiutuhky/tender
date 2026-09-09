@@ -36,7 +36,7 @@ export function Composer({ entry = false, onStart }: { entry?: boolean; onStart?
 
   const acceptFile = useCallback((file: File) => {
     if (busy) return;
-    if (!/\.md$/i.test(file.name)) { setError("请选择 Markdown（.md）招标文件。PDF 或 Word 文件请先转换为 Markdown。"); return; }
+    if (!/\.(md|pdf)$/i.test(file.name)) { setError("请选择 PDF 或 Markdown（.md）招标文件。"); return; }
     if (!file.size) { setError("这份文件没有内容，请选择其他文件。"); return; }
     setError(null);
     setAttachment({ file, label: file.name });
@@ -120,7 +120,7 @@ export function Composer({ entry = false, onStart }: { entry?: boolean; onStart?
             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); fire(); }
           }} />
         <div className="composer-actions">
-          <input ref={fileRef} type="file" accept=".md,text/markdown" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) acceptFile(f); e.target.value = ""; }} />
+          <input ref={fileRef} type="file" accept=".pdf,application/pdf,.md,text/markdown" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) acceptFile(f); e.target.value = ""; }} />
           <button className="icon-btn" type="button" disabled={busy} onClick={() => fileRef.current?.click()}><PaperclipIcon /><span>{projectId && !entry ? "新项目文件" : "添加文件"}</span></button>
           <div className="composer-sample-control">
             <button ref={sampleButtonRef} className="icon-btn" type="button" disabled={busy} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={() => setOpen((v) => !v)}><ListDashesIcon /><span>试用样本</span></button>
@@ -136,7 +136,7 @@ export function Composer({ entry = false, onStart }: { entry?: boolean; onStart?
         </div>
       </div>
       {error && <p className="composer-error" role="alert">{error}</p>}
-      <div className="composer-hint" id={hintId}>{entry || attachment || !projectId ? "支持 Markdown（.md）招标文件 · " : ""}{busy ? "任务进行中，可以先写下下一条要求" : "Ctrl / ⌘ + Enter 提交，Enter 换行"}</div>
+      <div className="composer-hint" id={hintId}>{entry || attachment || !projectId ? "支持 PDF、Markdown 招标文件 · " : ""}{busy ? "任务进行中，可以先写下下一条要求" : "Ctrl / ⌘ + Enter 提交，Enter 换行"}</div>
       {dragging && <div className="composer-drop-overlay" aria-hidden="true"><div><UploadIcon width={32} height={32} /><strong>松手，添加招标文件</strong><span>核对文件和要求后，点击「开始解析」</span></div></div>}
     </div>
   );

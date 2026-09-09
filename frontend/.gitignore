@@ -42,3 +42,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .gstack/
+
+# PDF.js 静态资源由构建脚本按依赖版本同步
+/public/pdfjs/

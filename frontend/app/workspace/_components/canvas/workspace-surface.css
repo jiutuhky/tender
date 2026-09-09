@@ -1,7 +1,14 @@
 .workspace-page { min-width: 0; min-height: 0; display: flex; overflow: hidden; }
 .workspace-page > .workspace { flex: 1; min-width: 0; min-height: 0; }
 .workspace-surface .cv-toolbar { background: var(--surface); padding: 10px 22px; min-height: 54px; border-bottom: 1px solid var(--separator); }
-.workspace-surface .canvas-viewport { background: var(--canvas); }
+.workspace-surface .canvas-viewport {
+  --cv-grid-dot: color-mix(in srgb, var(--label-3) 28%, transparent);
+  background-color: var(--canvas);
+  background-image: radial-gradient(circle, var(--cv-grid-dot) 1px, transparent 1.5px);
+  background-size: var(--cv-grid-size) var(--cv-grid-size);
+  background-position: var(--cv-grid-x) var(--cv-grid-y);
+  background-repeat: repeat;
+}
 .workspace-surface[data-view="overview"] .canvas-viewport { cursor: default; touch-action: auto; }
 .workspace-surface[data-view="overview"] :is(.cv-world,.cv-zoom,.cv-tool-btn,.cv-viewport-hint) { display: none; }
 .cv-view-switch { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--r-control); background: var(--surface-2); }
@@ -38,10 +45,7 @@
 
 /* 原文阅读层保留独立排版；详情规则收口 reading-detail.css。 */
 .cv-review-error { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px; line-height: 1.7; padding-bottom: 20px; color: var(--orange-text); }
-.cv-review-error button,.cv-next-review { min-height: 36px; padding: 6px 10px; border: 1px solid var(--separator); border-radius: var(--r-control); background: var(--surface); color: var(--label-2); font-size: 12px; }
-.cv-next-review { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
-.cv-review-saved { display: block; color: var(--green-text); font-size: 12px; }
-.workspace-surface .cv-trace-claim-text { font-size: 14px; line-height: 1.75; }
+.cv-review-error button { min-height: 36px; padding: 6px 10px; border: 1px solid var(--separator); border-radius: var(--r-control); background: var(--surface); color: var(--label-2); font-size: 12px; }
 .cv-view-switch { flex: 0 0 auto; }
 .cv-view-switch button { white-space: nowrap; }
 .workspace-surface .cv-toolbar-label { flex: none; white-space: nowrap; }
@@ -50,14 +54,12 @@
 .cv-overview-review b { color: var(--label-2); font-weight: 600; }
 .cv-demo-exit { position: absolute; bottom: 20px; left: 16px; right: 16px; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .cv-demo-exit > span { font-size: 12px; color: var(--label-2); }
-.cv-trace-claim-copy { min-width: 0; }
-.workspace-surface .cv-trace-claim-toggle { min-height: 32px; margin: 4px 0 0; padding: 4px 0; font-size: 12px; }
 .workspace-surface .cv-overview-card { vertical-align: top; }
 .workspace-surface .cv-overview-card > .cv-face-head { align-self: stretch; }
 .workspace-surface .cv-overview-card { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
 .workspace-surface .cv-overview-review { margin-top: auto; padding-top: 12px; }
 .workspace-surface .cv-overview-card .cv-face-note { margin-bottom: 12px; }
-@media (max-width:600px) { .workspace-surface .cv-trace-modal { padding: 0; } .workspace-surface .cv-trace-modal-panel { border-radius: 0; } .workspace-surface .cv-trace-claim { padding: 12px 16px; } }
+@media (max-width:600px) { .workspace-surface .cv-trace-modal { padding: 0; } .workspace-surface .cv-trace-modal-panel { border-radius: 0; } }
 /* 页面放大或横屏时让工作面纵向滚动，避免输入坞挤压阅读层。 */
 @media (max-height: 600px) {
   .workspace-page { overflow-y: auto; }

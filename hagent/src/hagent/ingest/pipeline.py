@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 
@@ -29,7 +29,7 @@ from hagent.ingest.blobs import (
 )
 from hagent.ingest.ocr_client import OcrClient, ProgressCallback
 from hagent.ingest.paths import markdown_path_for, sidecar_path_for
-from hagent.ingest.pdf import PdfError, build_preview, page_count, page_sizes
+from hagent.ingest.pdf import PdfError, build_preview, page_count, page_geometries
 
 if TYPE_CHECKING:  # 运行期不导入 hagent.server：那会绕回 routers 形成环
     from hagent.server.project_workspace import ProjectWorkspace
@@ -122,9 +122,33 @@ class IngestPipeline:
 
         origin_sha = self._blobs.put(BLOB_KIND_ORIGIN, data)
         pages = self._ocr.parse_pdf(data, on_progress=on_progress)
-        assembled = assemble_document(pages)
-
-        markdown_path = markdown_path_for(pdf_path)
+        if not pages or all(page.failed for page in pages):
+            raise UploadRejected("原文解析失败，未获得可用页面，请重试")
+        preview_sha = self._blobs.put(BLOB_KIND_PREVIEW, self._build_preview(data))
+        # 失败页仍保留显示比例，前端可正常预览原页。
+        geometry = page_geometries(data)
+        for i, page in enumerate(pages):
+            if page.width <= 0 or page.height <= 0:
+                g = geometry[page.index]
+                w, h = g.crop_box[2] - g.crop_box[0], g.crop_box[3] - g.crop_box[1]
+                if g.rotation in (90, 270):
+                    w, h = h, w
+                pages[i] = replace(page, width=max(1, round(w)), height=max(1, round(h)))
+        assembled = assemble_document(pages, origin_sha256=origin_sha, preview_sha256=preview_sha)
+        existing = self._service.find_document_by_sha(project_id, assembled.sidecar["mdSha256"])
+        if existing is not None and (
+            existing.origin_sha256 not in (None, origin_sha)
+            or existing.preview_sha256 not in (None, preview_sha)
+        ):
+            raise UploadRejected("相同解析文本已关联其他原件，请保留原文档并创建新项目")
+        markdown_path = existing.path if existing else markdown_path_for(pdf_path)
+        # 同名重传产生新内容时另存版本，既有引用继续指向旧文件。
+        try:
+            previous = self._workspace.read_file(project_id, markdown_path)
+        except FileNotFoundError:
+            previous = None
+        if previous is not None and previous != assembled.markdown.encode("utf-8"):
+            markdown_path = markdown_path[:-3] + f".{origin_sha[:12]}.{assembled.sidecar['mdSha256'][:12]}.md"
         sidecar_path = sidecar_path_for(markdown_path)
         self._workspace.apply_changes(
             project_id,
@@ -142,8 +166,6 @@ class IngestPipeline:
             kind="ocr_ingest",
             paths=[markdown_path, sidecar_path],
         )
-
-        preview_sha = self._blobs.put(BLOB_KIND_PREVIEW, self._build_preview(data))
 
         document = self._service.register_document(
             project_id,
@@ -181,7 +203,7 @@ class IngestPipeline:
         except Exception as exc:  # noqa: BLE001
             logger.warning("预览版生成失败，改用原件: %s", exc)
             return data
-        if page_sizes(preview) != page_sizes(data):
+        if page_geometries(preview) != page_geometries(data):
             logger.warning("预览版页面几何与原件不符，改用原件")
             return data
         return preview

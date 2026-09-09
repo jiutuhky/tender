@@ -8,12 +8,15 @@ agent 经 MCP 的写（agent / agent_on_behalf）在事件流里可区分。
 
 from __future__ import annotations
 
+import hashlib
+import json
+from pathlib import PurePosixPath
 from collections.abc import Callable
 from functools import wraps
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from hagent.assets.errors import AssetError, ConflictError
@@ -35,7 +38,7 @@ from hagent.assets.schemas import (
     query_items_model,
 )
 from hagent.assets.service import get_asset_service
-from hagent.ingest.blobs import BLOB_KIND_PREVIEW, get_blob_store
+from hagent.ingest.blobs import BLOB_KIND_ORIGIN, BLOB_KIND_PREVIEW, get_blob_store
 from hagent.ingest.paths import sidecar_path_for
 from hagent.server.auth import require_api_key
 from hagent.server.project_workspace import get_project_workspace
@@ -154,28 +157,34 @@ def list_documents(
     return document_page_model(documents, total, limit=limit, offset=offset)
 
 
-@router.get("/projects/{pid}/documents/{doc_id}/preview")
-@_translate_errors
-def read_document_preview(pid: str, doc_id: str) -> Response:
-    """预览版 PDF 字节流：溯源预览层的载体。
-
-    预览版按 sha256 存在 project workspace 之外（不进 git），页数与逐页页面尺寸
-    与原件逐页一致——sidecar 的归一化 bbox 正是按这套几何算出来的。没有 PDF 原件
-    的文档（历史项目、开发期 `.md` 语料）在此 404，前端据此降级到 md 预览。
-    """
+def _document_pdf(pid: str, doc_id: str, *, original: bool) -> FileResponse:
+    """以文件流提供 PDF；Starlette 负责 Range、If-Range 与 HEAD。"""
     _require_project(pid)
     document = get_asset_service().get_document(pid, doc_id)
-    if document.preview_sha256 is None:
-        raise HTTPException(status_code=404, detail="document has no preview")
-    try:
-        content = get_blob_store().get(BLOB_KIND_PREVIEW, document.preview_sha256)
-    except OSError as exc:
-        raise HTTPException(status_code=404, detail="preview blob not found") from exc
-    return Response(
-        content=content,
-        media_type="application/pdf",
-        headers={"ETag": f'"{document.preview_sha256}"'},
+    digest = document.origin_sha256 if original else document.preview_sha256
+    if digest is None:
+        raise HTTPException(status_code=404, detail="document has no PDF")
+    path = get_blob_store().path_for(BLOB_KIND_ORIGIN if original else BLOB_KIND_PREVIEW, digest)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="PDF blob not found")
+    return FileResponse(
+        path, media_type="application/pdf",
+        filename=PurePosixPath(document.path).with_suffix(".pdf").name,
+        content_disposition_type="attachment" if original else "inline",
+        headers={"ETag": f'"{digest}"', "Cache-Control": "private, no-cache"},
     )
+
+
+@router.api_route("/projects/{pid}/documents/{doc_id}/preview", methods=["GET", "HEAD"])
+@_translate_errors
+def read_document_preview(pid: str, doc_id: str) -> Response:
+    return _document_pdf(pid, doc_id, original=False)
+
+
+@router.api_route("/projects/{pid}/documents/{doc_id}/original", methods=["GET", "HEAD"])
+@_translate_errors
+def read_document_original(pid: str, doc_id: str) -> Response:
+    return _document_pdf(pid, doc_id, original=True)
 
 
 @router.get("/projects/{pid}/documents/{doc_id}/sidecar")
@@ -192,10 +201,22 @@ def read_document_sidecar(pid: str, doc_id: str) -> Response:
         content = get_project_workspace().read_file(pid, sidecar_path_for(document.path))
     except (OSError, ValueError) as exc:
         raise HTTPException(status_code=404, detail="sidecar not found") from exc
+    try:
+        mapping = json.loads(content)
+        if mapping.get("schema") == 2:
+            markdown = get_project_workspace().read_file(pid, document.path)
+            if (mapping.get("mdSha256") != document.sha256
+                or hashlib.sha256(markdown).hexdigest() != document.sha256
+                or mapping.get("originSha256") != document.origin_sha256
+                or mapping.get("previewSha256") != document.preview_sha256):
+                raise HTTPException(status_code=409, detail="原文映射版本不一致，请重新解析")
+    except (ValueError, AttributeError, OSError) as exc:
+        raise HTTPException(status_code=409, detail="原文映射不可用，请重新解析") from exc
     return Response(
         content=content,
         media_type="application/json",
-        headers={"ETag": f'"{document.sha256}"'},
+        headers={"ETag": f'"{hashlib.sha256(content).hexdigest()}"',
+                 "Cache-Control": "private, no-cache"},
     )
 
 

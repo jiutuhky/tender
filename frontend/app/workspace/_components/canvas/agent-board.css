@@ -157,15 +157,11 @@
 .cv-agentboard-row.is-done .cv-agentboard-desc {
   color: var(--label-2);
 }
-.cv-agentboard-task-note,
 .cv-agentboard-summary {
   font-size: 11px;
   line-height: 1.6;
   color: var(--label-2);
   overflow-wrap: anywhere;
-}
-.cv-agentboard-task.is-running .cv-agentboard-task-note {
-  color: var(--blue);
 }
 
 /* 原文字形保持静止；同位置的高亮文字只通过窄遮罩显现，不移动或模糊字形。 */

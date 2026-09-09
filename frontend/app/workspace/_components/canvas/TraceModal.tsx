@@ -4,19 +4,15 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
-import { useWorkspaceStore } from "@/lib/store/workspace";
 import { prettyLabel } from "@/lib/hagent/naming";
 import type { DocumentRecord } from "@/lib/hagent/documents";
-import { ImportantMark, MandatoryMark, RiskMark } from "./matrixViews";
-import { ItemActions, useItemAction } from "./detailShared";
 import { TracePanel } from "./TracePanel";
-import { useTrace, type TraceClaim } from "./traceContext";
+import { useTrace } from "./traceContext";
 import {
   DUR_FLOAT,
   DUR_PANEL,
@@ -24,166 +20,21 @@ import {
   prefersReducedMotion,
 } from "./traceMotion";
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  FileIcon,
+  ChevronIcon,
+  DownloadIcon,
+  SidebarSimpleIcon,
   XIcon,
 } from "@/components/ui/icons";
 
-// 溯源预览层:点来源签后盖满画布的阅读层(取代早期「抽屉加宽对照双栏」)。
-// 形态决策:旧双栏留给原文的版心只有 ~503px,而公文排版的纸面版心要 720px 以上,
-// 招标文件的宽表格(前附表 4 列长中文)同样放不下 —— 版心不够是排版做不出来的硬原因。
-// 工作台是单列布局(对话是画布上的浮层),所以画布级浮层几乎能拿到满窗宽度。
-//
-// 挂载位置是 .cv-drawer 的子级而非 .canvas-viewport 的兄弟:
-// .cv-drawer 已是 absolute inset:0 / z-30 铺满画布,子级天然盖住抽屉面板并继承既有裁剪,
-// 不需要 portal、不需要越过 .ds-return(z-99) 之类的页面级 fixed 层。
-//
-// 对照条(cv-trace-claim)是这次形态改动的关键补偿:预览层盖住条目列表后,
-// 「对照原文核验 + 就地落应答状态」(PRD 故事 5)会断掉,所以把被核验条目连同
-// 人工动作一起钉在标题栏下方,并提供层内来源步进走完同一条目的多条来源(故事 6)。
+import { TraceInspector } from "./TraceInspector";
+import { documentAssetUrl } from "@/lib/trace/pdf-runtime";
+import "./trace-preview.css";
 
 /** 焦点陷阱作用域内的可聚焦元素;offsetParent 过滤掉隐藏节点(与抽屉同口径) */
 const FOCUSABLE =
-  'button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+  'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
-/** 对照条:被核验条目 + 人工动作 + 来源步进。
- *  行级管理状态按 matrixType + itemId 从 store 读实时值 —— 不能用快照,
- *  否则层内点完「确认」对照条自己不刷新。 */
-function ClaimBar({ claim }: { claim: TraceClaim }) {
-  const trace = useTrace();
-  const [expanded, setExpanded] = useState(false);
-  const { busyIds, errors, notice, confirm, setStatus } = useItemAction(
-    claim.matrixType,
-  );
-  const row = useWorkspaceStore((s) => {
-    if (!claim.itemId) return null;
-    return (
-      s.matrices[claim.matrixType].itemRows?.find(
-        (r) => r.item_id === claim.itemId,
-      ) ?? null
-    );
-  });
-
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const [clamped, setClamped] = useState(false);
-  useLayoutEffect(() => {
-    const el = textRef.current;
-    if (!el) return;
-    const measure = () => {
-      if (!expanded) setClamped(el.scrollHeight > el.clientHeight + 1);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [claim.requirementText, expanded]);
-  const total = claim.refs.length;
-  const text = claim.requirementText.trim();
-
-  return (
-    <div className="cv-trace-claim">
-      <div className="cv-trace-claim-head">
-        <span className="cv-trace-claim-label">核验条目 · {claim.label}</span>
-        {/* 与条目行同一套互斥优先级:★ > ▲ > 高风险 */}
-        {claim.mandatory ? (
-          <MandatoryMark full />
-        ) : claim.paramNature === "▲" ? (
-          <ImportantMark full />
-        ) : claim.highRisk ? (
-          <RiskMark />
-        ) : null}
-        <span className="cv-trace-claim-title">{claim.title}</span>
-      </div>
-
-      {text && (
-        <div className="cv-trace-claim-copy">
-          <p
-            ref={textRef}
-            className={
-              expanded ? "cv-trace-claim-text is-open" : "cv-trace-claim-text"
-            }
-          >
-            {text}
-          </p>
-          {(clamped || expanded) && (
-            <button
-              type="button"
-              className="cv-trace-claim-toggle"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((v) => !v)}
-            >
-              {expanded ? "收起" : "展开"}
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="cv-trace-claim-foot">
-        {row && (
-          <div className="rd-trace-review">
-            <ItemActions
-              showHint={false}
-              row={row}
-              busy={busyIds.has(row.item_id)}
-              error={errors[row.item_id] ?? null}
-              onConfirm={() => confirm(row.item_id)}
-              onSetStatus={(status) => setStatus(row.item_id, status)}
-            />
-          </div>
-        )}
-        <div className="rd-trace-navigation">
-          {claim.itemId && (
-            <button
-              className="cv-next-review"
-              type="button"
-              disabled={!trace?.nextPendingCount || busyIds.size > 0}
-              onClick={() => trace?.nextPending()}
-            >
-              下一条待核验
-              {trace?.nextPendingCount
-                ? ` · ${trace.nextPendingCount}`
-                : " · 已无可溯源条目"}
-              <ChevronRightIcon width={14} height={14} />
-            </button>
-          )}
-          {total > 1 && (
-            <div className="cv-trace-step" role="group" aria-label="来源步进">
-              <span>
-                第 {claim.refIndex + 1}/{total} 条来源
-              </span>
-              <button
-                type="button"
-                aria-label="上一条来源"
-                onClick={() => trace?.stepSource(-1)}
-              >
-                <ChevronLeftIcon width={13} height={13} />
-              </button>
-              <button
-                type="button"
-                aria-label="下一条来源"
-                onClick={() => trace?.stepSource(1)}
-              >
-                <ChevronRightIcon width={13} height={13} />
-              </button>
-            </div>
-          )}
-        </div>
-        {row && (
-          <p className="rd-action-hint">核验确认仅标记已核对，不代表合规。</p>
-        )}
-        {notice && (
-          <span className="cv-review-saved" role="status">
-            {notice}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** 预览层外壳:遮罩 + 标题栏 + 对照条 + 正文舞台。
- *  onRequestClose 由抽屉下发(退场动画 + 清溯源状态在那边收口)。 */
+/** 原文阅读与条目核验共用一个工作面，关闭后回到矩阵条目的原位置。 */
 export function TraceModal({
   doc,
   onRequestClose,
@@ -196,6 +47,13 @@ export function TraceModal({
   const rootRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  const inspectorId = useId();
+  const [inspectorOpen, setInspectorOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1000);
+  const [locationsTarget, setLocationsTarget] = useState<HTMLDivElement | null>(null);
+  const documents = [...new Set(claim?.refs.map((ref) => ref.document_id).filter((id): id is string => !!id && !!trace?.registry?.has(id)))];
+  const downloadUrl = trace?.projectId ? doc.has_preview
+    ? documentAssetUrl(trace.projectId, doc.id, "original")
+    : `/api/hagent/projects/${encodeURIComponent(trace.projectId)}/workspace/files/${doc.path.split("/").map(encodeURIComponent).join("/")}` : null;
 
   // 入场:遮罩淡入 + 面板轻缩放到位,只动 transform / opacity。
   // 退场镜像编排在 CanvasDrawer.requestTraceClose(与抽屉退场同一处收口)。
@@ -240,6 +98,11 @@ export function TraceModal({
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      if (!rootRef.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        first?.focus();
+        return;
+      }
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last?.focus();
@@ -258,38 +121,34 @@ export function TraceModal({
   const onScrimDown = useCallback(() => onRequestClose(), [onRequestClose]);
 
   return (
-    <div ref={rootRef} className="cv-trace-modal">
-      {/* 遮罩只做纯色调光:下方是玻璃浮件,scrim 再做 backdrop blur 即「玻璃叠玻璃」。
-          调光色走 CSS 的 token 派生(--label 24%),暗色下随外观换挡。 */}
+    <div ref={rootRef} className="cv-trace-modal trace-workspace" data-inspector-open={inspectorOpen && !!claim}>
       <div className="cv-trace-modal-scrim" onPointerDown={onScrimDown} />
-      <div
-        className="cv-trace-modal-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
+      <div className="cv-trace-modal-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="cv-trace-modal-head">
-          <FileIcon width={15} height={15} aria-hidden />
-          <span className="cv-trace-title" id={titleId} title={doc.path}>
-            {prettyLabel(doc.path.split("/").pop() ?? doc.path)}
-          </span>
-          <button
-            ref={closeRef}
-            type="button"
-            className="cv-trace-close"
-            aria-label="关闭原文预览"
-            onClick={onRequestClose}
-          >
-            <XIcon width={15} height={15} />
-          </button>
+          <div className="trace-document-title">
+            <span className="cv-trace-title" id={titleId} title={doc.path}>{prettyLabel(doc.path.split("/").pop() ?? doc.path)}</span>
+            {documents.length > 1 && <>
+              <ChevronIcon width={14} height={14} aria-hidden />
+              <select aria-label="来源文件" value={doc.id} onChange={(e) => {
+                const index = claim?.refs.findIndex((ref) => ref.document_id === e.target.value) ?? -1;
+                const ref = claim?.refs[index];
+                if (claim && ref) trace?.openTrace(ref, `${claim.itemKey}:${index}`, { ...claim, refIndex: index });
+              }}>{documents.map((id) => <option key={id} value={id}>{prettyLabel(trace?.registry?.get(id)?.path.split("/").pop() ?? id)}</option>)}</select>
+            </>}
+          </div>
+          <div className="trace-window-actions">
+            {downloadUrl && <a className="trace-icon-button" href={downloadUrl} download title="下载原件" aria-label="下载原件"><DownloadIcon width={18} height={18} /></a>}
+            {claim && <button type="button" className="trace-inspector-toggle" aria-label="对照条目" title="对照条目" aria-expanded={inspectorOpen} aria-controls={inspectorId}
+              onClick={() => setInspectorOpen((value) => !value)}><SidebarSimpleIcon width={18} height={18} /><span>对照</span></button>}
+            <button ref={closeRef} type="button" className="trace-icon-button" title="返回条目" aria-label="关闭原文预览" onClick={onRequestClose}><XIcon width={18} height={18} /></button>
+          </div>
         </div>
-        {claim && (
-          <ClaimBar
-            key={`${claim.matrixType}:${claim.itemKey}`}
-            claim={claim}
-          />
-        )}
-        <TracePanel doc={doc} arrival={DUR_PANEL} />
+        <div className="trace-workspace-body">
+          <div className="trace-document"><TracePanel doc={doc} arrival={DUR_PANEL} locationsTarget={locationsTarget} /></div>
+          {claim && <aside className="trace-inspector" id={inspectorId} aria-label="条目核验" hidden={!inspectorOpen}>
+            <TraceInspector key={`${claim.matrixType}:${claim.itemKey}`} claim={claim} locationsRef={setLocationsTarget} hasPdf={!!doc.has_preview} />
+          </aside>}
+        </div>
       </div>
     </div>
   );

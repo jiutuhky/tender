@@ -122,13 +122,6 @@ const TaskRow = memo(function TaskRow({
 }) {
   const done = status === "completed";
   const active = status === "in_progress";
-  const state = done
-    ? "已完成"
-    : active
-      ? "进行中"
-      : blocked
-        ? "等待前置任务"
-        : "待开始";
   const Icon = done ? CheckIcon : active ? ClockIcon : CircleDashedIcon;
   return (
     <li
@@ -143,9 +136,6 @@ const TaskRow = memo(function TaskRow({
           {label}
           {active && <span className="cv-agentboard-sweep" aria-hidden="true">{label}</span>}
         </span>
-        {(active || (blocked && !done)) && (
-          <span className="cv-agentboard-task-note">{state}</span>
-        )}
       </div>
     </li>
   );

@@ -53,6 +53,23 @@ def page_sizes(data: bytes) -> list[PageSize]:
     ]
 
 
+@dataclass(frozen=True)
+class PageGeometry:
+    """保留页面裁切、固有旋转与用户单位，按文档页序比较。"""
+
+    media_box: tuple[float, ...]
+    crop_box: tuple[float, ...]
+    rotation: int
+    user_unit: float
+
+
+def page_geometries(data: bytes) -> list[PageGeometry]:
+    return [PageGeometry(tuple(float(v) for v in page.mediabox),
+                         tuple(float(v) for v in page.cropbox),
+                         int(page.rotation) % 360, float(page.user_unit))
+            for page in read_pdf(data).pages]
+
+
 def slice_pages(data: bytes, start: int, stop: int) -> bytes:
     """截出 ``[start, stop)`` 页另存为一份 PDF——OCR 分批的输入。"""
     reader = read_pdf(data)

@@ -168,7 +168,7 @@ export async function uploadProjectSample(pid: string, filename: string): Promis
   return r.json();
 }
 
-/** 用户上传本地 .md 到项目 workspace(落 sources/ 并形成提交)。 */
+/** 用户上传本地 PDF 或 Markdown 到项目 workspace(落 sources/ 并形成提交)。 */
 export async function uploadProjectFile(pid: string, file: File): Promise<ProjectUploadResult> {
   const fd = new FormData();
   fd.append("file", file);
@@ -233,6 +233,9 @@ export async function fetchAllMatrixItems(pid: string, type: MatrixType): Promis
 
 /** 文档注册表记录(document_id → workspace 路径映射)。 */
 export interface DocumentRecord {
+  has_preview?: boolean;
+  origin_sha256?: string | null;
+  preview_sha256?: string | null;
   id: string;
   path: string;
   sha256: string;

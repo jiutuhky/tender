@@ -15,7 +15,7 @@ import threading
 from dataclasses import dataclass
 from typing import Callable
 
-from hagent.ingest.pipeline import IngestPipeline, IngestResult
+from hagent.ingest.pipeline import IngestPipeline, IngestResult, UploadRejected
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,9 @@ class IngestRegistry:
     def submit(self, project_id: str, *, data: bytes, pdf_path: str, total_pages: int) -> IngestJob:
         job = IngestJob(project_id, pdf_path, total_pages)
         with self._lock:
+            current = self._jobs.get(project_id)
+            if current is not None and not current.finished:
+                raise UploadRejected("当前项目正在解析文件，请等待完成后再上传")
             self._jobs[project_id] = job
 
         def run() -> None:

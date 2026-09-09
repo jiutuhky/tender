@@ -1,4 +1,4 @@
-"""PaddleOCR-VL HPS Gateway 客户端：分批调用 + 页级断点续跑。
+"""PaddleOCR-VL HPS Triton HTTP 客户端：分批调用 + 页级断点续跑。
 
 为什么必须分批：请求体是 base64 JSON，整份塞进去体积不可接受；实测吞吐约
 1 s/页，一份招标文件是分钟级任务。
@@ -14,6 +14,7 @@ bbox 与原件错位，一旦置 true 全文高亮整体失效。**该参数不�
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import os
 from dataclasses import dataclass
@@ -27,7 +28,7 @@ from hagent.ingest.pdf import page_sizes, slice_pages
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASE_URL = "http://127.0.0.1:8080"
+DEFAULT_BASE_URL = "http://10.13.13.3:8000"
 DEFAULT_BATCH_PAGES = 10
 DEFAULT_TIMEOUT_SECONDS = 600.0
 
@@ -95,7 +96,13 @@ class OcrClient:
     def _parse_range(self, data: bytes, start: int, stop: int) -> list["_RawPage"]:
         try:
             payload = self._layout_parsing(slice_pages(data, start, stop))
-        except Exception as exc:  # noqa: BLE001 —— 网络/服务侧失败面很宽
+            entries = (payload.get("result") or {}).get("layoutParsingResults")
+            if not isinstance(entries, list) or len(entries) != stop - start:
+                # 缺页可能在批次中间，不能把后续页顺次塞到错误的原页位置。
+                raise OcrServiceError("OCR 返回页数与输入不符，需缩小批次确认页序")
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise OcrServiceError("无法连接原文解析服务，请检查服务地址与就绪状态") from exc
+        except Exception as exc:  # noqa: BLE001 —— 文件或识别错误按页隔离
             if stop - start <= 1:
                 logger.warning("第 %d 页 OCR 失败，留占位继续: %s", start + 1, exc)
                 return [_RawPage(index=start, entry=None, info=None)]
@@ -107,7 +114,6 @@ class OcrClient:
             ]
 
         result = payload.get("result") or {}
-        entries = result.get("layoutParsingResults") or []
         infos = ((result.get("dataInfo") or {}).get("pages")) or []
         pages = [
             _RawPage(
@@ -117,10 +123,6 @@ class OcrClient:
             )
             for offset, entry in enumerate(entries)
         ]
-        # 服务少还了页时补占位，保证页序与页数始终对得上原件
-        for index in range(start + len(pages), stop):
-            logger.warning("第 %d 页 OCR 未返回结果，留占位继续", index + 1)
-            pages.append(_RawPage(index=index, entry=None, info=None))
         return pages
 
     def _restructure(self, pages: list["_RawPage"]) -> list["_RawPage"]:
@@ -134,7 +136,14 @@ class OcrClient:
             # 合并按整份文档做，缺页会让页序错位——有失败页时不做合并
             return pages
         try:
-            payload = self._post("/restructure-pages", {"pages": [p.entry for p in pages]})
+            payload = self._post("/restructure-pages", {
+                "pages": [
+                    {"prunedResult": p.entry["prunedResult"],
+                     "markdownImages": (p.entry.get("markdown") or {}).get("images") or {}}
+                    for p in pages
+                ],
+                "concatenatePages": False, "mergeTables": True, "relevelTitles": True,
+            })
         except Exception as exc:  # noqa: BLE001
             logger.warning("跨页合并失败，退回逐页结果: %s", exc)
             return pages
@@ -172,19 +181,30 @@ class OcrClient:
                 "file": base64.b64encode(pdf_bytes).decode("ascii"),
                 "fileType": 0,
                 # 不得改为 True：unwarping 会让 bbox 与原件错位
-                "useDocPreprocessor": False,
+                "useDocOrientationClassify": False,
+                "useDocUnwarping": False,
+                "visualize": False,
             },
         )
 
     def _post(self, path: str, body: dict) -> dict:
-        url = f"{self._settings.base_url}{path}"
+        url = f"{self._settings.base_url}/v2/models{path}/infer"
+        envelope = {"inputs": [{"name": "input", "shape": [1, 1],
+                               "datatype": "BYTES", "data": [json.dumps(body)]}]}
         if self._client is not None:
-            response = self._client.post(url, json=body, timeout=self._settings.timeout_seconds)
+            response = self._client.post(url, json=envelope, timeout=self._settings.timeout_seconds)
         else:
             with httpx.Client(timeout=self._settings.timeout_seconds) as client:
-                response = client.post(url, json=body)
+                response = client.post(url, json=envelope)
         response.raise_for_status()
-        payload = response.json()
-        if payload.get("errorCode"):
-            raise OcrServiceError(f"{path} 返回错误：{payload.get('errorMsg')}")
+        try:
+            outputs = response.json()["outputs"]
+            payload = json.loads(next(item for item in outputs if item["name"] == "output")["data"][0])
+        except (KeyError, ValueError, TypeError, IndexError, StopIteration) as exc:
+            raise OcrServiceError(f"{path} 返回无效的 Triton 响应") from exc
+        if not isinstance(payload, dict) or payload.get("errorCode") != 0:
+            message = payload.get("errorMsg") if isinstance(payload, dict) else "业务响应格式无效"
+            raise OcrServiceError(f"{path} 返回错误：{message}")
+        if not isinstance(payload.get("result"), dict):
+            raise OcrServiceError(f"{path} 缺少识别结果")
         return payload

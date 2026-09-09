@@ -15,6 +15,9 @@ pytest
 
 ## 运行 Agent Server
 
+以下命令在 `hagent/` 目录执行；从 Prose 仓库根目录启动前先运行 `cd hagent`。
+服务按进程工作目录发现 `.hagent/` 下的技能、子代理与 hooks 配置。
+
 ```bash
 source .venv/bin/activate
 # 在仓库根目录 .env 中配置 ANTHROPIC_API_KEY 等变量；
@@ -22,6 +25,10 @@ source .venv/bin/activate
 
 uvicorn hagent.server.app:create_app --factory --host 0.0.0.0 --port 8000
 ```
+
+使用其他端口时，同时设置内部工具服务地址。例如后端运行在 8011 时，设置
+`HAGENT_MCP_URL=http://127.0.0.1:8011/mcp`；该地址必须指向本进程提供的
+`/mcp`，否则智能体在首次发送消息、加载工具时会连接失败。
 
 另起一个 shell 跑 smoke 测试：
 

@@ -132,14 +132,18 @@ def test_ingest_leaves_no_pending_changes(pipeline, workspace):
     assert pending.updated == () and pending.deleted == ()
 
 
-def test_sidecar_is_valid_schema_v1_and_matches_markdown(pipeline, workspace):
+def test_sidecar_is_bound_schema_v2_and_matches_markdown(pipeline, workspace):
     import hashlib
 
     result = pipeline(FakeOcr()).ingest_pdf(PROJECT, data=make_pdf(2), pdf_path=PDF_PATH)
     markdown = workspace.read_file(PROJECT, result.markdown_path).decode("utf-8")
     sidecar = json.loads(workspace.read_file(PROJECT, result.sidecar_path))
 
-    assert sidecar["schema"] == 1
+    assert sidecar["schema"] == 2
+    assert sidecar["originSha256"] == result.origin_sha256
+    assert sidecar["previewSha256"] == result.preview_sha256
+    assert sidecar["coordinateSpace"] == "page-display-normalized"
+    assert sidecar["mdLineCount"] == len(markdown.splitlines())
     assert sidecar["mdSha256"] == hashlib.sha256(markdown.encode("utf-8")).hexdigest()
     assert len(sidecar["pages"]) == 2
 
@@ -228,3 +232,30 @@ def test_document_is_registered_with_blob_keys(tmp_path, workspace):
     assert record.path == result.markdown_path
     assert record.origin_sha256 == result.origin_sha256
     assert record.preview_sha256 == result.preview_sha256
+
+
+def test_same_filename_keeps_registered_version(pipeline, workspace):
+    runner = pipeline(FakeOcr())
+    first = runner.ingest_pdf(PROJECT, data=make_pdf(2), pdf_path=PDF_PATH)
+    before = workspace.read_file(PROJECT, first.markdown_path)
+    second = runner.ingest_pdf(PROJECT, data=make_pdf(3), pdf_path=PDF_PATH)
+    assert first.markdown_path != second.markdown_path
+    assert workspace.read_file(PROJECT, first.markdown_path) == before
+    assert runner._service.get_document(PROJECT, first.document_id).origin_sha256 == first.origin_sha256
+
+
+def test_same_text_different_original_rejected_before_writing(pipeline, workspace):
+    runner = pipeline(FakeOcr())
+    first = runner.ingest_pdf(PROJECT, data=make_pdf(2), pdf_path=PDF_PATH)
+    before = workspace.read_file(PROJECT, first.sidecar_path)
+    with pytest.raises(UploadRejected, match="其他原件"):
+        runner.ingest_pdf(PROJECT, data=make_pdf(2, width=500), pdf_path=PDF_PATH)
+    assert workspace.read_file(PROJECT, first.sidecar_path) == before
+
+
+def test_all_pages_failed_is_not_registered(pipeline, workspace):
+    runner = pipeline(FakeOcr(fail_pages={0, 1}))
+    with pytest.raises(UploadRejected, match="未获得可用页面"):
+        runner.ingest_pdf(PROJECT, data=make_pdf(2), pdf_path=PDF_PATH)
+    assert not [f for f in workspace.list_files(PROJECT) if f.path.startswith("sources/")]
+    assert runner._service.list_documents(PROJECT)[1] == 0

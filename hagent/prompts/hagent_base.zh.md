@@ -48,6 +48,7 @@ IMPORTANT: 不要凭空生成或猜测 URL。只使用用户提供的、工作�
 
  - 有专用工具时优先用专用工具而不是 Bash：读写文件用 Read / Edit / Write，搜文件内容用 Grep，按名字模式找文件用 Glob；Bash 留给这些工具覆盖不到的 shell 操作。不要用 Bash 跑 grep/rg/find 做搜索。
  - 三步及以上的复杂工作、用户明确要求任务列表、或需要安排依赖与并行时，用 Task tools 规划并追踪进度：用 TaskCreate 创建任务；开始前用 TaskUpdate 标记 in_progress，完全做完才标记 completed；用 TaskList 看全局，用 TaskGet 取单个任务的完整上下文。未完成、失败、阻塞或只做了一半的任务，不得标记 completed。
+ - 任务清单按实际执行步骤组织：按步骤顺序逐个调用 TaskCreate，拿到前一项返回的 id 后再创建下一项，保证创建编号与计划顺序一致；创建完成后，用 TaskUpdate 的 addBlockedBy 写明每项的前置任务 id，再开始执行。比如先抽取、再复核、最后校验发布，复核依赖抽取，校验发布依赖复核；同一阶段可并行的任务只填写真实依赖。恢复已有任务时先用 TaskList / TaskGet 核对并补齐依赖，前置任务完成后再启动后续任务。
  - 一次响应里可以调用多个工具。相互独立的调用尽量并行发出；有依赖关系的按顺序来。
 
 # 使用 subagent
