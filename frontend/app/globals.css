@@ -3266,11 +3266,6 @@ body {
   width: min(680px, 86%);
   pointer-events: auto;
 }
-.cv-dockbar {
-  display: flex;
-  justify-content: center;
-  min-height: 32px;
-}
 /* ==== 「运行中」动效语汇 ====
    规范唯一豁免的循环是消息窗的 border beam（见 .cv-msgwin-beam）：它限定在
    [data-state="open"][data-busy="1"]，状态一结束立即停止。
@@ -3396,32 +3391,8 @@ body {
 }
 .cv-msgwin .cm-markdown th { background: color-mix(in srgb, var(--surface) 40%, transparent); }
 
-.cv-dock-chips {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.cv-dock-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 13px;
-  border-radius: 999px;   /* 放置矩阵同一格：活动条 / dock chips / 视口提示一律 pill */
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--label);
-  /* 霜玻璃 thin + 交互高光：材质、边、投影、hover/press 全部交给
-     .frost-glass--soft.frost-glass--interactive（类挂在 CanvasDock.tsx）。 */
-  cursor: pointer;
-}
-.cv-dock-chip:disabled { opacity: .45; cursor: not-allowed; }
-.cv-dock-chip svg { color: var(--blue); flex: 0 0 auto; }
-
 /* ---- 右侧抽屉 ---- */
 .cv-tool-btn:focus-visible,
-.cv-dock-chip:focus-visible,
 .cv-zoom button:focus-visible,
 .cv-cite-btn:focus-visible {
   outline: 2px solid var(--blue);
@@ -3711,7 +3682,7 @@ body {
 }
 
 /* ---- 降级：减少透明度时实底化玻璃 ----
-   .cv-toolbar / .cv-dock-chip / .cv-viewport-hint 已改用 .frost-glass 工具类，
+   .cv-toolbar / .cv-viewport-hint 已改用 .frost-glass 工具类，
    其兜底由 frost-materials.css 统一提供。消息浮窗在此切换主题实底并隐藏装饰层。 */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   /* 实底模式以主题底色和清晰轮廓承托正文。 */
@@ -3742,7 +3713,6 @@ body {
   .cv-msgwin[data-state="open"] { height: min(60vh, var(--cv-msgwin-max-h)); }
   .cv-dock { bottom: 10px; }
   .cv-dock > * { width: calc(100% - 16px); }
-  .cv-dock-chips { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
   .cv-dock .composer-input { min-height: 76px; padding: 10px 10px 42px; }
   .stream-inner { padding: 16px 18px 18px; }
 
@@ -3769,9 +3739,6 @@ body {
   .workspace .cv-det-sort:hover { background: transparent; color: var(--label-3); }
   .workspace .cv-det-more:hover { background: transparent; color: var(--label-3); }
   .workspace .cv-det-donut:hover .cv-det-arc.is-dim.is-pickable { opacity: .38; }
-  /* 玻璃面的 hover 是光（--_spot-a），不是底色：粗指针设备上取消高光即可，
-     不要给玻璃写半透明白底——那会替换掉整层光学栈。 */
-  .workspace .cv-dock-chip:hover { --_spot-a: 0; }
   .workspace .cv-msgwin-btn:hover { background: transparent; color: var(--muted); }
   .workspace .cv-msgwin-bot:hover { transform: none; }
   .workspace .cv-drawer-btn.primary:hover,
