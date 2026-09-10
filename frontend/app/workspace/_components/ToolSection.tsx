@@ -13,7 +13,7 @@ export function ToolSection({ call }: { call: ToolCall }) {
     <div className={`cm-tool-section${running ? " is-running" : ""}`}>
       <div className="cm-tool-header">
         <div className="cm-tool-query">{toolLabel(call)}</div>
-        <div className="cm-tool-count">{running ? "运行中" : "已完成"}</div>
+        <div className="cm-tool-count">{running ? "运行中" : call.status === "cancelled" ? "已停止" : "已完成"}</div>
         {running && <div className="cm-spinner" />}
       </div>
       {!running && result && (

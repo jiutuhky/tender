@@ -30,6 +30,7 @@ from hagent.permissions import permissions_for_workspace
 from hagent.sandbox import HagentSandboxProtocol, SandboxKind
 from hagent.sanitize import sanitize_anthropic_thinking_blocks_middleware
 from hagent.sandbox.docker.sandbox import HagentDockerSandbox
+from hagent.model_retry import ModelRetryMiddleware, ModelRetryPolicy
 from hagent.tool_call_repair import repair_invalid_tool_calls_middleware
 from hagent.tool_error_guard import ToolErrorGuardMiddleware
 from hagent.sandbox.providers.file import SandboxFileTransport
@@ -330,6 +331,7 @@ def create_hagent(
         runnables = compile_subagents(
             specs,
             parent_model=cfg.model,
+            retry_policy=ModelRetryPolicy.from_config(cfg),
             parent_tools=parent_tools,
             skill_registry=skill_registry,
             materializer=skill_materializer,
@@ -347,6 +349,7 @@ def create_hagent(
     # repair 放列表尾部：after_model 节点链按 middleware 逆序执行，
     # 它必须先于 hooks 的 Stop 逻辑、紧跟模型响应运行。
     middleware: list[Any] = [
+        ModelRetryMiddleware(ModelRetryPolicy.from_config(cfg)),
         sanitize_anthropic_thinking_blocks_middleware,
         repair_invalid_tool_calls_middleware,
     ]

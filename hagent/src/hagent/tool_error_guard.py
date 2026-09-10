@@ -2,8 +2,8 @@
 
 LangGraph ``ToolNode`` 默认只把入参校验错误(``ToolInvocationError``)转成
 ToolMessage,其它异常一路上抛穿过 agent graph,最终在 SSE 层以 ``error{agent_error}``
-终止本轮——模型永远看不到出错、无法自我修复(如 ``SandboxUnavailable``、
-文件传输 ``OSError``)。``create_deep_agent`` / ``create_agent`` 均不暴露
+终止本轮。普通文件传输 ``OSError`` 等可恢复工具错误需要返回模型继续处理。
+沙箱不可用、模型重试耗尽与永久模型故障则直接穿透兜底，统一结束本轮。``create_deep_agent`` / ``create_agent`` 均不暴露
 ``handle_tool_errors``,故用 ``wrap_tool_call`` 中间件兜底(与 hooks 中间件同一
 挂点;sync + async 成对,SSE 走 async)。
 
@@ -21,6 +21,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.errors import GraphBubbleUp
 
 from hagent.sandbox.errors import SandboxUnavailable
+from hagent.model_retry.policy import ModelCallFailed, ModelRunCancelled
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class ToolErrorGuardMiddleware(AgentMiddleware):
     def wrap_tool_call(self, request: Any, handler: Any) -> Any:
         try:
             return handler(request)
-        except GraphBubbleUp:
+        except (GraphBubbleUp, ModelCallFailed, ModelRunCancelled, SandboxUnavailable):
             # GraphInterrupt 等控制流异常必须放行(HITL / 子图中断)
             raise
         except Exception as exc:  # noqa: BLE001
@@ -54,7 +55,7 @@ class ToolErrorGuardMiddleware(AgentMiddleware):
     async def awrap_tool_call(self, request: Any, handler: Any) -> Any:
         try:
             return await handler(request)
-        except GraphBubbleUp:
+        except (GraphBubbleUp, ModelCallFailed, ModelRunCancelled, SandboxUnavailable):
             raise
         except Exception as exc:  # noqa: BLE001
             return _error_message(request, exc)

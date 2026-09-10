@@ -100,6 +100,7 @@ def compile_subagents(
     specs: Iterable[SubagentSpec],
     *,
     parent_model: str,
+    retry_policy: Any | None = None,
     parent_tools: list[Any],
     skill_registry: SkillRegistry | None = None,
     materializer: SkillMaterializer | None = None,
@@ -112,6 +113,7 @@ def compile_subagents(
         runnables[spec["name"]] = compile_subagent_runnable(
             spec,
             parent_model=parent_model,
+            retry_policy=retry_policy,
             parent_tools=parent_tools,
             skill_registry=skill_registry,
             materializer=materializer,

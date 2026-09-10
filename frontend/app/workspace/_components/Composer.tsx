@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { FileIcon, ListDashesIcon, PaperPlaneTiltIcon, PaperclipIcon, UploadIcon } from "@/components/ui/icons";
+import { FileIcon, ListDashesIcon, PaperPlaneTiltIcon, PaperclipIcon, StopIcon, UploadIcon } from "@/components/ui/icons";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import { listSamples, type SampleInfo } from "@/lib/hagent/api";
 import { prettyLabel } from "@/lib/hagent/naming";
@@ -24,7 +24,12 @@ export function Composer({ entry = false, onStart }: { entry?: boolean; onStart?
   const sendMessage = useWorkspaceStore((s) => s.sendMessage);
   const projectId = useWorkspaceStore((s) => s.projectId);
   const phase = useWorkspaceStore((s) => s.phase);
+  const runId = useWorkspaceStore((s) => s.botSignals.runId);
+  const runEnded = useWorkspaceStore((s) => s.botSignals.ended);
+  const cancelling = useWorkspaceStore((s) => s.cancelling);
+  const cancelRun = useWorkspaceStore((s) => s.cancelRun);
   const busy = BUSY.has(phase);
+  const showStop = phase === "running" && !runEnded;
   const canChat = !entry && Boolean(projectId) && !busy;
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +137,17 @@ export function Composer({ entry = false, onStart }: { entry?: boolean; onStart?
               {samples.map((s) => <button key={s.filename} type="button" role="menuitem" className="composer-sample-item" onClick={() => { setAttachment({ sampleName: s.filename, label: prettyLabel(s.filename) }); setError(null); setOpen(false); taRef.current?.focus(); }}>{prettyLabel(s.filename)}</button>)}
             </div>}
           </div>
-          <button className="composer-send" type="button" disabled={busy || (!attachment && !(canChat && draft.trim()))} onClick={fire}><PaperPlaneTiltIcon aria-hidden="true" /><span>{busy ? "处理中" : actionLabel}</span></button>
+          {showStop ? (
+            <button className="composer-send composer-stop" type="button"
+              aria-label={cancelling ? "正在停止本轮" : "停止本轮"}
+              title={cancelling ? "正在停止本轮" : "停止本轮"}
+              aria-busy={cancelling} disabled={cancelling || !runId}
+              onClick={() => void cancelRun()}>
+              <StopIcon aria-hidden="true" />
+            </button>
+          ) : (
+            <button className="composer-send" type="button" disabled={busy || (!attachment && !(canChat && draft.trim()))} onClick={fire}><PaperPlaneTiltIcon aria-hidden="true" /><span>{busy ? "处理中" : actionLabel}</span></button>
+          )}
         </div>
       </div>
       {error && <p className="composer-error" role="alert">{error}</p>}

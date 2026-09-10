@@ -110,6 +110,9 @@ def _forward_config(runtime: ToolRuntime) -> dict[str, Any]:
     # them from the parent agent. Mirrors deepagents subagents.py:485-491.
     out["configurable"] = {**out.get("configurable", {}), "ls_agent_type": "subagent"}
     out["metadata"] = {"parent_tool_use_id": runtime.tool_call_id}
+    run_id = (parent.get("metadata") or {}).get("run_id")
+    if run_id is not None:
+        out["metadata"]["run_id"] = run_id
     return out
 
 

@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import {
+  cancelRun,
   createProject,
   createSession,
   getProject,
@@ -17,6 +18,7 @@ import {
   MatrixWriteConflictError,
   type SSEEvent,
 } from "@/lib/hagent/api";
+import { acceptsModelEvent, emptyModelRecovery, reduceModelRecovery, type ModelRecovery } from "@/lib/hagent/modelRecovery";
 import { reduceChatEvent, type ChatMsg } from "@/lib/hagent/timeline";
 import { emptyBotSignals, reduceBotSignals, type BotSignals } from "@/lib/hagent/botSignals";
 import { normalizeTodos, type TodoItem } from "@/lib/hagent/todo";
@@ -52,7 +54,7 @@ function toUserMessage(e: unknown): string {
 import { resetDocumentCaches } from "@/lib/hagent/documents";
 import { prettyLabel } from "@/lib/hagent/naming";
 
-export type RunPhase = "idle" | "creating" | "uploading" | "running" | "loading_results" | "done" | "error";
+export type RunPhase = "idle" | "creating" | "uploading" | "running" | "loading_results" | "done" | "error" | "cancelled";
 
 /* ---------- 矩阵结果槽位 ---------- */
 
@@ -118,6 +120,9 @@ interface WorkspaceState {
   phase: RunPhase;
   errorMsg: string | null;
   recovery: RecoveryKind;
+  modelRecovery: ModelRecovery;
+  cancelling: boolean;
+  cancelRun: () => Promise<void>;
   currentDocName: string | null; // 当前解析文件的展示名
   timeline: ChatMsg[];
   botSignals: BotSignals;
@@ -173,7 +178,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   let raf = 0;
 
   // prose 工具调用累积(按 call_id 拼 args 分片,SSE 契约 §4.2);流开始前清空
-  const proseCalls = new Map<string, { tool: string; args: string; matrix: MatrixType | null }>();
+  const proseCalls = new Map<string, { tool: string; args: string; matrix: MatrixType | null; modelCall?: string }>();
 
   const clearPending = () => {
     pending = [];
@@ -187,15 +192,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   /** 消化一条 prose 工具事件:submit 进度 → toLoading;publish 完成 → toLoad(触发装载)。
    *  worker 在子代理里调工具,事件带 parent_tool_use_id——归属与推导无关,一律按 call_id 看。 */
   const trackProseEvent = (ev: SSEEvent, toLoading: Set<MatrixType>, toLoad: Set<MatrixType>) => {
+    if (ev.event === "model.retry") {
+      const id = (ev.data as { model_call_id?: string }).model_call_id;
+      for (const [key, entry] of proseCalls) if (id && entry.modelCall === id) proseCalls.delete(key);
+      return;
+    }
+    if (ev.event === "model.call.completed") {
+      const id = (ev.data as { model_call_id?: string }).model_call_id;
+      for (const entry of proseCalls.values()) if (entry.modelCall === id && entry.tool === PROSE_SUBMIT_TOOL && entry.matrix) toLoading.add(entry.matrix);
+      return;
+    }
     if (ev.event === "tool_call.started") {
-      const d = ev.data as { call_id?: string | null; tool_name?: string; args_chunk?: string };
+      const d = ev.data as { call_id?: string | null; tool_name?: string; args_chunk?: string; model_call_id?: string };
       if (!d.call_id) return;
       // 已跟踪的调用按 call_id 续接分片,不再校验 tool_name(极早期分片可能为空,契约 §4.2)
       let entry = proseCalls.get(d.call_id);
       if (!entry) {
         const name = d.tool_name || "";
         if (name !== PROSE_SUBMIT_TOOL && name !== PROSE_PUBLISH_TOOL) return;
-        entry = { tool: name, args: "", matrix: null };
+        entry = { tool: name, args: "", matrix: null, modelCall: d.model_call_id };
         proseCalls.set(d.call_id, entry);
       }
       entry.args += d.args_chunk || "";
@@ -203,7 +218,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const m = MATRIX_ARG_RE.exec(entry.args);
         if (m) entry.matrix = m[1] as MatrixType;
       }
-      if (entry.tool === PROSE_SUBMIT_TOOL && entry.matrix) toLoading.add(entry.matrix);
+      if (!entry.modelCall && entry.tool === PROSE_SUBMIT_TOOL && entry.matrix) toLoading.add(entry.matrix);
       return;
     }
     if (ev.event === "tool_call.completed") {
@@ -220,7 +235,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   const flush = () => {
     raf = 0;
     if (pending.length === 0) return;
-    const batch = pending;
+    let recovery = get().modelRecovery;
+    const batch = pending.filter((event) => {
+      if (!acceptsModelEvent(recovery, event)) return false;
+      recovery = reduceModelRecovery(recovery, event);
+      return true;
+    });
     pending = [];
     const toLoading = new Set<MatrixType>();
     const toLoad = new Set<MatrixType>();
@@ -234,6 +254,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       let botSignals = s.botSignals;
       for (const ev of batch) {
         botSignals = reduceBotSignals(botSignals, ev);
+        if (ev.event === "run.cancelled") todos = todos.map((todo) => todo.status === "completed" ? todo : { ...todo, status: "cancelled" });
         if (ev.event === "todo.updated") {
           // 全量快照:归一化只在这里跑一次,render 侧零成本(看板订阅 timeline,流式期每帧重渲)
           todos = normalizeTodos(ev.data);
@@ -251,7 +272,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           }
         }
       }
-      return { timeline, todos, matrices, botSignals };
+      return { timeline, todos, matrices, botSignals, modelRecovery: recovery };
     });
     // publish 完成 → 装载该矩阵点亮;失败留待流末 loadResults 收口,不打断对话流。
     if (toLoad.size) {
@@ -354,12 +375,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
   phase: "idle",
   errorMsg: null,
   recovery: null,
+  modelRecovery: emptyModelRecovery(),
+  cancelling: false,
   currentDocName: null,
   timeline: [],
   botSignals: emptyBotSignals(),
   todos: [],
   matrices: emptyMatrices(),
   witnessedParse: false,
+
+  cancelRun: async () => {
+    const { sessionId, botSignals, cancelling } = get();
+    if (!sessionId || !botSignals.runId || cancelling) return;
+    set({ cancelling: true });
+    try {
+      await cancelRun(sessionId, botSignals.runId);
+    } catch (error) {
+      set({ cancelling: false });
+      // 取消请求失败不结束仍在执行的 Run；可再次点击。
+      set((state) => ({ modelRecovery: { ...state.modelRecovery, failure: { message: toUserMessage(error) } } }));
+    }
+  },
 
   setComposerDraft: (text) => set({ composerDraft: text }),
   setStreamSize: (next) => set({ streamSize: next }),
@@ -403,6 +439,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       phase: "creating",
       errorMsg: null,
       recovery: null,
+      modelRecovery: emptyModelRecovery(),
+      cancelling: false,
       timeline: [],
       botSignals: emptyBotSignals(),
       todos: [],
@@ -451,6 +489,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const defaultInstruction = `解析当前工作区 sources/ 目录下的招标文件《${docName}》，生成 basic_info、business、technical、scoring 四张应答矩阵`;
       const extraInstruction = instruction?.trim();
       const content = `/skill:bid-response-matrix ${defaultInstruction}${extraInstruction ? `。补充要求：${extraInstruction}` : ""}`;
+      lastMessage = content;
       set((s) => ({
         timeline: [...s.timeline, { id: `u-${Date.now()}`, role: "user", content }],
         phase: "running",
@@ -465,6 +504,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         get().pushEvent(ev);
       }
       get().flushEvents();
+      if (get().modelRecovery.cancelled) {
+        set({ phase: "cancelled", cancelling: false, recovery: "message", errorMsg: null });
+        await get().loadResults({ settle: false }).catch(() => {});
+        return;
+      }
       if (!streamError && !get().botSignals.ended) streamError = "连接提前结束，请核对任务状态后再继续。";
       if (!streamError && get().botSignals.attention) { set({ phase: "done" });return; }
 
@@ -501,6 +545,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       phase: "running",
       errorMsg: null,
       recovery: null,
+      modelRecovery: emptyModelRecovery(),
+      cancelling: false,
       timeline: [...s.timeline, { id: `u-${Date.now()}`, role: "user", content: text }],
       botSignals: emptyBotSignals(),
     }));
@@ -520,6 +566,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         get().pushEvent(ev);
       }
       get().flushEvents();
+      if (get().modelRecovery.cancelled) {
+        set({ phase: "cancelled", cancelling: false, recovery: "message", errorMsg: null });
+        await get().loadResults({ settle: false }).catch(() => {});
+        return;
+      }
       if (!streamError && !get().botSignals.ended) streamError = "连接提前结束，请核对任务状态后再继续。";
       // 画布刷新由流内 prose 工具事件驱动(submit → 解析中,publish → 装载点亮);
       // 无矩阵写入的轮次无需刷新。
@@ -560,6 +611,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       phase: "loading_results",
       errorMsg: null,
       recovery: null,
+      modelRecovery: emptyModelRecovery(),
+      cancelling: false,
       timeline: [],
       botSignals: emptyBotSignals(),
       todos: [],
@@ -649,6 +702,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       phase: "idle",
       errorMsg: null,
       recovery: null,
+      modelRecovery: emptyModelRecovery(),
+      cancelling: false,
       currentDocName: null,
       timeline: [],
       botSignals: emptyBotSignals(),

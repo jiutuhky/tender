@@ -5,7 +5,7 @@
 // 所以这里只有一套任务系统。字段权威定义见 hagent/src/hagent/task_tools/models.py
 // 的 task_to_todo()。
 
-export type TodoStatus = "pending" | "in_progress" | "completed";
+export type TodoStatus = "pending" | "in_progress" | "completed" | "cancelled";
 
 export interface TodoItem {
   /** 渲染 key。后端给 id 就用 id;legacy 兜底形状没有 id,退回按位合成(见 normalizeTodos)。 */
@@ -75,4 +75,5 @@ export const TODO_STATUS_TEXT: Record<TodoStatus, string> = {
   pending: "待办",
   in_progress: "进行中",
   completed: "已完成",
+  cancelled: "已停止",
 };

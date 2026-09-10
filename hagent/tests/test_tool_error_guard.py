@@ -22,19 +22,15 @@ def _request() -> SimpleNamespace:
     )
 
 
-def test_sandbox_unavailable_becomes_error_tool_message():
+def test_sandbox_unavailable_ends_run():
     mw = ToolErrorGuardMiddleware()
 
     def handler(request: Any) -> ToolMessage:
         raise SandboxUnavailable(SandboxUnavailableReason.GONE, detail="VM x deleted")
 
-    result = mw.wrap_tool_call(_request(), handler)
-    assert isinstance(result, ToolMessage)
-    assert result.status == "error"
-    assert result.tool_call_id == "t1"
-    assert result.name == "Read"
-    assert result.content.startswith("[sandbox_unavailable:gone]")
-    assert "VM x deleted" not in result.content, "detail 只进日志,不进模型"
+    with pytest.raises(SandboxUnavailable) as error:
+        mw.wrap_tool_call(_request(), handler)
+    assert "VM x deleted" not in str(error.value), "detail 只进日志,不进模型"
 
 
 def test_generic_exception_becomes_error_tool_message():
@@ -64,9 +60,8 @@ async def test_async_pair_has_same_semantics():
     async def failing(request: Any) -> ToolMessage:
         raise SandboxUnavailable(SandboxUnavailableReason.PAUSED)
 
-    result = await mw.awrap_tool_call(_request(), failing)
-    assert result.status == "error"
-    assert result.content.startswith("[sandbox_unavailable:paused]")
+    with pytest.raises(SandboxUnavailable):
+        await mw.awrap_tool_call(_request(), failing)
 
     async def interrupting(request: Any) -> ToolMessage:
         raise GraphInterrupt()
@@ -117,6 +112,6 @@ async def test_hooks_see_guarded_error_as_post_tool_use_failure(tmp_path):
     async def inner(request: Any) -> ToolMessage:
         return await guard.awrap_tool_call(request, tool)
 
-    result = await hooks_mw.awrap_tool_call(_request(), inner)
-    assert result.status == "error"
+    with pytest.raises(SandboxUnavailable):
+        await hooks_mw.awrap_tool_call(_request(), inner)
     assert marker.exists(), "PostToolUseFailure hook 应被触发"

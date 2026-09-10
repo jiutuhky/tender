@@ -7,12 +7,9 @@ import { PenIcon, TableIcon, TreeStructureIcon } from "@/components/ui/icons";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import { DUR_FLOAT, DUR_PANEL, TRACE_EASE_ENTER, prefersReducedMotion } from "./traceMotion";
 import { isRunning } from "../runStatus";
-import { ActivityBar } from "../ActivityBar";
 import { Composer } from "../Composer";
 
-// 画布底部居中的输入坞：一行快捷指令（运行期由活动条顶替）+ 真 Composer。
-// 活动条**顶替** chips 的槽位而不是加第三行：chips 在 busy 期本就无效
-// （startParse / sendMessage 遇 BUSY 直接返回），同一槽位两个状态，交叉淡入。
+// 画布底部的输入坞：项目空闲时提供快捷指令，运行控制集成在 Composer 内。
 
 const CHIPS: Array<{ label: string; icon: React.ReactNode; prompt: string }> = [
   {
@@ -57,15 +54,15 @@ export function CanvasDock() {
     };
   }, []);
 
-  // 坞的首次到场：活动条/chips 先、Composer 后，各自淡入 + 8px 上浮。
+  // 坞的首次到场：快捷指令先、Composer 后，各自淡入 + 8px 上浮。
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
       // 玻璃约束:autoAlpha 会给元素设 opacity,而 opacity<1 的**祖先**会切断玻璃的
-      // backdrop——所以补间只落在玻璃元素自身(活动条/各 chip,自身 opacity 不切断)与
+      // backdrop——所以补间只落在玻璃元素自身(各 chip,自身 opacity 不切断)与
       // 实底 composer 上,绝不作用于 .cv-dockbar / .cv-dock-chips 这类玻璃祖先容器。
       const targets = [
-        ...gsap.utils.toArray<HTMLElement>(".cv-dockbar .cv-actbar, .cv-dockbar .cv-dock-chip"),
+        ...gsap.utils.toArray<HTMLElement>(".cv-dockbar .cv-dock-chip"),
         ...gsap.utils.toArray<HTMLElement>(".cv-dock .composer"),
       ];
       if (!targets.length) return;
@@ -81,15 +78,11 @@ export function CanvasDock() {
     { scope: dockRef },
   );
 
-  // chips ⇄ 活动条换位：只给到场的一方做进场（两者在 DOM 里互斥，为一条 32px
-  // 状态胶囊维持双挂载不值当）。运行状态翻转每次解析只发生一回。
-  // 先取元素再判空：idle 且无项目时这一行是空的（chips 与活动条都不渲染），
-  // 直接传选择器会让 gsap 每次挂载都往控制台丢一条 target not found。
-  // 同上:目标是玻璃元素自身,不动 .cv-dock-chips 之类玻璃祖先。
+  // 运行结束后，快捷指令从原位置淡入；补间只作用于玻璃元素自身。
   useGSAP(
     () => {
       if (prefersReducedMotion()) return;
-      const items = gsap.utils.toArray<HTMLElement>(".cv-dockbar .cv-actbar, .cv-dockbar .cv-dock-chip");
+      const items = gsap.utils.toArray<HTMLElement>(".cv-dockbar .cv-dock-chip");
       if (!items.length) return;
       gsap.from(items, {
         autoAlpha: 0,
@@ -110,11 +103,8 @@ export function CanvasDock() {
 
   return (
     <div className="cv-dock" ref={dockRef}>
-      <div className="cv-dockbar">
-        {running ? (
-          <ActivityBar />
-        ) : (
-          projectId && (
+      {!running && projectId && (
+        <div className="cv-dockbar">
             <div className="cv-dock-chips">
               {CHIPS.map((c) => (
                 <button
@@ -130,9 +120,8 @@ export function CanvasDock() {
                 </button>
               ))}
             </div>
-          )
-        )}
-      </div>
+        </div>
+      )}
       <Composer />
     </div>
   );

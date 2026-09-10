@@ -1,5 +1,6 @@
 "use client";
 
+import { ModelRetryStatus } from "./ModelRetryStatus";
 import { RecoveryActions } from "./RecoveryActions";
 
 import { memo, useCallback, useEffect, useMemo, type MutableRefObject, type RefObject } from "react";
@@ -19,6 +20,7 @@ type Turn =
       narration: string;
       errors: string[];
       showMeta: boolean;
+      revision: string;
     };
 
 // 把扁平 timeline 分组为「用户回合 / 助手回合」。一个助手段 = 思考/工具块 + 紧随其后的
@@ -58,9 +60,11 @@ function groupTurns(timeline: ChatMsg[]): Turn[] {
         narration: "",
         errors: [],
         showMeta: !roundOpened,
+        revision: "",
       };
       roundOpened = true;
     }
+    cur.revision += `${m.id}:${m.attempt ?? 0};`;
     if (m.role === "assistant_text") cur.response += m.content;
     else if (m.role === "error") cur.errors.push(m.content);
     else cur.items.push(...msgsToThinkingItems([m]));
@@ -109,13 +113,19 @@ function itemSig(i: ThinkingItem): string {
     return `t${i.id}.${i.call.status}.${i.call.args.length}.${i.call.result?.length ?? 0}`;
   // subagent：状态文字依赖 status 与最近一条 child（最近动作），都纳入签名。
   const c = i.run.children;
-  const last = c[c.length - 1];
-  return `s${i.id}.${i.run.status}.${c.length}.${last ? last.role : ""}`;
+  return `s${i.id}.${i.run.status}.${c.map(messageSignature).join("|")}`;
+}
+
+function messageSignature(message: ChatMsg): string {
+  const identity = `${message.id}:${message.attempt ?? 0}`;
+  if (message.role === "tool") return `${identity}:${message.call.status}:${message.call.args.length}:${message.call.result?.length ?? 0}`;
+  if (message.role === "subagent") return `${identity}:${message.run.status}:${message.run.children.map(messageSignature).join("|")}`;
+  return `${identity}:${message.content.length}`;
 }
 
 function turnSignature(t: Turn, active = false): string {
   if (t.kind === "user") return `u:${t.id}:${t.content.length}`;
-  return `a:${t.id}:${active ? 1 : 0}:${t.response.length}:${t.narration.length}:${t.errors.length}:${t.items.map(itemSig).join("|")}`;
+  return `a:${t.id}:${t.revision}:${active ? 1 : 0}:${t.response.length}:${t.narration.length}:${t.errors.length}:${t.items.map(itemSig).join("|")}`;
 }
 
 const UserTurn = memo(
@@ -189,7 +199,11 @@ export function AgentStream({ scrollRef, stickRef }: AgentStreamProps) {
   const matrices = useWorkspaceStore((s) => s.matrices);
   const errorMsg = useWorkspaceStore((s) => s.errorMsg);
 
-  const turns = useMemo(() => groupTurns(timeline), [timeline]);
+  const turns = useMemo(() => {
+    // 终态提示和恢复入口放在同一处，历史轮次的错误仍保留。
+    const index = phase === "error" && errorMsg ? timeline.findLastIndex((msg) => msg.role === "error" && msg.content === errorMsg) : -1;
+    return groupTurns(index < 0 ? timeline : timeline.filter((_, i) => i !== index));
+  }, [timeline, phase, errorMsg]);
 
   // —— 跟随最新消息自动下滚 ——
   // 内容随流式增长时，把滚动容器贴到底部，让焦点始终在最新 message。仅当用户当前已在底部
@@ -229,6 +243,8 @@ export function AgentStream({ scrollRef, stickRef }: AgentStreamProps) {
           return <AssistantTurn key={t.id} turn={t} active={active} sig={turnSignature(t, active)} />;
         })}
 
+        <ModelRetryStatus />
+        {phase === "cancelled" && <div className="cm-response"><p role="status">本轮已停止。</p><RecoveryActions /></div>}
         {phase === "error" && errorMsg && (
           <div className="cm-message-turn cm-assistant">
             <div className="cm-assistant-response">

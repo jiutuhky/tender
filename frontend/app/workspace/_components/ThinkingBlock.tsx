@@ -99,7 +99,7 @@ export function ThinkingItemView({ item: it }: { item: ThinkingItem }) {
         <div className={`cm-tool-section${run.status === "running" ? " is-running" : ""}`}>
           <div className="cm-tool-header">
             <div className="cm-tool-query">子任务 · {run.description}</div>
-            <div className="cm-tool-count">{run.status === "running" ? "运行中" : "已完成"}</div>
+            <div className="cm-tool-count">{run.status === "running" ? "运行中" : run.status === "cancelled" ? "已停止" : "已完成"}</div>
             {run.status === "running" && <div className="cm-spinner" />}
           </div>
           {status && <div className="cm-subagent-status">{status}</div>}

@@ -38,6 +38,7 @@ export function deriveMainBotState(
   timeline: ChatMsg[],
   signals: BotSignals = emptyBotSignals(),
 ): BotPersistentState {
+  if (signals.cancelled || phase === "cancelled") return "idle";
   if (signals.failed || phase === "error") return "failed";
   if (signals.attention) return signals.attention;
   if (phase === "idle") return "idle";
@@ -54,6 +55,7 @@ export function deriveSubagentBotState(
   live: boolean,
   signals?: BotSignals,
 ): BotPersistentState {
+  if (run.status === "cancelled") return "idle";
   if (run.status === "done") return "completed";
   // 连接/主流结束不能证明子任务已取消；保持等待形态并由文字说明状态待确认。
   if (!live || signals?.attention || signals?.failed) return "waiting";

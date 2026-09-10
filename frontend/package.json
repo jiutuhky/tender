@@ -12,6 +12,7 @@
     "predev": "node scripts/prepare-pdfjs.mjs",
     "prebuild": "node scripts/prepare-pdfjs.mjs",
     "test:canvas": "node --import ./scripts/register-typescript.mjs --test lib/canvas/*.test.mjs",
+    "test:recovery": "node --import ./scripts/register-typescript.mjs --test lib/hagent/modelRecovery.test.mjs",
     "test:trace": "node --import ./scripts/register-typescript.mjs --test lib/trace/*.test.mjs"
   },
   "dependencies": {

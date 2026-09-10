@@ -207,7 +207,9 @@ def test_agent_does_not_start_before_markdown_and_sidecar_are_ready(client, proj
 
     assert FakeAgent.ingest_done_at_start is True
     names = [event for event, _ in events]
-    assert names.index("ingest.completed") < names.index("run.started")
+    assert names.index("run.started") < names.index("ingest.completed")
+    # Run 在前置解析期间就可取消，模型仍须等 md 与 sidecar 就绪。
+    assert FakeAgent.ingest_done_at_start is True
 
 
 def test_ingest_failure_is_surfaced_and_does_not_block_the_agent(client, project):

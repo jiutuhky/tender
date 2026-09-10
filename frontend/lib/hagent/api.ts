@@ -410,16 +410,24 @@ export async function* streamMessage(sid: string, content: string): AsyncIterabl
   const reader = r.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let idx: number;
-    while ((idx = buf.indexOf("\n\n")) !== -1) {
-      const block = buf.slice(0, idx);
-      buf = buf.slice(idx + 2);
-      yield parseSSEBlock(block);
+  let completed = false;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) { completed = true; break; }
+      buf += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf("\n\n")) !== -1) {
+        const block = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        const parsed = parseSSEBlock(block);
+        // SSE 注释心跳不进入事件缓冲和 rAF 状态投影。
+        if (parsed.event) yield parsed;
+      }
     }
+  } finally {
+    if (!completed) await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 }
 
@@ -440,4 +448,10 @@ function parseSSEBlock(block: string): SSEEvent {
     /* keep raw */
   }
   return { id, event, data };
+}
+
+/** 幂等停止当前 Run，保留会话与项目文件。 */
+export async function cancelRun(sessionId: string, runId: string): Promise<void> {
+  const response = await fetch(`/api/hagent/sessions/${encodeURIComponent(sessionId)}/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST" });
+  if (!response.ok) throw new Error("停止请求未送达，请检查连接后再次点击停止。");
 }

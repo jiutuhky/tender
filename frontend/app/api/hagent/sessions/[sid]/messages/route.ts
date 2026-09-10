@@ -13,6 +13,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ sid: string }>
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body,
+      signal: req.signal,
     });
   } catch {
     return Response.json(

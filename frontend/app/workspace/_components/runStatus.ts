@@ -17,6 +17,7 @@ export const PHASE_STATUS: Record<RunPhase, string> = {
   loading_results: "正在载入应答矩阵",
   done: "本轮处理完成",
   error: "操作未完成",
+  cancelled: "本轮已停止",
 };
 
 export function isRunning(phase: RunPhase): boolean {
@@ -27,6 +28,7 @@ export function isRunning(phase: RunPhase): boolean {
 
 /** 真实终止/人工介入信号优先于页面的载入相位；所有状态文案共用。 */
 function botStatusOverride(phase: RunPhase, signals?: BotSignals): string | null {
+  if (phase === "cancelled" || signals?.cancelled) return PHASE_STATUS.cancelled;
   if (phase === "error" || signals?.failed) return PHASE_STATUS.error;
   if (signals?.attention) return BOT_DEFINITIONS[signals.attention].name;
   if (signals?.reading) return signals.ingestLabel ?? "正在解析原文";
@@ -63,7 +65,7 @@ const SCAN_LIMIT = 400;
  * 底部坞活动条的一行中文，如「正在提交矩阵条目 · 技术应答 · 4 次调用」。
  * 语域随品牌：状态先行，一律以「正在」起句。
  *
- * 刻意返回 string 而非对象：ActivityBar 用它当 selector，内容不变即 Object.is
+ * 刻意返回 string 而非对象：MessageWindow 用它当 selector，内容不变即 Object.is
  * 相等，zustand 跳过重渲——所以流式期大多数帧底部坞是静止的。
  */
 export function activityLine(timeline: ChatMsg[], phase: RunPhase, signals?: BotSignals): string {
@@ -96,7 +98,7 @@ export interface SubagentBoardRow {
   callId: string;
   description: string;
   subagentType: string;
-  status: "running" | "done";
+  status: "running" | "done" | "cancelled";
   /** 嵌套深度（顶层=0），看板按级缩进 */
   depth: number;
   /** 一行摘要：运行中=最近动作，完成=已完成 */
@@ -114,7 +116,7 @@ function collectFromLevel(msgs: ChatMsg[], depth: number, out: SubagentBoardRow[
       subagentType: m.run.subagentType,
       status: m.run.status,
       depth,
-      summary: m.run.status === "done" ? "已完成" : `${BOT_DEFINITIONS[botState].name}中`,
+      summary: m.run.status === "cancelled" ? "已停止" : m.run.status === "done" ? "已完成" : `${BOT_DEFINITIONS[botState].name}中`,
       botState,
     });
     collectFromLevel(m.run.children, depth + 1, out,live,signals);
@@ -154,6 +156,7 @@ export function hasSubagentRuns(timeline: ChatMsg[]): boolean {
 
 /** 子任务的一行状态文字：运行中显示最近动作，完成显示「已完成」。 */
 export function subagentStatusText(run: SubagentRun): string {
+  if (run.status === "cancelled") return "已停止";
   if (run.status === "done") return "已完成";
   const action = latestActionLabel(run.children);
   return action ? `${action}……` : "运行中……";

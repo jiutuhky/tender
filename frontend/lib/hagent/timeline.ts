@@ -10,25 +10,26 @@ export type ToolCall = {
   tool_name: string;
   args: string;
   result?: string;
-  status: "running" | "done";
+  status: "running" | "done" | "cancelled";
 };
 
 export type SubagentRun = {
   call: ToolCall;
-  status: "running" | "done";
+  status: "running" | "done" | "cancelled";
   description: string;
   prompt: string;
   subagentType: string;
   children: ChatMsg[];
 };
 
-export type ChatMsg =
+export type AttemptProvenance = { model_call_id?: string; attempt?: number };
+export type ChatMsg = AttemptProvenance & (
   | { id: string; role: "user"; content: string }
   | { id: string; role: "assistant_text"; content: string }
   | { id: string; role: "thinking"; content: string }
   | { id: string; role: "tool"; call: ToolCall }
   | { id: string; role: "subagent"; run: SubagentRun }
-  | { id: string; role: "error"; content: string };
+  | { id: string; role: "error"; content: string });
 
 export type ChatStreamEvent = {
   event: string;
@@ -45,11 +46,11 @@ function newId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random()}`;
 }
 
-function appendStreamChunk(msgs: ChatMsg[], kind: "thinking" | "text", chunk: string): ChatMsg[] {
+function appendStreamChunk(msgs: ChatMsg[], kind: "thinking" | "text", chunk: string, provenance: AttemptProvenance): ChatMsg[] {
   if (!chunk) return msgs;
   const role: "thinking" | "assistant_text" = kind === "thinking" ? "thinking" : "assistant_text";
   const last = msgs[msgs.length - 1];
-  if (last && last.role === role) {
+  if (last && last.role === role && last.model_call_id === provenance.model_call_id && last.attempt === provenance.attempt) {
     const copy = [...msgs];
     copy[copy.length - 1] = { ...last, content: last.content + chunk };
     return copy;
@@ -58,10 +59,10 @@ function appendStreamChunk(msgs: ChatMsg[], kind: "thinking" | "text", chunk: st
     role === "thinking"
       ? { id: newId("th"), role: "thinking", content: chunk }
       : { id: newId("at"), role: "assistant_text", content: chunk };
-  return [...msgs, newMsg];
+  return [...msgs, { ...newMsg, ...provenance }];
 }
 
-function appendContentDelta(msgs: ChatMsg[], contentChunk: string | unknown): ChatMsg[] {
+function appendContentDelta(msgs: ChatMsg[], contentChunk: string | unknown, provenance: AttemptProvenance): ChatMsg[] {
   const items: Array<{ kind: "thinking" | "text"; text: string }> = [];
   if (typeof contentChunk === "string" && contentChunk) {
     items.push({ kind: "text", text: contentChunk });
@@ -73,7 +74,7 @@ function appendContentDelta(msgs: ChatMsg[], contentChunk: string | unknown): Ch
     }
   }
   let next = msgs;
-  for (const it of items) next = appendStreamChunk(next, it.kind, it.text);
+  for (const it of items) next = appendStreamChunk(next, it.kind, it.text, provenance);
   return next;
 }
 
@@ -234,9 +235,14 @@ function completeInLevel(level: ChatMsg[], callId: string, toolName: string, res
 }
 
 function reduceIntoList(msgs: ChatMsg[], ev: ChatStreamEvent): ChatMsg[] {
+  const data = ev.data as AttemptProvenance;
+  const provenance: AttemptProvenance = data?.model_call_id ? { model_call_id: data.model_call_id, attempt: data.attempt } : {};
+  if (ev.event === "model.retry") return removeAttempt(msgs, provenance);
+  if (ev.event === "run.cancelled") return stopUnfinished(msgs);
+  if (ev.event === "error") msgs = stopUnfinished(removeAttempt(msgs, provenance));
   if (ev.event === "message.delta") {
     const d = ev.data as { content_chunk?: string | unknown; parent_tool_use_id?: string | null };
-    return routeInto(msgs, d.parent_tool_use_id, (level) => appendContentDelta(level, d.content_chunk));
+    return routeInto(msgs, d.parent_tool_use_id, (level) => appendContentDelta(level, d.content_chunk, provenance));
   }
 
   if (ev.event === "tool_call.started") {
@@ -244,7 +250,7 @@ function reduceIntoList(msgs: ChatMsg[], ev: ChatStreamEvent): ChatMsg[] {
     const callId = d.call_id || `anon-${Date.now()}-${Math.random()}`;
     const toolName = d.tool_name || "unknown";
     const argsChunk = d.args_chunk || "";
-    return routeInto(msgs, d.parent_tool_use_id, (level) => startToolInLevel(level, callId, toolName, argsChunk));
+    return routeInto(msgs, d.parent_tool_use_id, (level) => startToolInLevel(level, callId, toolName, argsChunk).map((message) => level.includes(message) ? message : { ...message, ...provenance }));
   }
 
   if (ev.event === "tool_call.completed") {
@@ -260,6 +266,22 @@ function reduceIntoList(msgs: ChatMsg[], ev: ChatStreamEvent): ChatMsg[] {
   }
 
   return msgs;
+}
+
+/** 仅丢弃失败尝试，保留已完成工具以及其他并发子任务。 */
+export function removeAttempt(msgs: ChatMsg[], provenance: AttemptProvenance): ChatMsg[] {
+  if (!provenance.model_call_id) return msgs;
+  return msgs.filter((msg) => msg.model_call_id !== provenance.model_call_id || msg.attempt !== provenance.attempt)
+    .map((msg) => msg.role === "subagent" ? { ...msg, run: { ...msg.run, children: removeAttempt(msg.run.children, provenance) } } : msg);
+}
+
+export function stopUnfinished(msgs: ChatMsg[]): ChatMsg[] {
+  return msgs.map((msg) => {
+    if (msg.role === "tool" && msg.call.status === "running") return { ...msg, call: { ...msg.call, status: "cancelled" } };
+    if (msg.role === "subagent") return { ...msg, run: { ...msg.run, status: msg.run.status === "running" ? "cancelled" : msg.run.status,
+      call: { ...msg.run.call, status: msg.run.call.status === "running" ? "cancelled" : msg.run.call.status }, children: stopUnfinished(msg.run.children) } };
+    return msg;
+  });
 }
 
 export function reduceChatEvent(msgs: ChatMsg[], ev: ChatStreamEvent): ChatMsg[] {

@@ -47,6 +47,11 @@ def parse_lg_chunk(
 
     mode, payload = chunk
 
+    if mode == "custom":
+        if isinstance(payload, dict) and str(payload.get("event", "")).startswith("model."):
+            yield payload["event"], payload["data"]
+        return
+
     if mode == "messages":
         token, meta = payload
         # 子代理归属：Agent 工具把自己的 tool_call_id 注入子代理 config metadata，
@@ -54,6 +59,7 @@ def parse_lg_chunk(
         # 记为 None。前端据此把事件挂到对应子代理（对齐 CC 的 parentToolUseID 分组），
         # 不再靠「最后一个 running 子代理」猜测——后者在并行多 Agent 下会串台并无限嵌套。
         parent_tool_use_id = (meta or {}).get("parent_tool_use_id")
+        provenance = {key: meta[key] for key in ("model_call_id", "attempt", "run_id") if meta and key in meta}
         token_type = getattr(token, "type", "")
         # AIMessageChunk
         if token_type in ("AIMessageChunk", "ai"):
@@ -74,6 +80,7 @@ def parse_lg_chunk(
                     name = name or saved.get("tool_name")
                 if name or args_chunk:
                     yield ("tool_call.started", {
+                        **provenance,
                         "call_id": call_id,
                         "tool_name": name or "",
                         "args_chunk": args_chunk,
@@ -85,6 +92,7 @@ def parse_lg_chunk(
             # 原样透传，前端按 block.type 分别渲染 thinking / text / redacted_thinking。
             if content:
                 yield ("message.delta", {
+                    **provenance,
                     "role": "assistant",
                     "content_chunk": content,
                     "parent_tool_use_id": parent_tool_use_id,

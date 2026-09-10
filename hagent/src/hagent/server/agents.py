@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import sqlite3
 from pathlib import Path
@@ -10,6 +11,27 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 
 from hagent.core import create_hagent
 from hagent.mcp_tools import prose_http_connection, prose_mcp_disabled
+
+class AsyncCompatibleSqliteSaver(SqliteSaver):
+    """共用现有线程数据库和锁，让 Web 异步图与同步历史读取保持一致。"""
+
+    async def aget_tuple(self, config):
+        return await asyncio.to_thread(self.get_tuple, config)
+
+    async def aput(self, config, checkpoint, metadata, new_versions):
+        return await asyncio.to_thread(self.put, config, checkpoint, metadata, new_versions)
+
+    async def aput_writes(self, config, writes, task_id, task_path=""):
+        return await asyncio.to_thread(self.put_writes, config, writes, task_id, task_path)
+
+    async def alist(self, config, *, filter=None, before=None, limit=None):
+        rows = await asyncio.to_thread(lambda: list(self.list(config, filter=filter, before=before, limit=limit)))
+        for row in rows:
+            yield row
+
+    async def adelete_thread(self, thread_id):
+        await asyncio.to_thread(self.delete_thread, thread_id)
+
 
 _agents: dict[str, Any] = {}
 _checkpointer: SqliteSaver | None = None
@@ -29,7 +51,7 @@ def get_checkpointer() -> SqliteSaver:
         db = Path(os.environ.get("HAGENT_THREAD_DB_PATH", "/tmp/hagent/threads.sqlite"))
         db.parent.mkdir(parents=True, exist_ok=True)
         _checkpointer_conn = sqlite3.connect(str(db), check_same_thread=False)
-        _checkpointer = SqliteSaver(_checkpointer_conn)
+        _checkpointer = AsyncCompatibleSqliteSaver(_checkpointer_conn)
         if hasattr(_checkpointer, "setup"):
             _checkpointer.setup()
     return _checkpointer

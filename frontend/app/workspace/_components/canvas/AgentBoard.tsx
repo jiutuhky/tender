@@ -134,6 +134,7 @@ const TaskRow = memo(function TaskRow({
       <div className="cv-agentboard-task-copy">
         <span className="cv-agentboard-task-text">
           {label}
+          {status === "cancelled" && <span className="model-task-stopped">已停止</span>}
           {active && <span className="cv-agentboard-sweep" aria-hidden="true">{label}</span>}
         </span>
       </div>
@@ -153,10 +154,12 @@ function SubagentSection({
   const headingId = useId();
   if (!rows.length) return null;
   const unfinished = rows.filter((r) => r.status === "running").length;
-  const completed = rows.length - unfinished;
+  const completed = rows.filter((r) => r.status === "done").length;
+  const cancelled = rows.filter((r) => r.status === "cancelled").length;
   const summary = [
     unfinished ? `${unfinished} ${live ? "进行中" : "状态待确认"}` : "",
     completed ? `${completed} 已完成` : "",
+    cancelled ? `${cancelled} 已停止` : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -176,6 +179,7 @@ function SubagentSection({
             description={readableLabel(row.description) || "协作智能体"}
             summary={row.summary}
             running={row.status === "running"}
+            cancelled={row.status === "cancelled"}
             depth={row.depth}
             live={live}
           />
@@ -191,6 +195,7 @@ const AgentRow = memo(function AgentRow({
   description,
   summary,
   running,
+  cancelled,
   depth,
   live,
 }: {
@@ -199,12 +204,13 @@ const AgentRow = memo(function AgentRow({
   description: string;
   summary: string;
   running: boolean;
+  cancelled: boolean;
   depth: number;
   live: boolean;
 }) {
-  const state = running ? (live ? "running" : "stopped") : "done";
+  const state = cancelled ? "stopped" : running ? (live ? "running" : "stopped") : "done";
   const statusLabel =
-    state === "running" ? "进行中" : state === "done" ? "已完成" : "状态待确认";
+    state === "running" ? "进行中" : state === "done" ? "已完成" : cancelled ? "已停止" : "状态待确认";
   // 没有具体动作时仅显示一次状态；有动作时让摘要回答「正在做什么」。
   const action =
     state === "running" && summary && !/^运行中[.…\s]*$/.test(summary)

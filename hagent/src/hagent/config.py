@@ -262,6 +262,22 @@ class HagentConfig:
     sandbox_kind: SandboxKind = SandboxKind.NONE
     hooks_settings_paths: str | None = None
     hooks_disabled: bool = False
+    model_max_retries: int = 10
+    model_retry_base_ms: float = 500
+    model_retry_max_delay_ms: float = 32000
+    model_connect_timeout_seconds: float = 10
+    model_first_response_timeout_seconds: float = 600
+    model_stream_idle_timeout_seconds: float = 90
+
+    def __post_init__(self) -> None:
+        import math
+        if self.model_max_retries < 0:
+            raise ValueError("模型最大重试次数不得小于 0")
+        for name in ("model_retry_base_ms", "model_retry_max_delay_ms", "model_connect_timeout_seconds",
+                     "model_first_response_timeout_seconds", "model_stream_idle_timeout_seconds"):
+            value = getattr(self, name)
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} 必须为有限正数")
 
     @classmethod
     def from_env(cls) -> "HagentConfig":
@@ -269,6 +285,12 @@ class HagentConfig:
             model=os.environ.get("HAGENT_MODEL", DEFAULT_MODEL),
             langsmith_tracing=os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true",
             max_tokens=_positive_int_from_env("HAGENT_MAX_TOKENS"),
+            model_max_retries=int(os.environ.get("HAGENT_MODEL_MAX_RETRIES", "10")),
+            model_retry_base_ms=float(os.environ.get("HAGENT_MODEL_RETRY_BASE_MS", "500")),
+            model_retry_max_delay_ms=float(os.environ.get("HAGENT_MODEL_RETRY_MAX_DELAY_MS", "32000")),
+            model_connect_timeout_seconds=float(os.environ.get("HAGENT_MODEL_CONNECT_TIMEOUT_SECONDS", "10")),
+            model_first_response_timeout_seconds=float(os.environ.get("HAGENT_MODEL_FIRST_RESPONSE_TIMEOUT_SECONDS", "600")),
+            model_stream_idle_timeout_seconds=float(os.environ.get("HAGENT_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "90")),
             skills_paths=os.environ.get("HAGENT_SKILLS_PATHS") or None,
             agents_paths=os.environ.get("HAGENT_AGENTS_PATHS") or None,
             sandbox_kind=SandboxKind.from_str(os.environ.get("HAGENT_SANDBOX_KIND", "none")),

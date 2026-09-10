@@ -3271,42 +3271,10 @@ body {
   justify-content: center;
   min-height: 32px;
 }
-/* idle 且无项目时既无 chips 也无活动条：别在输入框上方留一条 42px 的空带 */
-.cv-dockbar:empty { display: none; }
-
-/* 活动条：运行期顶替 chips 的槽位（同一行，不新增一层） */
-.cv-actbar {
-  position: relative;   /* 不加 isolation：它会切断玻璃 backdrop */
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  color: var(--label-2);
-  font-size: 12.5px;
-  /* 材质、rim、投影、hover 指针高光与 press 全部交给
-     .frost-glass--lens.frost-glass--interactive（类挂在 ActivityBar.tsx）；
-     此处不写 background / border / box-shadow，否则会压掉工具类的光学栈。
-     （border 由 .frost-glass 统一归零——<button> 的 UA 默认边是 2px outset 实白。） */
-}
-.cv-actbar-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cv-actbar-chevron {
-  color: var(--faint);
-  transform: rotate(-90deg);
-  flex: 0 0 auto;
-}
-
 /* ==== 「运行中」动效语汇 ====
    规范唯一豁免的循环是消息窗的 border beam（见 .cv-msgwin-beam）：它限定在
    [data-state="open"][data-busy="1"]，状态一结束立即停止。
-   活动条与子代理看板的运行态改由静态形态与状态文案表达，不再另起循环。 */
+   子代理看板的运行态改由静态形态与状态文案表达，不再另起循环。 */
 
 /* 活动条的运行态：边由 .frost-glass--lens 的规范 rim 承担（--glass-rim-base / -catch / -echo），
    不再叠第二套自造光带——光学栈固定五层，rim 的唯一来源是材质 token。 */
@@ -3455,7 +3423,6 @@ body {
 .cv-tool-btn:focus-visible,
 .cv-dock-chip:focus-visible,
 .cv-zoom button:focus-visible,
-.cv-actbar:focus-visible,
 .cv-cite-btn:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
@@ -3744,7 +3711,7 @@ body {
 }
 
 /* ---- 降级：减少透明度时实底化玻璃 ----
-   .cv-toolbar / .cv-dock-chip / .cv-viewport-hint / .cv-actbar 已改用 .frost-glass 工具类，
+   .cv-toolbar / .cv-dock-chip / .cv-viewport-hint 已改用 .frost-glass 工具类，
    其兜底由 frost-materials.css 统一提供。消息浮窗在此切换主题实底并隐藏装饰层。 */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   /* 实底模式以主题底色和清晰轮廓承托正文。 */
@@ -3804,8 +3771,7 @@ body {
   .workspace .cv-det-donut:hover .cv-det-arc.is-dim.is-pickable { opacity: .38; }
   /* 玻璃面的 hover 是光（--_spot-a），不是底色：粗指针设备上取消高光即可，
      不要给玻璃写半透明白底——那会替换掉整层光学栈。 */
-  .workspace .cv-dock-chip:hover,
-  .workspace .cv-actbar:hover { --_spot-a: 0; }
+  .workspace .cv-dock-chip:hover { --_spot-a: 0; }
   .workspace .cv-msgwin-btn:hover { background: transparent; color: var(--muted); }
   .workspace .cv-msgwin-bot:hover { transform: none; }
   .workspace .cv-drawer-btn.primary:hover,

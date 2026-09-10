@@ -28,6 +28,9 @@
 .composer .composer-send { display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-left: auto; border: 0; border-radius: var(--r-control); background: var(--blue); color: #fff; font-weight: 600; box-shadow: var(--elev-1); }
 .composer .composer-send:hover:not(:disabled) { background: var(--blue-press); }
 .composer .composer-send svg { width: 14px; height: 14px; }
+.composer .composer-stop { width: 36px; height: 36px; padding: 0; flex: none; }
+.composer .composer-stop svg { width: 18px; height: 18px; }
+.composer .composer-stop[aria-busy="true"] { cursor: wait; }
 .workspace-recovery { margin-top: 12px; }
 .workspace-recovery p { font-size: 13px; color: var(--label-2); }
 .workspace-recovery > div { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

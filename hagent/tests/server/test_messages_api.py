@@ -49,7 +49,8 @@ def test_post_message_returns_sse(tmp_path, monkeypatch):
     assert b"event: done" in body
     assert FakeAgent.stream_kwargs is not None
     config = FakeAgent.stream_kwargs["config"]
-    assert config == {"configurable": {"thread_id": sid}}
+    assert config["configurable"] == {"thread_id": sid}
+    assert config["metadata"]["run_id"]
 
 
 def test_post_message_checkpoints_workspace_before_done(tmp_path, monkeypatch):

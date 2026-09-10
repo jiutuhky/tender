@@ -9,6 +9,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from hagent.hooks.events import HookEvent
+from hagent.server.model_stream import stream_agent_events
+from hagent.model_retry.runtime import register_run, cancel_run
+from hagent.server.runs import RunStatus
 from hagent.ingest.tasks import get_ingest_registry
 from hagent.server.agents import get_or_build_agent
 from hagent.server.auth import require_api_key
@@ -428,8 +431,9 @@ def post_message(sid: str, body: MessageBody) -> StreamingResponse:
         )
         raise
     manager.mark_run_running(run.id)
+    register_run(run.id)
     return StreamingResponse(
-        _stream_agent_events(
+        stream_agent_events(
             agent,
             content,
             thread_id=sid,
@@ -444,6 +448,22 @@ def post_message(sid: str, body: MessageBody) -> StreamingResponse:
         ),
         media_type="text/event-stream",
     )
+
+
+@router.post("/sessions/{sid}/runs/{run_id}/cancel")
+def cancel_message_run(sid: str, run_id: str) -> dict:
+    session = get_store().get(sid)
+    manager = get_session_manager()
+    run = manager.run_store.get(run_id) if manager.run_store else None
+    if session is None or run is None or run.session_id != sid or run.project_id != session.project_id:
+        raise HTTPException(status_code=404, detail="run not found")
+    if run.status in (RunStatus.COMMITTED, RunStatus.INTERRUPTED, RunStatus.REJECTED):
+        return {"run_id": run_id, "status": run.status.value, "accepted": True}
+    accepted = cancel_run(run_id)
+    if not accepted:
+        # 活跃持久记录缺少执行控制器时，记录中断并按已有 checkpoint 路径收尾。
+        manager.interrupt_run_best_effort(run_id, sandbox=manager.get_sandbox(sid), error="用户停止本轮")
+    return {"run_id": run_id, "status": "cancelling", "accepted": True}
 
 
 def _normalize_message(m: Any) -> dict:

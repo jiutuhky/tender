@@ -91,7 +91,8 @@ def test_capacity_exceeded_maps_to_503_with_retry_after(base_env, monkeypatch):
     )
     assert resp.status_code == 503
     assert "Retry-After" in resp.headers
-    assert "内存额度不足" in resp.json()["detail"]
+    assert resp.json()["detail"]["code"] == "sandbox_capacity_unavailable"
+    assert resp.json()["detail"]["reason"] == "host_capacity"
 
 
 def test_pool_exhausted_maps_to_503(base_env, monkeypatch):

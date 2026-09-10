@@ -4,7 +4,7 @@
 >
 > 事实来源：
 > - 服务端格式化与翻译：`hagent/src/hagent/server/sse.py`
-> - SSE 端点与事件拦截：`hagent/src/hagent/server/routers/messages.py`
+> - SSE 端点与事件拦截：`hagent/src/hagent/server/routers/messages.py`、`hagent/src/hagent/server/model_stream.py`
 > - 子代理归属注入：`hagent/src/hagent/subagents/agent_tool.py`
 > - 参考解析器（reducer）：`hagent/web/src/lib/chat_timeline.ts`、`frontend/lib/hagent/timeline.ts`
 > - 契约测试：`hagent/tests/server/test_sse_adapter.py`、`test_sse_sandbox_events.py`
@@ -43,7 +43,7 @@ interface SSEEvent {
 
 ## 2. 事件总览
 
-`POST /sessions/{sid}/messages` 流上会出现的事件（来自 `_stream_agent_events`）：
+`POST /sessions/{sid}/messages` 流上会出现的事件（来自 `model_stream.stream_agent_events`，恢复事件另见第 9 节）：
 
 | 事件名 | 来源 | 频率 | 作用 |
 |---|---|---|---|
@@ -60,7 +60,7 @@ interface SSEEvent {
 | `done` | 流末尾 | 每流一次（正常） | 流正常结束 |
 | `error` | 异常兜底 | 每流至多一次 | 智能体执行抛错 |
 
-另有一组 **`sandbox.*` 生命周期事件**（`sandbox.created` / `paused` / `resumed` / `evicted` / `error`）已在 `sse.py` 定义并测试，但**当前尚未接入本消息流**（`render_sandbox_event` 无调用方）。见第 5 节，前端可预留处理但不应依赖其出现。
+另有一组 **`sandbox.*` 生命周期事件**（`sandbox.created` / `paused` / `resumed` / `evicted` / `error`）已在 `sse.py` 定义并测试，并已接入消息流的队列冲刷。见第 5 节。
 
 > ❗注意：`todo.refresh_requested` 是一个**内部事件**，由 `parse_lg_chunk` 产生后被路由层（`messages.py`）拦截，转而拉取全量 Todo 并发出 `todo.updated`。**它不会出现在 SSE 流上**，前端无需处理。
 
@@ -333,3 +333,80 @@ event: done                   data: {thread_id:"<sid>"}
 ```
 
 （缩进仅示意 `parent_tool_use_id` 归属层级；实际流是平铺的，无缩进。）
+
+## 9. 模型重试、输出替换与取消
+
+Web 消息入口使用 `server/model_stream.py` 的异步 `stream_agent_events`，消费
+`updates`、`messages`、`custom` 三种 LangGraph 流。`run.started` 在前置原文解析前发送，
+因此解析与模型等待期间均可请求停止；模型仍须等原文解析与工作区同步完成才开始。
+模型等待和退避期间每 15 秒发送 `: heartbeat\n\n` 注释帧。它不写入正文，不更新用户活动时间。
+`sandbox.*` 生命周期队列在消息流期间持续冲刷。
+
+### 调用与尝试标识
+
+每个逻辑模型轮拥有独立的 `model_call_id`，重试时保持稳定，`attempt` 从 1 递增。
+主、子智能体均携带 `run_id`；子智能体继续用 `parent_tool_use_id` 指向派发它的 Agent 工具。
+`message.delta` 和 `tool_call.started` 新增上述可选字段，旧生产者不带字段时按原协议处理。
+`tool_call.completed` 表示真实工具执行结束，不能因随后模型重试而撤销。
+
+| 事件 | 主要字段 | 语义 |
+|---|---|---|
+| `model.attempt.started` | `model_call_id`, `attempt`, `max_retries`, `run_id`, `parent_tool_use_id` | 新请求开始；清空该作用域的工具参数解析缓存 |
+| `model.slow` | 同上，`message` | 无有效进展时的轻量提示，Run 仍运行 |
+| `model.retry` | 同上，`category`, `message`, `retry`, `wait_ms`, `next_attempt_at`, `status_code`, `request_id`, `action` | 该尝试失败，等待后重试；`next_attempt_at` 为 Unix 毫秒时间戳 |
+| `model.call.completed` | 调用与尝试标识 | 完整模型轮成功，完整工具调用随后进入执行节点 |
+| `run.cancelled` | `run_id`, `message`, `checkpoint_saved` | 本轮已经停止，终态，不再发 `done` |
+
+`max_retries=10` 表示初始请求加 10 次重试，最多 11 次请求。`retry` 从 1 到 10。
+`model.retry.attempt` 指刚失败的尝试；下一次 `model.attempt.started.attempt` 加 1。
+倒计时由浏览器本地计算，服务端不逐秒发帧。
+
+```json
+{
+  "model_call_id": "逻辑调用标识",
+  "attempt": 3,
+  "retry": 3,
+  "max_retries": 10,
+  "run_id": "当前运行标识",
+  "parent_tool_use_id": "派发子任务的工具标识",
+  "category": "overloaded",
+  "message": "模型服务暂时过载。",
+  "wait_ms": 8000,
+  "next_attempt_at": 1789030808000
+}
+```
+
+收到 `model.retry` 后，仅删除匹配该 `model_call_id + attempt` 的临时正文、思考、工具参数和
+活动投影，立刻拒收该旧尝试的迟到增量。其他子任务、此前已完成工具和已发布矩阵保持原状。
+新的模型轮必须具有新调用 ID，不能把旧正文与新正文按相邻角色直接拼接。
+标记过的工具参数在 `model.call.completed` 前不触发矩阵提交进度；发布结果仍由工具完成事件驱动。
+
+### 最终错误
+
+重试中的失败只发 `model.retry`，不发 `error`。永久故障或预算耗尽后，统一发一次终态 `error`：
+
+- `code: "model_call_failed"`；`category` 为 `connection`、`timeout`、`rate_limit`、`overloaded`、
+  `server`、`incomplete_response`、`authentication`、`permission`、`billing`、`protocol`、
+  `model_not_found`、`context_limit`、`invalid_request`、`certificate` 或 `internal`。
+- `message` 为安全中文摘要；`action` 为建议操作。
+- `attempts` 为实际请求尝试次数；同时携带最后的 `attempt` 与调用归属。
+- 可选 `status_code`、`request_id`、`exception_types` 为诊断信息，不包含认证头、密钥或请求正文。
+- `checkpoint_saved: true` 仅在本轮 checkpoint 已确认成功时发送；失败时为 `false`，
+  可附 `checkpoint_message`。仅收到部分文件提交事件不足以证明全部成果保存成功。
+
+子智能体的永久模型故障和重试耗尽通过专用异常穿透工具错误兜底，结束整个 Run；
+父智能体不能把该故障当作普通工具文本继续派发，从而绕过预算。
+普通程序故障仍兼容 `code: "agent_error"` 路径。前端将终态错误与恢复操作合并显示，
+技术字段折叠展示，避免同一错误在时间线与页脚重复出现。
+
+### 停止本轮
+
+`POST /sessions/{sid}/runs/{run_id}/cancel`（同源代理
+`POST /api/hagent/sessions/{sid}/runs/{runId}/cancel`）无请求正文，返回
+`{run_id, status, accepted: true}`。服务端检查 Run 的会话与项目归属，不匹配返回 404；
+已结束 Run 和重复取消请求保持幂等。
+
+响应 `accepted` 仅表示接收停止请求，真正的结束由原消息流的 `run.cancelled` 确认。
+停止会取消当前请求、退避及并发子任务，关闭请求资源，再尽力 checkpoint。
+浏览器断开也执行相同收尾；沙箱继续由既有生命周期策略管理。
+前端把未完成步骤标为“已停止”，保留已完成步骤与成果；恢复要求仅回填输入框，用户重新发送后开启新预算。

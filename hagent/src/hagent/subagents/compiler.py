@@ -14,6 +14,7 @@ from hagent.hooks.events import HookEvent
 from hagent.hooks.middleware import HagentHooksMiddleware
 from hagent.hooks.runner import HookRunner
 from hagent.sanitize import sanitize_anthropic_thinking_blocks_middleware
+from hagent.model_retry import ModelRetryMiddleware, ModelRetryPolicy
 from hagent.tool_call_repair import repair_invalid_tool_calls_middleware
 from hagent.skills.materialize import SkillMaterializer
 from hagent.skills.registry import SkillRegistry
@@ -100,6 +101,7 @@ def compile_subagent_runnable(
     spec: SubagentSpec,
     *,
     parent_model: str,
+    retry_policy: ModelRetryPolicy | None = None,
     parent_tools: list[Any],
     skill_registry: SkillRegistry | None = None,
     materializer: SkillMaterializer | None = None,
@@ -136,6 +138,7 @@ def compile_subagent_runnable(
     # PatchToolCallsMiddleware 都没有,invalid tool call 悬空曾直接把
     # 抽取子代理打死(2026-07-15 解析中断事故,tool_use 无配对 → 400)。
     middleware: list[Any] = [
+        ModelRetryMiddleware(retry_policy),
         sanitize_anthropic_thinking_blocks_middleware,
         repair_invalid_tool_calls_middleware,
     ]

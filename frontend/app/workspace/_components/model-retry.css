@@ -1,0 +1,10 @@
+.model-retry-notices:empty { display: none; }
+.model-retry-notice { margin: 12px 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, currentColor 12%, transparent); border-radius: 12px; background: color-mix(in srgb, currentColor 3%, transparent); font-size: 13px; line-height: 1.65; }
+.model-retry-notice p { margin: 4px 0 0; }
+.model-retry-scope { font-size: 11px; opacity: .65; }
+.model-error-details { margin: 10px 0; font-size: 12px; overflow-wrap: anywhere; }
+.model-error-details summary { cursor: pointer; opacity: .75; }
+.model-error-details dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+.model-error-details dd { margin: 0; }
+
+.model-task-stopped { margin-left: 8px; font-size: 11px; color: var(--label-2); white-space: nowrap; }

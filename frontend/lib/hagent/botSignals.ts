@@ -15,6 +15,7 @@ export interface BotSignals {
   failed: boolean;
   ended: boolean;
   runId: string | null;
+  cancelled?: boolean;
 }
 export function emptyBotSignals(): BotSignals {
   return {
@@ -77,6 +78,11 @@ export function reduceBotSignals(
       reading: false,
       attention: null,
     };
+  if (event.event === "run.cancelled") return { ...signals, ended: true, reading: false, attention: null, scopes: {}, cancelled: true };
+  if (event.event === "model.retry") {
+    const scope = typeof data.parent_tool_use_id === "string" ? data.parent_tool_use_id : "";
+    return { ...signals, scopes: { ...signals.scopes, [scope]: { active: {}, latest: "working" } } };
+  }
   if (event.event === "done")
     return { ...signals, ended: true, reading: false };
   const scope =
