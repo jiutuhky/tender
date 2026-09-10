@@ -20,15 +20,8 @@ import { StreamScrollbar } from "./StreamScrollbar";
 
 import { LiquidGlass } from "./LiquidGlass";
 
-// 大面积浮层：中央渐变散射承托正文，22px 边缘带呈现柔和的透镜折射。
-// 圆角与窗口外壳保持一致；缩放期间由 Hyalite 等待尺寸稳定后重建透镜。
-const GLASS = {
-  bevel: 22,
-  thickness: 9,
-  blur: 0.8,
-  rim: 0.24,
-  cornerRadius: 28,
-} as const;
+// 大面积浮层使用单层毛玻璃，圆角与窗口外壳保持一致。
+const GLASS = { cornerRadius: 28 } as const;
 
 /**
  * Bot 形象单拆一层：它按时间线末段派生状态（在思考？在检索？在落笔？），流式期每帧

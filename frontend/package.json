@@ -11,6 +11,7 @@
     "test:bot": "node --import ./scripts/register-typescript.mjs --test lib/bot/*.test.mjs",
     "predev": "node scripts/prepare-pdfjs.mjs",
     "prebuild": "node scripts/prepare-pdfjs.mjs",
+    "test:canvas": "node --import ./scripts/register-typescript.mjs --test lib/canvas/*.test.mjs",
     "test:trace": "node --import ./scripts/register-typescript.mjs --test lib/trace/*.test.mjs"
   },
   "dependencies": {
@@ -19,7 +20,6 @@
     "@streamdown/code": "^1.1.1",
     "gsap": "^3.15.0",
     "hast-util-to-jsx-runtime": "^2.3.6",
-    "hyalite": "https://codeload.github.com/VII-Cae/hyalite--liquid-glass/tar.gz/b0692b8aecdf264fcb49276f45d7d1d1f80f6dd0",
     "katex": "^0.16.47",
     "next": "16.2.6",
     "pdfjs-dist": "6.3.289",

@@ -1,73 +1,20 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import type { HyaliteAPI } from "hyalite";
+import { useEffect, useRef, type ReactNode } from "react";
 
 export interface LiquidGlassProps {
-  bevel?: number;
-  thickness?: number;
-  blur?: number;
-  rim?: number;
   cornerRadius?: number;
   className?: string;
   children?: ReactNode;
 }
 
-/** Hyalite 按实际尺寸生成透镜；折射只作用于背景，正文放在独立内容层。 */
+/** 单层毛玻璃承托正文，高光与阴影提供层次，正文放在独立内容层。 */
 export function LiquidGlass({
-  bevel = 22,
-  thickness = 9,
-  blur = 0.8,
-  rim = 0.24,
   cornerRadius = 28,
   className = "",
   children,
 }: LiquidGlassProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const lensRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const lens = lensRef.current;
-    if (!lens) return;
-    let disposed = false;
-    let engine: HyaliteAPI | undefined;
-    const solid = window.matchMedia(
-      "(prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active)",
-    );
-
-    const syncMaterial = () => {
-      if (!engine) return;
-      engine.detach(lens);
-      if (solid.matches) return;
-      engine.attach(lens, {
-        bevel,
-        thickness,
-        blur,
-        dispersion: 0,
-        rim,
-        light: -35,
-        smooth: 1.2,
-        materialize: 180,
-        settle: 80,
-      });
-    };
-    solid.addEventListener("change", syncMaterial);
-
-    // 客户端按需加载；ResizeObserver 和滤镜缓存由 Hyalite 管理。
-    void import("hyalite").then(() => {
-      if (disposed) return;
-      engine = window.Hyalite;
-      syncMaterial();
-    }).catch(() => {
-      // 加载失败时保留 CSS 毛玻璃，消息窗仍可正常使用。
-    });
-
-    return () => {
-      disposed = true;
-      solid.removeEventListener("change", syncMaterial);
-      engine?.detach(lens);
-    };
-  }, [bevel, thickness, blur, rim, cornerRadius]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -90,7 +37,7 @@ export function LiquidGlass({
       pointerX = event.clientX;
       pointerY = event.clientY;
       if (frame) return;
-      // 光位随指针小幅偏移；只改装饰层的 transform，不重建透镜或重渲染正文。
+      // 光位随指针小幅偏移，每帧合并更新装饰层的 transform。
       frame = requestAnimationFrame(() => {
         frame = 0;
         const box = root.getBoundingClientRect();
@@ -113,31 +60,18 @@ export function LiquidGlass({
   }, []);
 
   const radius = `${cornerRadius}px`;
-  const plain = `blur(${blur}px)`;
 
   return (
     <div
       ref={rootRef}
       className={`lg-root ${className}`}
-      style={{ position: "absolute", inset: 0, "--lg-plain": plain } as CSSProperties}
+      style={{ position: "absolute", inset: 0 }}
     >
       <div
         className="lg-glass"
         style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden" }}
       >
-        <span
-          ref={lensRef}
-          className="lg-warp"
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: radius,
-            backdropFilter: "var(--hyalite, var(--lg-plain))",
-            WebkitBackdropFilter: "var(--hyalite, var(--lg-plain))",
-          }}
-        />
-        {/* 同一材质内的渐变散射：中央承托文字，透镜边缘保留背景细节。 */}
+        {/* 中央散射承托文字，渐变遮罩向边缘淡出。滤镜内联保留标准属性。 */}
         <span
           className="lg-diffusion"
           aria-hidden="true"

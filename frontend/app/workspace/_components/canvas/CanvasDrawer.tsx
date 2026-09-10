@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
@@ -48,6 +49,10 @@ interface CanvasDrawerProps {
   onClose: () => void;
   badge?: CardBadge;
   skipEntrance?: boolean;
+  children?: ReactNode;
+  spatial?: boolean;
+  origin?: { x: number; y: number; w: number; h: number };
+  subtitle?: string;
 }
 
 /** 固定标题与阅读提示；事实摘要留在正文，避免重复。 */
@@ -97,6 +102,10 @@ export function CanvasDrawer({
   onClose,
   badge,
   skipEntrance = false,
+  children,
+  spatial = false,
+  origin,
+  subtitle,
 }: CanvasDrawerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
@@ -105,6 +114,7 @@ export function CanvasDrawer({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const closingRef = useRef(false);
   const onCloseRef = useRef(onClose);
+  const originRef = useRef(origin);
   const titleId = useId();
   const m = META[cardType];
   const { ctx: traceCtx, activeDoc } = useTraceState(
@@ -135,13 +145,30 @@ export function CanvasDrawer({
         duration: DUR_MICRO,
         ease: TRACE_EASE_ENTER,
       });
-      gsap.from(".cv-drawer-panel", {
-        xPercent: 100,
-        duration: DUR_PANEL,
-        ease: TRACE_EASE_ENTER,
-      });
+      const panel =
+        rootRef.current?.querySelector<HTMLElement>(".cv-drawer-panel");
+      const rect = panel?.getBoundingClientRect(),
+        from = originRef.current;
+      if (spatial && panel && rect && from)
+        gsap.from(panel, {
+          x: from.x + from.w / 2 - rect.left - rect.width / 2,
+          y: from.y + from.h / 2 - rect.top - rect.height / 2,
+          scaleX: from.w / rect.width,
+          scaleY: from.h / rect.height,
+          autoAlpha: 0.35,
+          duration: 0.4,
+          ease: "power3.out",
+          clearProps: "transform,opacity,visibility",
+        });
+      else
+        gsap.from(".cv-drawer-panel", {
+          xPercent: spatial ? 0 : 100,
+          autoAlpha: 0,
+          duration: DUR_PANEL,
+          ease: TRACE_EASE_ENTER,
+        });
     },
-    { scope: rootRef, dependencies: [skipEntrance] },
+    { scope: rootRef, dependencies: [skipEntrance, spatial] },
   );
 
   // 预览层关闭后焦点回发起签:卸载会让焦点散落到 body,焦点圈断裂
@@ -220,18 +247,37 @@ export function CanvasDrawer({
       return;
     }
     closingRef.current = true;
+    const from = originRef.current;
+    const rect = panel.getBoundingClientRect();
+    // 入场可能尚未结束：屏幕矩形包含当前位移和缩放，退场目标须
+    // 换回同一个 transform 坐标系，才能从当前画面准确收回来源卡片。
+    const currentX = Number(gsap.getProperty(panel, "x")) || 0;
+    const currentY = Number(gsap.getProperty(panel, "y")) || 0;
+    const currentScaleX = Number(gsap.getProperty(panel, "scaleX")) || 1;
+    const currentScaleY = Number(gsap.getProperty(panel, "scaleY")) || 1;
     gsap.to(scrim, {
       autoAlpha: 0,
       duration: DUR_MICRO,
       ease: TRACE_EASE_EXIT,
     });
     gsap.to(panel, {
-      xPercent: 100,
-      duration: DUR_FLOAT,
+      ...(spatial && from
+        ? {
+            x: currentX + from.x + from.w / 2 - rect.left - rect.width / 2,
+            y: currentY + from.y + from.h / 2 - rect.top - rect.height / 2,
+            scaleX: (from.w / rect.width) * currentScaleX,
+            scaleY: (from.h / rect.height) * currentScaleY,
+            autoAlpha: 0,
+          }
+        : spatial
+          ? { scale: 0.97, autoAlpha: 0 }
+          : { xPercent: 100 }),
+      duration: spatial ? DUR_PANEL : DUR_FLOAT,
       ease: TRACE_EASE_EXIT,
+      overwrite: true,
       onComplete: () => onCloseRef.current(),
     });
-  }, []);
+  }, [spatial]);
 
   useEffect(() => {
     previousFocusRef.current =
@@ -298,7 +344,11 @@ export function CanvasDrawer({
   };
 
   return (
-    <div ref={rootRef} className="cv-drawer">
+    <div
+      ref={rootRef}
+      className={`cv-drawer${spatial ? " sp-reader-host" : ""}`}
+      data-no-gesture
+    >
       {/* 遮罩只做纯色调光:下方画布上浮着玻璃面(消息窗/看板/药丸),scrim 再上
           backdrop blur 就是「玻璃叠玻璃」。调光色走 CSS 的 token 派生(--label 24%)。 */}
       <div className="cv-drawer-scrim" onPointerDown={requestClose} />
@@ -327,7 +377,9 @@ export function CanvasDrawer({
                       {title}
                     </div>
                     <div className="cv-drawer-sub">
-                      {m.stage} · {badge?.label ?? m.status}
+                      {children
+                        ? subtitle
+                        : `${m.stage} · ${badge?.label ?? m.status}`}
                     </div>
                   </div>
                 </>
@@ -362,10 +414,10 @@ export function CanvasDrawer({
                     </button>
                   </div>
                 )}
-              <CardDetail type={type} />
+              {children ?? <CardDetail type={type} />}
             </div>
 
-            {!isMatrixCardType(cardType) && (
+            {!isMatrixCardType(cardType) && !children && (
               <div className="cv-drawer-foot">
                 演示产物 · 展示信息结构，不写入真实项目。
               </div>

@@ -1,401 +1,1836 @@
 "use client";
 
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
+  type ChangeEvent,
 } from "react";
-import { gsap } from "gsap";
 import Link from "next/link";
-import { CardPreview } from "./CardPreview";
-import "./workspace-surface.css";
 import { useWorkspaceStore } from "@/lib/store/workspace";
 import {
+  appendFiles,
+  addCollection,
+  addEntity,
+  fileKind,
+  matrixSource,
+} from "@/lib/canvas/adapters";
+import { demoSource } from "@/lib/canvas/demo";
+import {
+  bounds,
+  canReparent,
+  dissolve,
+  intersects,
+  reparent,
+  worldPoint,
+  type CanvasPlacement,
+  type Rect,
+} from "@/lib/canvas/model";
+import {
+  downloadEntity,
+  filesFromDrop,
+  saveLocalFile,
+  type ImportFile,
+} from "@/lib/canvas/files";
+import {
+  ArrowRightIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  DownloadIcon,
+  FileIcon,
+  FileTextIcon,
+  FolderSimpleIcon,
   FrameIcon,
   GridIcon,
+  LayersIcon,
   MinusIcon,
+  PenIcon,
   PlusIcon,
   RefreshCcwIcon,
-  FileIcon,
-  ArrowRightIcon,
+  RefreshIcon,
+  SearchIcon,
+  UploadIcon,
+  XIcon,
 } from "@/components/ui/icons";
-import { DUR_PANEL, TRACE_EASE_ENTER } from "./traceMotion";
-import { useCanvasViewport, type WorldRect } from "./useCanvasViewport";
-import { SpineCard } from "./SpineCard";
-import { CanvasLinks } from "./CanvasLinks";
-import { ArtifactCard, type CardBadge } from "./ArtifactCard";
-import { CanvasDrawer } from "./CanvasDrawer";
-import { CanvasDock } from "./CanvasDock";
 import { MessageWindow } from "../MessageWindow";
 import { AgentBoard } from "./AgentBoard";
+import { CanvasDock } from "./CanvasDock";
+import { CanvasDrawer } from "./CanvasDrawer";
+import { CardPreview } from "./CardPreview";
+import { META } from "./cardMeta";
+import { MATRIX_CARD_ORDER } from "./choreography";
+import { SpatialCard } from "./spatial/SpatialCard";
+import { SpatialReader } from "./spatial/SpatialReader";
+import { useCanvasDocument } from "./spatial/useCanvasDocument";
+import { useCanvasAssets } from "./spatial/useCanvasAssets";
+import { useSpatialGestures } from "./spatial/useSpatialGestures";
+import { useCollectionMotion } from "./spatial/useCollectionMotion";
+import { useStableEvent } from "./spatial/useStableEvent";
 import {
-  LINK_DEFS,
-  META,
-  SPINE,
-  initialCards,
-  isMatrixCardType,
-  matrixCardBadgeForPhase,
-  type CardInst,
-  type CardType,
-} from "./cardMeta";
-import {
-  MATRIX_CARD_ORDER,
-  cardsForStage,
-  deriveChoreoStage,
-  type ChoreoStage,
-} from "./choreography";
-import type { DetailType } from "./CardDetail";
+  placementInContext,
+  recoverNavigation,
+  type CanvasFrame as Frame,
+} from "@/lib/canvas/navigation";
+import type { MatrixType } from "@/lib/hagent/matrix";
+import "./workspace-surface.css";
+import "./spatial/spatial.css";
 
-// 停靠飞行与相机取景是同一次运镜的两个组成部分,时长/曲线必须一致,
-// 否则相机先落定、卡片还在飞,读成两拍子。节拍走 traceMotion 的 panel 档与品牌标准缓动。
-const FLIGHT_MOTION = { duration: DUR_PANEL, ease: TRACE_EASE_ENTER } as const;
+const EMPTY_MEMBERS: [] = [];
+const COLORS = ["white", "blue", "green", "yellow", "pink", "violet", "slate"];
+const COLOR_NAMES = ["白色", "蓝色", "绿色", "黄色", "粉色", "紫色", "灰蓝"];
 
-interface DrawerState {
-  type: DetailType;
-  cardType: CardType;
-  title: string;
-  skipEntrance?: boolean;
-}
-
-/** 内容包围盒（world 坐标）：制品卡并集;演示模式并入 mock 主轴卡 */
-function computeBounds(cards: CardInst[], withSpine: boolean): WorldRect {
-  let minX = withSpine ? SPINE.x : Infinity;
-  let minY = withSpine ? SPINE.y : Infinity;
-  let maxX = withSpine ? SPINE.x + SPINE.w : -Infinity;
-  let maxY = withSpine ? SPINE.y + SPINE.headerH + SPINE.nodes.length * SPINE.rowH : -Infinity;
-  for (const c of cards) {
-    const m = META[c.type];
-    minX = Math.min(minX, c.x);
-    minY = Math.min(minY, c.y);
-    maxX = Math.max(maxX, c.x + m.w);
-    maxY = Math.max(maxY, c.y + m.h);
-  }
-  if (minX > maxX) return { x: 0, y: 0, w: 800, h: 600 };
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-}
-
-/** 空间只围绕真实产物计算，不为未实现的下一阶段预留空白。 */
-function resolveBounds(cards: CardInst[], realMode: boolean): WorldRect {
-  return computeBounds(cards, !realMode);
-}
+/** 常驻浮层按各自订阅更新；画布相机、选择和布局变化停在此边界。 */
+const WorkspaceChrome = memo(function WorkspaceChrome() {
+  return (
+    <>
+      <div data-no-gesture className="sp-chat-chrome">
+        <MessageWindow />
+      </div>
+      <div data-no-gesture className="sp-agent-chrome">
+        <AgentBoard />
+      </div>
+      <div data-no-gesture className="sp-composer-chrome">
+        <CanvasDock />
+      </div>
+    </>
+  );
+});
 
 export function CanvasPane({ demo = false }: { demo?: boolean }) {
-  const [viewMode, setViewMode] = useState<"overview" | "canvas">(demo ? "canvas" : "overview");
-  const streamSize = useWorkspaceStore((s) => s.streamSize);
-  const phase = useWorkspaceStore((s) => s.phase);
-  const matrices = useWorkspaceStore((s) => s.matrices);
   const projectId = useWorkspaceStore((s) => s.projectId);
-  const projectName = useWorkspaceStore((s) => s.projectName);
-  const witnessedParse = useWorkspaceStore((s) => s.witnessedParse);
-
-  // 真实工作区默认显示空态，只有明确的 demo 入口展示原型。
-  const realMode = !demo && (phase !== "idle" || Boolean(projectId));
-  const running = phase === "creating" || phase === "uploading" || phase === "running";
-
-  // 停靠单向阀:同一模式 + 同一项目内停靠过就不再回落(纯推导的 dockedBefore 输入)。
-  // 换项目 / 回 idle 即开新纪元。用「渲染期比对上一状态」的官方派生模式:纪元与槽位
-  // 可能在同一次 set 里一起变化,阀值必须在本次渲染就重置,不能等 effect。
-  const choreoEpoch = realMode ? `real:${projectId ?? ""}` : "mock";
-  const [prevEpoch, setPrevEpoch] = useState(choreoEpoch);
-  const [dockedOnce, setDockedOnce] = useState(false);
-  const epochChanged = prevEpoch !== choreoEpoch;
-  if (epochChanged) {
-    setPrevEpoch(choreoEpoch);
-    setDockedOnce(false);
-  }
-
-  // 编排阶段(真实模式):中心舞台 / 已停靠 / 解析中断,由槽位状态 + 进入路径纯推导。
-  const stage: ChoreoStage | null = realMode
-    ? deriveChoreoStage({
-        statuses: {
-          basic_info: matrices.basic_info.status,
-          business: matrices.business.status,
-          technical: matrices.technical.status,
-          scoring: matrices.scoring.status,
-        },
-        witnessed: witnessedParse,
-        streamAborted: phase === "error",
-        dockedBefore: !epochChanged && dockedOnce,
-      })
-    : null;
-  if (stage === "docked" && !epochChanged && !dockedOnce) setDockedOnce(true);
-
-  const [cards, setCards] = useState<CardInst[]>(() =>
-    realMode ? cardsForStage(stage ?? "center") : initialCards(),
+  return (
+    <SpatialWorkspace
+      key={demo ? "demo" : (projectId ?? "new")}
+      demo={demo}
+      projectId={demo ? null : projectId}
+    />
   );
-  const [drawer, setDrawer] = useState<DrawerState | null>(null);
+}
 
-  const cardsRef = useRef(cards);
-  useEffect(() => {
-    cardsRef.current = cards;
-  }, [cards]);
-  const boundsRef = useRef<WorldRect>(resolveBounds(cards, realMode));
-
-  const getCard = useCallback((id: string) => cardsRef.current.find((c) => c.id === id), []);
-  const moveCard = useCallback((id: string, x: number, y: number) => {
-    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, x, y, isNew: false } : c)));
-  }, []);
-  const openCard = useCallback((id: string, source: "pointer" | "keyboard" = "pointer") => {
-    const c = cardsRef.current.find((card) => card.id === id);
-    if (!c) return;
-    setDrawer({
-      type: c.type,
-      cardType: c.type,
-      title: c.title || META[c.type].title,
-      skipEntrance: source === "keyboard",
-    });
-  }, []);
-  const openOutline = useCallback((source: "pointer" | "keyboard" = "pointer") => {
-    setDrawer({
-      type: "__outline",
-      cardType: "outline",
-      title: "投标大纲",
-      skipEntrance: source === "keyboard",
-    });
-  }, []);
-
-  const { viewportRef, worldRef, zoomLabelRef, startCardDrag, zoomIn, zoomOut, fit, resetView } =
-    useCanvasViewport({ getCard, onCardMove: moveCard, onCardClick: openCard, boundsRef });
-
-  // 整套重铺卡位并同步包围盒(供「适应」即时读取,不等 [cards] effect)。
-  const applyLayout = useCallback((next: CardInst[], mode: boolean) => {
-    setCards(next);
-    boundsRef.current = resolveBounds(next, mode);
-  }, []);
-
-  // 包围盒随卡片变化刷新（命令式，供「适应」即时读取）。初次适应由视口 ResizeObserver 驱动。
-  useEffect(() => {
-    boundsRef.current = resolveBounds(cards, realMode);
-  }, [cards, realMode, stage]);
-
-  // 停靠飞行(亲历会话专属):阶段切换沿记录各卡「旧卡位 → 停靠位」的位移,
-  // 待新卡位提交后由 layout effect 以 gsap 回放。恢复/刷新路径装载即停靠、
-  // 不经过切换沿,天然不重放动画。
-  const flightRef = useRef<Map<string, { dx: number; dy: number }> | null>(null);
-  const flightTlRef = useRef<gsap.core.Timeline | null>(null);
-
-  // 终止飞行并清残余 transform:卡片 DOM 按 key(恒为矩阵类型名)跨纪元复用,
-  // 单纯 kill 会把中途位移永久留在元素上,错位下一纪元的卡位。
-  const killFlight = useCallback(() => {
-    flightRef.current = null;
-    if (!flightTlRef.current) return;
-    flightTlRef.current.kill();
-    flightTlRef.current = null;
-    const world = worldRef.current;
-    if (world) {
-      gsap.set(world.querySelectorAll<HTMLElement>(".cv-card, .cv-next-hint-body"), {
-        clearProps: "transform,opacity,visibility",
-      });
+function SpatialWorkspace({
+  demo,
+  projectId,
+}: {
+  demo: boolean;
+  projectId: string | null;
+}) {
+  const matrices = useWorkspaceStore((s) => s.matrices),
+    phase = useWorkspaceStore((s) => s.phase),
+    projectName = useWorkspaceStore((s) => s.projectName),
+    streamSize = useWorkspaceStore((s) => s.streamSize);
+  const running = [
+    "creating",
+    "uploading",
+    "running",
+    "loading_results",
+  ].includes(phase);
+  const [scenario, setScenario] = useState<
+    "complete" | "working" | "partial" | "stress"
+  >("complete");
+  const assets = useCanvasAssets(projectId, running);
+  const matrixData = useMemo(
+    () => matrixSource(matrices, phase, Boolean(projectId)),
+    [matrices, phase, projectId],
+  );
+  const source = useMemo(() => {
+    if (demo) return demoSource(scenario);
+    const base = matrixData;
+    const uploaded = assets.uploads
+      .filter((u) => u.status === "ready" && !u.parsing)
+      .map((u) => ({ path: `sources/${u.path}`, size: u.file.size }));
+    const allFiles = [
+      ...new Map(
+        [...assets.files, ...uploaded].map((f) => [f.path, f]),
+      ).values(),
+    ];
+    const result = projectId
+      ? appendFiles(base, projectId, allFiles, assets.documents)
+      : base;
+    if (assets.uploads.length && !result.collections.materials)
+      addCollection(result, "materials", "项目资料", "folder", 0, 50);
+    for (const item of assets.uploads) {
+      if (!item.parsing || !item.originSha256) continue;
+      const id = `pdf:${item.originSha256}`;
+      if (result.entities[id]) continue;
+      let parent = "materials";
+      const parts = item.path.split("/").slice(0, -1);
+      for (let i = 0; i < parts.length; i++) {
+        const directoryId = `directory:${parts.slice(0, i + 1).join("/")}`;
+        if (!result.collections[directoryId]) {
+          const n = Object.values(result.placements).filter(
+            (p) => p.parentId === parent,
+          ).length;
+          addCollection(
+            result,
+            directoryId,
+            parts[i]!,
+            "folder",
+            (n % 4) * 350,
+            Math.floor(n / 4) * 430,
+            parent,
+          );
+        }
+        parent = directoryId;
+      }
+      const n = Object.values(result.placements).filter(
+        (p) => p.parentId === parent,
+      ).length;
+      addEntity(
+        result,
+        {
+          id,
+          kind: "document",
+          title: item.file.name,
+          path: `sources/${item.path}`,
+          src: item.previewUrl,
+          size: item.file.size,
+          status: "working",
+          statusText: "等待原文就绪",
+          subtitle: "PDF 已上传",
+        },
+        (n % 4) * 350,
+        Math.floor(n / 4) * 430,
+        parent,
+      );
     }
-  }, [worldRef]);
-  useEffect(() => () => killFlight(), [killFlight]);
-
-  // 模式翻转 / 编排阶段切换时重铺卡位(边沿触发):
-  // - 模式翻转(startParse / resumeProject / reset):整套重铺并收起抽屉;进入真实模式
-  //   无条件适应视口——即使用户在 idle 原型里动过视图,新布局也是全新纪元,必须可见;
-  // - 阶段切入「已停靠」:一次性接管全部卡位(含被拖动过的),此后不再干预;
-  //   亲历会话播放停靠飞行(reduced-motion 直切);相机与飞行同拍取景——停靠是一次性的
-  //   阶段叙事(新场景),即使用户解析期间动过视图也要无条件框住整列,溢出不可接受;
-  // - 阶段切入「解析中断」:定格原位,不动卡。
-  const prevChoreo = useRef<{ realMode: boolean; stage: ChoreoStage | null; epoch: string }>({
-    realMode,
-    stage,
-    epoch: choreoEpoch,
-  });
+    if (assets.busy && result.collections.materials) {
+      result.collections.materials.status = "working";
+      result.collections.materials.subtitle = `正在导入 · ${assets.uploads.filter((u) => u.status === "ready" || u.status === "processing").length}/${assets.uploads.length}`;
+    }
+    return result;
+  }, [
+    demo,
+    scenario,
+    matrixData,
+    projectId,
+    assets.files,
+    assets.documents,
+    assets.uploads,
+    assets.busy,
+  ]);
+  const doc = useCanvasDocument(demo ? "demo" : (projectId ?? "new"), source),
+    { scene } = doc;
+  const [viewMode, setViewMode] = useState<"canvas" | "overview">("canvas"),
+    [selection, setSelection] = useState<string[]>([]);
+  const [folder, setFolder] = useState<string | null>(null),
+    [stack, setStack] = useState<string | null>(null),
+    [frames, setFrames] = useState<Frame[]>([]);
+  const [reader, setReader] = useState<{ id: string; origin?: Rect } | null>(
+      null,
+    ),
+    [matrixReader, setMatrixReader] = useState<MatrixType | null>(null);
+  const [palette, setPalette] = useState(false),
+    [renaming, setRenaming] = useState<string | null>(null),
+    [renameDraft, setRenameDraft] = useState("");
+  const [toast, setToast] = useState(""),
+    [dropOver, setDropOver] = useState(false),
+    [query, setQuery] = useState(""),
+    [showSearch, setShowSearch] = useState(false);
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [localBusy, setLocalBusy] = useState(false),
+    [help, setHelp] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null),
+    folderInput = useRef<HTMLInputElement>(null),
+    imageInput = useRef<HTMLInputElement>(null),
+    morph = useRef<HTMLDivElement>(null);
+  const folderAnimation = useRef<Animation | null>(null),
+    dropDepth = useRef(0),
+    fitted = useRef(false),
+    root = useRef<HTMLDivElement>(null),
+    mounted = useRef(true),
+    importLock = useRef(false),
+    focusRequest = useRef(0);
   useEffect(() => {
-    const prev = prevChoreo.current;
-    prevChoreo.current = { realMode, stage, epoch: choreoEpoch };
-    // 纪元切换沿先终止在途飞行:复用的卡片 DOM 不能把上一纪元的位移带进新布局。
-    if (prev.realMode !== realMode || prev.epoch !== choreoEpoch) killFlight();
-    if (prev.realMode !== realMode) {
-      applyLayout(realMode ? cardsForStage(stage ?? "center") : initialCards(), realMode);
-      setDrawer(null);
-      if (realMode) fit();
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      folderAnimation.current?.cancel();
+      cancelAnimationFrame(focusRequest.current);
+    };
+  }, []);
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(""), 3400);
+    return () => clearTimeout(timeout);
+  }, [toast]);
+  const children = useMemo(() => {
+    const result = new Map<string | null, CanvasPlacement[]>();
+    for (const p of Object.values(scene.placements)) {
+      const group = result.get(p.parentId) ?? [];
+      group.push(p);
+      result.set(p.parentId, group);
+    }
+    return result;
+  }, [scene.placements]);
+  const stackPlacement = useMemo(() => {
+    const item = stack
+      ? Object.values(scene.placements).find((p) => p.entityId === stack)
+      : undefined;
+    return item ? placementInContext(scene, item, folder) : undefined;
+  }, [scene, folder, stack]);
+  const cardMembers = useMemo(
+    () =>
+      new Map(
+        [...children].map(([id, items]) => [
+          id,
+          items
+            .slice(0, 3)
+            .map((placement) => ({
+              placement,
+              entity: scene.entities[placement.entityId],
+              collection: scene.collections[placement.entityId],
+            })),
+        ]),
+      ),
+    [children, scene.entities, scene.collections],
+  );
+  const displayed = useMemo(() => {
+    const base = children.get(folder) ?? [];
+    if (!stack || !stackPlacement) return base;
+    return [
+      ...base.filter((p) => p.entityId !== stack),
+      ...(children.get(stack) ?? []).map((p) => ({
+        ...p,
+        x: p.x + stackPlacement.x,
+        y: p.y + stackPlacement.y + 50,
+      })),
+    ];
+  }, [children, folder, stack, stackPlacement]);
+  const interactiveItems = stack
+    ? displayed.filter((p) => p.parentId === stack)
+    : displayed;
+  const selected = selection
+    .map((id) => scene.placements[id])
+    .filter(
+      (p): p is CanvasPlacement =>
+        p !== undefined && p.parentId === (stack ?? folder),
+    );
+  const first = selected[0],
+    selectedCollection = first ? scene.collections[first.entityId] : undefined;
+  const commitPlacements = (
+    items: CanvasPlacement[],
+    dropId: string | null,
+  ) => {
+    const target = dropId ? scene.placements[dropId] : undefined;
+    if (target) {
+      collectionMotion.capture();
+      doc.update((s) =>
+        reparent(
+          s,
+          scene,
+          items.map((i) => i.id),
+          target.entityId,
+        ),
+      );
+      setSelection([]);
+      setToast(`已收入「${scene.collections[target.entityId]?.title}」`);
+    } else
+      doc.update((s) => {
+        const placements = { ...s.placements };
+        for (const item of items) {
+          const current = scene.placements[item.id];
+          if (!current) continue;
+          placements[item.id] = {
+            ...item,
+            x:
+              item.x -
+              (stack && current.parentId === stack
+                ? (stackPlacement?.x ?? 0)
+                : 0),
+            y:
+              item.y -
+              (stack && current.parentId === stack
+                ? (stackPlacement?.y ?? 0) + 50
+                : 0),
+          };
+        }
+        return { ...s, placements };
+      });
+  };
+  const gestures = useSpatialGestures({
+    items: interactiveItems,
+    selection,
+    setSelection,
+    interactive: !reader && !matrixReader && viewMode === "canvas",
+    isMedia: (id) => {
+      const e = scene.entities[scene.placements[id]?.entityId ?? ""];
+      return e?.kind === "image" || e?.kind === "video";
+    },
+    canDrop: (ids, targetId) => {
+      const target = scene.placements[targetId];
+      return Boolean(
+        target &&
+        !ids.includes(targetId) &&
+        scene.collections[target.entityId] &&
+        canReparent(scene, ids, target.entityId),
+      );
+    },
+    onCommit: commitPlacements,
+    onCamera: (camera) => {
+      if (!folder && !stack) doc.update((s) => ({ ...s, camera }), false);
+    },
+  });
+  const collectionMotion = useCollectionMotion(gestures.world, gestures.camera);
+  const focusCard = useCallback((id: string) => {
+    setSelection((previous) => (previous.includes(id) ? previous : [id]));
+  }, []);
+  const captureOrigin = (id: string): Rect | undefined => {
+    const rect = root.current
+      ?.querySelector(`[data-placement="${CSS.escape(id)}"]`)
+      ?.getBoundingClientRect();
+    return rect
+      ? { x: rect.left, y: rect.top, w: rect.width, h: rect.height }
+      : undefined;
+  };
+  const animateFolder = (origin: Rect | undefined, opening: boolean) => {
+    const element = morph.current,
+      rect = gestures.viewport.current?.getBoundingClientRect();
+    if (
+      !element ||
+      !rect ||
+      !origin ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const current = folderAnimation.current
+      ? getComputedStyle(element).transform
+      : null;
+    folderAnimation.current?.cancel();
+    const small = `translate(${origin.x - rect.left}px,${origin.y - rect.top}px) scale(${origin.w / rect.width},${origin.h / rect.height})`,
+      large = "translate(0px,0px) scale(1,1)";
+    const animation = element.animate(
+      [
+        {
+          transform: current || (opening ? small : large),
+          opacity: 1,
+          borderRadius: "22px",
+        },
+        {
+          transform: opening ? large : small,
+          opacity: 0.95,
+          borderRadius: opening ? "0px" : "22px",
+          offset: 0.7,
+        },
+        { transform: opening ? large : small, opacity: 0 },
+      ],
+      { duration: 760, easing: "cubic-bezier(.77,0,.175,1)", fill: "both" },
+    );
+    folderAnimation.current = animation;
+    void animation.finished
+      .then(() => {
+        if (folderAnimation.current === animation) {
+          animation.cancel();
+          folderAnimation.current = null;
+        }
+      })
+      .catch(() => {});
+  };
+  const restoreFocus = useCallback((ids: string[]) => {
+    cancelAnimationFrame(focusRequest.current);
+    focusRequest.current = requestAnimationFrame(() => {
+      const target = ids
+        .map((id) =>
+          root.current?.querySelector<HTMLElement>(
+            `[data-placement="${CSS.escape(id)}"]:not([inert])`,
+          ),
+        )
+        .find(Boolean);
+      (
+        target ?? root.current?.querySelector<HTMLElement>(".sp-viewport")
+      )?.focus({ preventScroll: true });
+    });
+  }, []);
+  const enter = useStableEvent((id: string, keyboard = false) => {
+    if (!keyboard && gestures.suppress.current) {
+      gestures.suppress.current = false;
       return;
     }
-    if (!realMode || stage === null || stage === prev.stage || stage === "interrupted") return;
-    // 飞行只发生在同一纪元(同项目同模式)内的阶段切换沿:跨项目切换属于新纪元,
-    // 上一个项目的旧卡位不是本项目的飞行起点,直接落新布局。
-    const sameEpoch = prev.epoch === choreoEpoch;
-    if (sameEpoch && stage === "docked" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const from = new Map(cardsRef.current.map((c) => [c.id, c]));
-      flightRef.current = new Map(
-        cardsForStage("docked").map((c) => {
-          const p = from.get(c.id);
-          return [c.id, { dx: (p?.x ?? c.x) - c.x, dy: (p?.y ?? c.y) - c.y }];
-        }),
+    const p = displayed.find((item) => item.id === id) ?? scene.placements[id];
+    if (!p) return;
+    const collection = scene.collections[p.entityId];
+    if (collection) {
+      const members = (children.get(collection.id) ?? []).slice(
+        0,
+        gestures.view.width <= 600 ? 1 : 8,
       );
-    }
-    applyLayout(cardsForStage(stage), true);
-    // 有飞行时相机跟飞行同节拍;直切路径(reduced-motion / 跨纪元)用默认快速取景。
-    if (stage === "docked") fit(false, flightRef.current ? FLIGHT_MOTION : undefined);
-  }, [realMode, stage, choreoEpoch, applyLayout, fit, killFlight]);
-
-  // 飞行演绎:停靠卡位已提交,先把各卡 transform 反推回起点,再按停靠顺序 stagger 飞向终点;
-  // 「下一步」占位随队尾落地浮现(相对时间锚定,调 stagger/时长不再静默漂移)。
-  // 只动 transform/opacity,收尾清除内联样式,不留残余。
-  useLayoutEffect(() => {
-    const flight = flightRef.current;
-    if (!flight) return;
-    const world = worldRef.current;
-    if (!world) return;
-    killFlight();
-    const tl = gsap.timeline();
-    flightTlRef.current = tl;
-    MATRIX_CARD_ORDER.forEach((type, i) => {
-      const el = world.querySelector<HTMLElement>(`.cv-card[data-card-id="${type}"]`);
-      const d = flight.get(type);
-      if (!el || !d || (d.dx === 0 && d.dy === 0)) return;
-      tl.fromTo(
-        el,
-        { x: d.dx, y: d.dy },
-        { x: 0, y: 0, duration: FLIGHT_MOTION.duration, ease: FLIGHT_MOTION.ease, clearProps: "transform" },
-        i * 0.06,
-      );
-    });
-  }, [cards, worldRef, killFlight]);
-
-  // 重置画布:按当前编排阶段重铺卡位(已停靠→铺回停靠列,未完毕→铺回四宫格),mock 模式铺回原型初始位。
-  const reset = useCallback((instant = false) => {
-    setDrawer(null);
-    if (realMode) {
-      applyLayout(cardsForStage(stage ?? "center"), true);
-      fit(instant);
-    } else {
-      applyLayout(initialCards(), false);
-      resetView(instant);
-    }
-  }, [resetView, fit, realMode, stage, applyLayout]);
-
-  // 真实矩阵卡的徽标由 store 槽位派生(运行中未出数据也显示「解析中」,
-  // 流中断时未终态槽位翻「解析中断」);mock 卡走 META 静态值。
-  const streamAborted = phase === "error";
-  const badgeFor = useCallback(
-    (type: CardType): CardBadge | undefined =>
-      isMatrixCardType(type) ? matrixCardBadgeForPhase(matrices[type], running, streamAborted) : undefined,
-    [matrices, running, streamAborted],
-  );
-
-  // 抓卡即打断该卡在途 tween(停靠飞行/进场 pop)并清残余 transform:拖拽写 left/top、
-  // tween 写 transform,不打断则两者叠加,卡片脱离指针对抗到时间线结束。
-  const grabCard = useCallback(
-    (id: string, e: ReactPointerEvent) => {
-      const el = worldRef.current?.querySelector<HTMLElement>(`.cv-card[data-card-id="${id}"]`);
-      if (el) {
-        gsap.killTweensOf(el);
-        gsap.set(el, { clearProps: "transform" });
+      collectionMotion.capture();
+      setFrames((prev) => [
+        ...prev,
+        {
+          folder,
+          stack,
+          camera: { ...gestures.camera.current },
+          selection: [id],
+        },
+      ]);
+      setSelection([]);
+      setPalette(false);
+      if (keyboard) restoreFocus(members.map((member) => member.id));
+      if (collection.kind === "folder") {
+        animateFolder(captureOrigin(id), true);
+        setFolder(collection.id);
+        setStack(null);
+        gestures.fit(members);
+      } else {
+        setStack(collection.id);
+        gestures.fit(
+          members.map((child) => ({
+            ...child,
+            x: child.x + p.x,
+            y: child.y + p.y + 50,
+          })),
+        );
       }
-      startCardDrag(id, e);
+    } else if (scene.entities[p.entityId]?.kind === "note") {
+      setEditingNote(p.entityId);
+      setSelection([id]);
+    } else if (scene.entities[p.entityId]) {
+      root.current
+        ?.querySelector<HTMLElement>(`[data-placement="${CSS.escape(id)}"]`)
+        ?.focus({ preventScroll: true });
+      setReader({ id: p.entityId, origin: captureOrigin(id) });
+    }
+  });
+  const back = useStableEvent(() => {
+    const frame = frames.at(-1);
+    if (!frame) return;
+    collectionMotion.capture();
+    const item = Object.values(scene.placements).find(
+      (p) => p.entityId === (stack ?? folder),
+    );
+    const container = item
+      ? placementInContext(scene, item, frame.folder)
+      : undefined;
+    if (folder && !stack && container) {
+      const vp = gestures.viewport.current?.getBoundingClientRect();
+      if (vp)
+        animateFolder(
+          {
+            x: vp.left + frame.camera.x + container.x * frame.camera.z,
+            y: vp.top + frame.camera.y + container.y * frame.camera.z,
+            w: container.w * frame.camera.z,
+            h: container.h * frame.camera.z,
+          },
+          false,
+        );
+    }
+    setFolder(frame.folder);
+    setStack(frame.stack);
+    setSelection(frame.selection);
+    setFrames((prev) => prev.slice(0, -1));
+    gestures.moveCamera(frame.camera);
+    restoreFocus(frame.selection);
+  });
+  const recovery = useMemo(
+    () => recoverNavigation(scene, { folder, stack }, frames),
+    [scene, folder, stack, frames],
+  );
+  const recoverContext = useStableEvent(() => {
+    if (!recovery) return;
+    collectionMotion.clear();
+    folderAnimation.current?.cancel();
+    folderAnimation.current = null;
+    setFolder(recovery.frame.folder);
+    setStack(recovery.frame.stack);
+    setFrames(recovery.frames);
+    setSelection(recovery.frame.selection);
+    setEditingNote(null);
+    setPalette(false);
+    gestures.moveCamera(recovery.frame.camera, false);
+    restoreFocus(recovery.frame.selection);
+  });
+  useEffect(() => {
+    if (!recovery) return;
+    const frame = requestAnimationFrame(recoverContext);
+    return () => cancelAnimationFrame(frame);
+  }, [recovery, recoverContext]);
+  const groupSelection = (kind: "folder" | "stack") => {
+    if (selected.length < 2) return;
+    const id = crypto.randomUUID(),
+      rect = bounds(selected),
+      parent = stack ?? folder;
+    collectionMotion.capture();
+    doc.update((s) => {
+      const collection = {
+        id,
+        kind,
+        title: kind === "folder" ? "新建文件夹" : "新建堆叠",
+        color: "white",
+      };
+      const placements = {
+        ...s.placements,
+        [id]: {
+          id,
+          entityId: id,
+          x: rect.x,
+          y: rect.y,
+          w: kind === "folder" ? 312 : 280,
+          h: kind === "folder" ? 266 : 344,
+          parentId: parent,
+        },
+      };
+      selected.forEach((p, i) => {
+        placements[p.id] = {
+          ...p,
+          parentId: id,
+          x: (i % 4) * 324,
+          y: Math.floor(i / 4) * 420,
+        };
+      });
+      return {
+        ...s,
+        collections: { ...s.collections, [id]: collection },
+        placements,
+      };
+    });
+    setSelection([id]);
+    setToast(kind === "folder" ? "已建立文件夹" : "已整理成堆叠");
+  };
+  const removeSelection = () => {
+    if (!selection.length) return;
+    doc.update((s) => {
+      let next = s;
+      for (const p of selected)
+        if (scene.collections[p.entityId])
+          next = dissolve(next, scene, p.entityId);
+      return { ...next, hidden: [...new Set([...next.hidden, ...selection])] };
+    });
+    setSelection([]);
+    setToast("已从画布移除，可撤销恢复");
+  };
+  const addNote = () => {
+    const id = crypto.randomUUID(),
+      p = worldPoint(
+        { x: gestures.view.width / 2, y: gestures.view.height / 2 },
+        gestures.camera.current,
+      );
+    const offset =
+      stackPlacement && stack
+        ? { x: stackPlacement.x, y: stackPlacement.y + 50 }
+        : { x: 0, y: 0 };
+    doc.update((s) => ({
+      ...s,
+      entities: {
+        ...s.entities,
+        [id]: { id, kind: "note", title: "新的笔记", body: "", editable: true },
+      },
+      placements: {
+        ...s.placements,
+        [id]: {
+          id,
+          entityId: id,
+          parentId: stack ?? folder,
+          x: p.x - offset.x,
+          y: p.y - offset.y,
+          w: 280,
+          h: 280,
+        },
+      },
+    }));
+    setSelection([id]);
+    setEditingNote(id);
+  };
+  const pin = () => {
+    if (!first) return;
+    if (
+      Object.values(scene.placements).some(
+        (p) => p.entityId === first.entityId && p.parentId === null,
+      )
+    ) {
+      setToast("该内容已放在主画布");
+      return;
+    }
+    const id = crypto.randomUUID(),
+      rect = bounds(children.get(null) ?? []);
+    doc.update((s) => ({
+      ...s,
+      placements: {
+        ...s.placements,
+        [id]: {
+          ...first,
+          id,
+          parentId: null,
+          x: rect.x + rect.w + 70,
+          y: rect.y,
+        },
+      },
+    }));
+    setToast("已放到主画布，共享同一份内容");
+  };
+  const moveOut = () => {
+    collectionMotion.capture();
+    doc.update((s) =>
+      reparent(
+        s,
+        scene,
+        selection,
+        frames.at(-1)?.stack ?? frames.at(-1)?.folder ?? null,
+      ),
+    );
+    setSelection([]);
+  };
+  const importFiles = async (
+    items: ImportFile[],
+    targetParent = stack ?? folder,
+  ) => {
+    if (!items.length || assets.busy || importLock.current) return;
+    if (!projectId && !demo) {
+      setToast("先在下方添加招标文件，建立项目后即可导入素材");
+      return;
+    }
+    if (projectId) {
+      const uploaded = await assets.upload(items);
+      if (targetParent && mounted.current && uploaded)
+        doc.update((s) => {
+          const placements = { ...s.placements };
+          let n = (children.get(targetParent) ?? []).length;
+          for (const item of uploaded) {
+            if (item.status !== "ready" && item.status !== "processing")
+              continue;
+            const id = item.originSha256
+                ? `pdf:${item.originSha256}`
+                : `file:sources/${item.path}`,
+              kind = fileKind(item.path);
+            placements[id] = {
+              id,
+              entityId: id,
+              parentId: targetParent,
+              x: (n % 4) * 340,
+              y: Math.floor(n / 4) * 430,
+              w: 280,
+              h: kind === "image" || kind === "video" ? 210 : 374,
+            };
+            n++;
+          }
+          return { ...s, placements };
+        });
+      return;
+    }
+    importLock.current = true;
+    setLocalBusy(true);
+    try {
+      for (const item of items) {
+        const id = `local-file:${crypto.randomUUID()}`;
+        await saveLocalFile(id, item.file);
+        if (!mounted.current) return;
+        doc.update((s) => {
+          let parent = targetParent;
+          const collections = { ...s.collections },
+            placements = { ...s.placements },
+            directories = item.path.split("/").slice(0, -1);
+          directories.forEach((name, i) => {
+            const cid = `local-directory:${folder ?? "root"}:${directories.slice(0, i + 1).join("/")}`;
+            if (!collections[cid]) {
+              collections[cid] = {
+                id: cid,
+                title: name,
+                kind: "folder",
+                color: "white",
+              };
+              placements[cid] = {
+                id: cid,
+                entityId: cid,
+                parentId: parent,
+                x:
+                  80 +
+                  (Object.values(placements).filter(
+                    (p) => p.parentId === parent,
+                  ).length %
+                    4) *
+                    350,
+                y: 100,
+                w: 312,
+                h: 266,
+              };
+            }
+            parent = cid;
+          });
+          const n = Object.values({
+              ...scene.placements,
+              ...placements,
+            }).filter((p) => p.parentId === parent).length,
+            kind = fileKind(item.path);
+          placements[id] = {
+            id,
+            entityId: id,
+            parentId: parent,
+            x: (n % 4) * 324,
+            y: Math.floor(n / 4) * 420,
+            w: 280,
+            h: kind === "image" || kind === "video" ? 210 : 374,
+          };
+          return {
+            ...s,
+            collections,
+            placements,
+            entities: {
+              ...s.entities,
+              [id]: {
+                id,
+                kind,
+                title: item.file.name,
+                path: item.path,
+                size: item.file.size,
+                src: `local:${id}`,
+              },
+            },
+          };
+        });
+      }
+      setToast(`已导入 ${items.length} 项内容`);
+    } catch {
+      setToast("本地文件保存失败，请检查浏览器存储后重试");
+    } finally {
+      importLock.current = false;
+      if (mounted.current) setLocalBusy(false);
+    }
+  };
+  const inputFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const items = Array.from(event.target.files ?? []).map((file) => ({
+      file,
+      path: file.webkitRelativePath || file.name,
+    }));
+    event.target.value = "";
+    void importFiles(items);
+  };
+  const updateMediaSize = useStableEvent(
+    (id: string, width: number, height: number) => {
+      const placement = scene.placements[id],
+        entity = placement && scene.entities[placement.entityId];
+      if (
+        (demo && !entity?.src?.startsWith("local:")) ||
+        !width ||
+        !height ||
+        placement?.mediaRatio
+      )
+        return;
+      doc.update((s) => {
+        const current = s.placements[id] ?? placement;
+        if (!current || current.mediaRatio) return s;
+        const ratio = width / height,
+          w = Math.min(current.w, 560 * ratio);
+        return {
+          ...s,
+          placements: {
+            ...s.placements,
+            [id]: { ...current, w, h: w / ratio, mediaRatio: ratio },
+          },
+        };
+      }, false);
     },
-    [startCardDrag, worldRef],
   );
-
-  const cardEls = useMemo(
-    () =>
-      cards.map((c) => (
-        <ArtifactCard
-          key={c.id}
-          card={c}
-          badge={badgeFor(c.type)}
-          onStartDrag={(e) => grabCard(c.id, e)}
-          onOpen={(source) => openCard(c.id, source)}
-        />
-      )),
-    [cards, grabCard, openCard, badgeFor],
+  const cancelNoteEdit = useCallback(() => setEditingNote(null), []);
+  const saveNote = useStableEvent((id: string, title: string, body: string) => {
+    const entity = scene.entities[id];
+    if (entity && (entity.title !== title || entity.body !== body))
+      doc.update((s) => ({
+        ...s,
+        entities: {
+          ...s.entities,
+          [id]: { ...entity, title: title.trim() || "未命名笔记", body },
+        },
+      }));
+    setEditingNote(null);
+  });
+  const navigateEntity = (entityId: string) => {
+    if (scene.entities[entityId]) setReader({ id: entityId });
+  };
+  useLayoutEffect(() => {
+    if (!doc.hydrated || fitted.current || !displayed.length) return;
+    fitted.current = true;
+    if (doc.present.camera) gestures.moveCamera(doc.present.camera, false);
+    else gestures.fit(displayed, false);
+  }, [doc.hydrated, doc.present.camera, displayed, gestures]);
+  const compactBefore = useRef(false);
+  useLayoutEffect(() => {
+    const compact = gestures.view.width <= 600;
+    if (
+      compact &&
+      !compactBefore.current &&
+      doc.hydrated &&
+      interactiveItems.length
+    ) {
+      const focus =
+        interactiveItems.find((p) => selection.includes(p.id)) ??
+        interactiveItems[0]!;
+      gestures.fit([focus], false);
+    }
+    compactBefore.current = compact;
+  }, [gestures, doc.hydrated, interactiveItems, selection]);
+  const restoreCamera = gestures.moveCamera,
+    cameraRef = gestures.camera;
+  useLayoutEffect(() => {
+    if (viewMode === "canvas") restoreCamera({ ...cameraRef.current }, false);
+  }, [viewMode, restoreCamera, cameraRef]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (
+        reader ||
+        matrixReader ||
+        (event.target as HTMLElement).closest(
+          "input,textarea,select,[contenteditable=true]",
+        )
+      )
+        return;
+      const mod = event.ctrlKey || event.metaKey;
+      if (viewMode !== "canvas") {
+        if (event.key === "Escape") {
+          setHelp(false);
+          setShowSearch(false);
+        } else if (mod && event.key.toLowerCase() === "k") {
+          event.preventDefault();
+          setShowSearch((value) => !value);
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        if (help) setHelp(false);
+        else if (showSearch) setShowSearch(false);
+        else if (palette) setPalette(false);
+        else if (renaming) setRenaming(null);
+        else if (frames.length) back();
+        else setSelection([]);
+      }
+      if (mod && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        collectionMotion.capture();
+        if (event.shiftKey) doc.redo();
+        else doc.undo();
+      }
+      if (mod && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        setSelection(interactiveItems.map((p) => p.id));
+      }
+      if (mod && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setShowSearch((v) => !v);
+      }
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        removeSelection();
+      }
+      if (!mod && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        groupSelection(event.shiftKey ? "folder" : "stack");
+      }
+      if (!mod && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        addNote();
+      }
+      if (!mod && event.key === "0") gestures.fit();
+      if (!mod && event.key === "1") gestures.zoom(1, true);
+      if (!mod && /^Arrow/.test(event.key) && selected.length) {
+        event.preventDefault();
+        const step = event.shiftKey ? 10 : 1;
+        const dx =
+            event.key === "ArrowRight"
+              ? step
+              : event.key === "ArrowLeft"
+                ? -step
+                : 0,
+          dy =
+            event.key === "ArrowDown"
+              ? step
+              : event.key === "ArrowUp"
+                ? -step
+                : 0;
+        doc.update((s) => ({
+          ...s,
+          placements: {
+            ...s.placements,
+            ...Object.fromEntries(
+              selected.map((p) => [p.id, { ...p, x: p.x + dx, y: p.y + dy }]),
+            ),
+          },
+        }));
+      }
+    };
+    const paste = (event: ClipboardEvent) => {
+      if (
+        reader ||
+        matrixReader ||
+        (event.target as HTMLElement).closest(
+          "input,textarea,select,[contenteditable=true]",
+        )
+      )
+        return;
+      const files = Array.from(event.clipboardData?.files ?? []);
+      if (files.length) {
+        event.preventDefault();
+        void importFiles(files.map((file) => ({ file, path: file.name })));
+      } else {
+        const text = event.clipboardData?.getData("text/plain");
+        if (text) {
+          event.preventDefault();
+          const id = crypto.randomUUID();
+          doc.update((s) => ({
+            ...s,
+            entities: {
+              ...s.entities,
+              [id]: {
+                id,
+                kind: "note",
+                title: "剪贴笔记",
+                body: text,
+                editable: true,
+              },
+            },
+            placements: {
+              ...s.placements,
+              [id]: {
+                id,
+                entityId: id,
+                x: 120,
+                y: 120,
+                w: 280,
+                h: 280,
+                parentId: stack ?? folder,
+              },
+            },
+          }));
+          setSelection([id]);
+        }
+      }
+    };
+    window.addEventListener("keydown", key);
+    window.addEventListener("paste", paste);
+    return () => {
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("paste", paste);
+    };
+  });
+  const cameraRect = {
+    x: (-gestures.view.x - 450) / gestures.view.z,
+    y: (-gestures.view.y - 450) / gestures.view.z,
+    w: (gestures.view.width + 900) / gestures.view.z,
+    h: (gestures.view.height + 900) / gestures.view.z,
+  };
+  const visible = displayed.filter(
+    (p) =>
+      intersects(p, cameraRect) ||
+      (selection.length === 1 && selection.includes(p.id)),
   );
+  const selectedEntities = new Set(selected.map((p) => p.entityId));
+  const relations = scene.relations.filter(
+    (r) => selectedEntities.has(r.from) || selectedEntities.has(r.to),
+  );
+  const currentReader = reader ? scene.entities[reader.id] : undefined;
+  const matchResults = query.trim()
+    ? Object.values(scene.entities)
+        .filter((e) =>
+          `${e.title} ${e.body ?? ""}`
+            .toLowerCase()
+            .includes(query.toLowerCase()),
+        )
+        .slice(0, 20)
+    : [];
+  const busy = localBusy || assets.busy;
+  const saveRename = () => {
+    if (renaming && renameDraft.trim())
+      doc.update((s) => ({
+        ...s,
+        collections: {
+          ...s.collections,
+          [renaming]: {
+            ...scene.collections[renaming]!,
+            title: renameDraft.trim(),
+          },
+        },
+      }));
+    setRenaming(null);
+  };
 
   return (
-    <div className="canvas-pane workspace-surface" data-view={viewMode} data-stream={streamSize}>
-      {/* 画布工具条:霜 soft·regular,flush 嵌入(材质分区,不用 1px 线) */}
-      <div
-        className="cv-toolbar frost-glass frost-glass--soft frost-glass--flush frost-scroll-edge"
-        data-thick="regular"
-      >
-        <span className="cv-toolbar-label">
-          <GridIcon width={15} height={15} />
-          {demo && !realMode ? "演示画布" : "应答矩阵"}
-        </span>
-        <span className="cv-toolbar-sub">
-          {realMode
-            ? `${projectName ?? "招标文件解析"} · ${
-                running ? "正在解析" : phase === "done" ? "提取完成 · 按条目核验" : phase === "error" ? "操作未完成" : "载入结果"
-              }`
-            : demo ? "示例内容 · 不代表真实项目结果" : "添加文件，开始新项目"}
-        </span>
-        <span className="cv-toolbar-spacer" />
-        {realMode && <div className="cv-view-switch" role="group" aria-label="结果视图"><button type="button" aria-pressed={viewMode === "overview"} onClick={() => setViewMode("overview")}>概览</button><button type="button" aria-pressed={viewMode === "canvas"} onClick={() => { setViewMode("canvas"); requestAnimationFrame(() => fit(true)); }}>画布</button></div>}
-        <span className="cv-zoom" role="group" aria-label="缩放">
-          <button type="button" aria-label="缩小" onClick={(event) => zoomOut(event.detail === 0)}>
-            <MinusIcon width={15} height={15} />
-          </button>
-          <span className="cv-zoom-lvl" ref={zoomLabelRef}>
-            72%
-          </span>
-          <button type="button" aria-label="放大" onClick={(event) => zoomIn(event.detail === 0)}>
-            <PlusIcon width={15} height={15} />
-          </button>
-        </span>
-        <button type="button" className="cv-tool-btn" aria-label="适应画布" title="适应画布" onClick={(event) => fit(event.detail === 0)}>
-          <FrameIcon width={16} height={16} />
-        </button>
-        <button type="button" className="cv-tool-btn" aria-label="重置画布" title="重置画布" onClick={(event) => reset(event.detail === 0)}>
-          <RefreshCcwIcon width={16} height={16} />
-        </button>
-      </div>
-
-      <div className="canvas-viewport" ref={viewportRef} aria-label="制品画布">
-        <div className="cv-world" ref={worldRef} aria-hidden={viewMode !== "canvas"}>
-          {/* 真实模式不渲染 mock 主轴卡与任何连线层,四张矩阵卡即全部内容 */}
-          {!realMode && demo && <SpineCard onOpenOutline={openOutline} />}
-          {!realMode && demo && <CanvasLinks cards={cards} links={LINK_DEFS} />}
-          {(realMode || demo) && cardEls}
+    <div
+      ref={root}
+      className="canvas-pane workspace-surface sp-workspace"
+      data-view={viewMode}
+      data-stream={demo ? "min" : streamSize}
+      data-demo={demo || undefined}
+    >
+      <header className="sp-toolbar">
+        <div className="sp-space-title">
+          <GridIcon />
+          <span>{demo ? "标书编制空间" : projectName || "工作空间"}</span>
+          {demo && <small>演示</small>}
         </div>
-
-        {viewMode === "overview" && <section className="cv-overview" aria-label="项目解析结果">
-          {realMode ? <>
-            <header className="cv-overview-heading"><div><p>招标文件解析</p><h1>{projectName || "正在创建项目…"}</h1></div><Link href="/projects">全部项目 <ArrowRightIcon width={14} height={14} /></Link></header>
-            <div className="cv-overview-grid">
-              {MATRIX_CARD_ORDER.map((type) => {
-                const meta = META[type]; const Icon = meta.icon; const badge = badgeFor(type);
-                const requirementIds = type === "business" || type === "technical"
-                  ? new Set((matrices[type].data?.items ?? []).map((item) => item.id)) : null;
-                const reviewRows = requirementIds ? (matrices[type].itemRows ?? []).filter((row) => requirementIds.has(row.item_id)) : [];
-                return <button type="button" className="cv-overview-card" key={type} onClick={() => openCard(type)}>
-                  <span className="cv-face-head"><Icon width={16} height={16} /><span className="cv-face-name">{meta.title}</span>{badge && badge.tone !== "done" && <span className="cv-face-state">{badge.label}</span>}<ArrowRightIcon className="cv-overview-arrow" width={15} height={15} /></span>
-                  <CardPreview type={type} />
-                  {!!reviewRows.length && <span className="cv-overview-review">已核验 <b>{reviewRows.filter((row) => row.confirmed).length}</b> / {reviewRows.length} 条</span>}
-                </button>;
-              })}
+        <div className="sp-toolbar-right">
+          {demo && (
+            <select
+              aria-label="演示场景"
+              value={scenario}
+              onChange={(e) => {
+                setScenario(e.target.value as typeof scenario);
+                setReader(null);
+                setSelection([]);
+              }}
+            >
+              <option value="complete">完整成果</option>
+              <option value="working">正在生成</option>
+              <option value="partial">部分失败</option>
+              <option value="stress">大量资料</option>
+            </select>
+          )}
+          <button
+            aria-label="搜索画布"
+            title="搜索 · ⌘ K"
+            onClick={() => setShowSearch((v) => !v)}
+          >
+            <SearchIcon />
+          </button>
+          <div className="cv-view-switch" role="group" aria-label="结果视图">
+            <button
+              aria-pressed={viewMode === "canvas"}
+              onClick={() => setViewMode("canvas")}
+            >
+              画布
+            </button>
+            <button
+              aria-pressed={viewMode === "overview"}
+              onClick={() => setViewMode("overview")}
+            >
+              概览
+            </button>
+          </div>
+        </div>
+      </header>
+      <div
+        className="canvas-viewport sp-viewport"
+        ref={gestures.viewport}
+        role="region"
+        tabIndex={0}
+        aria-label="标书资料画布"
+        onDragEnter={(e) => {
+          if (e.dataTransfer.types.includes("Files")) {
+            e.preventDefault();
+            dropDepth.current++;
+            setDropOver(true);
+          }
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          dropDepth.current = Math.max(0, dropDepth.current - 1);
+          if (!dropDepth.current) setDropOver(false);
+        }}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          dropDepth.current = 0;
+          setDropOver(false);
+          const cardId = (e.target as HTMLElement).closest<HTMLElement>(
+            "[data-placement]",
+          )?.dataset.placement;
+          const candidate = cardId
+            ? scene.placements[cardId]?.entityId
+            : undefined;
+          const parent =
+            candidate && scene.collections[candidate]
+              ? candidate
+              : (stack ?? folder);
+          void filesFromDrop(e.dataTransfer)
+            .then((items) => importFiles(items, parent))
+            .catch(() => setToast("无法读取文件夹，请重新选择"));
+        }}
+      >
+        {viewMode === "canvas" && (
+          <>
+            <div
+              ref={gestures.world}
+              className="sp-world"
+              style={{ visibility: doc.hydrated ? undefined : "hidden" }}
+            >
+              {visible.map((p) => (
+                <SpatialCard
+                  key={p.id}
+                  placement={p}
+                  entity={scene.entities[p.entityId]}
+                  collection={scene.collections[p.entityId]}
+                  selected={selection.includes(p.id)}
+                  dimmed={Boolean(stack && p.parentId !== stack)}
+                  count={children.get(p.entityId)?.length ?? 0}
+                  members={cardMembers.get(p.entityId) ?? EMPTY_MEMBERS}
+                  onOpen={enter}
+                  onFocus={focusCard}
+                  editing={editingNote === p.entityId}
+                  onMediaSize={updateMediaSize}
+                  onCancelEdit={cancelNoteEdit}
+                  onSaveNote={saveNote}
+                />
+              ))}
+              <svg className="sp-relations" aria-hidden="true">
+                {relations.map((r) => {
+                  const a = displayed.find((p) => p.entityId === r.from),
+                    b = displayed.find((p) => p.entityId === r.to);
+                  if (!a || !b) return null;
+                  const x = a.x + a.w,
+                    y = a.y + a.h / 2,
+                    bx = b.x,
+                    by = b.y + b.h / 2;
+                  return (
+                    <path
+                      key={r.id}
+                      d={`M ${x} ${y} C ${x + 70} ${y}, ${bx - 70} ${by}, ${bx} ${by}`}
+                    />
+                  );
+                })}
+              </svg>
             </div>
-            <p className="cv-overview-guidance">选择一类结果，对照原文逐条核验。提取完成后，仍需人工确认要求与应答。</p>
-            <AgentBoard />
-          </> : <div className="cv-workspace-empty"><FileIcon width={30} height={30} /><h1>从一份招标文件开始</h1><p>在下方添加文件或选择样本，生成四类解析结果。<br />已有项目可从项目列表继续。</p><Link className="prose-button" href="/projects">查看项目 <ArrowRightIcon /></Link><Link className="cv-demo-link" href="/workspace?demo=1">查看画布示例</Link></div>}
-        </section>}
-
-        {/* 视口提示:按放置矩阵本应 lens thin,lens 预算已满,降级 霜 soft·thin */}
-        <div className="cv-viewport-hint frost-glass frost-glass--soft" data-thick="thin" aria-hidden="true">拖动画布 · 滚轮缩放 · 点击卡片查看详情</div>
-
-        {/* 对话浮层。挂在视口内部（而非 .canvas-pane 下）有两个理由：视口的
-            overflow:hidden 免费给出「不许骑到工具条上」的裁剪；展开态浮窗的
-            height: calc(100% - …) 也才以视口为解算盒。抽屉 z-30 的遮罩天然压住它们。 */}
-        {!demo && <MessageWindow />}
-        {viewMode === "canvas" && <AgentBoard />}
-        {demo ? <div className="cv-demo-exit"><span>画布演示 · 不写入真实项目</span><Link className="prose-button" href="/home">开始真实项目</Link><Link className="prose-button" href="/preview">查看文档排版示例</Link></div> : <CanvasDock />}
-
-        {drawer && (
-          <CanvasDrawer
-            type={drawer.type}
-            cardType={drawer.cardType}
-            title={drawer.title}
-            badge={badgeFor(drawer.cardType)}
-            skipEntrance={drawer.skipEntrance}
-            onClose={() => setDrawer(null)}
+            <div className="sp-marquee" ref={gestures.marquee} />
+            {!!frames.length && (
+              <nav
+                className="sp-breadcrumb"
+                aria-label="集合导航"
+                data-no-gesture
+              >
+                <button onClick={back}>
+                  <ChevronLeftIcon />
+                  返回{frames.at(-1)?.folder ? "文件夹" : "画布"}
+                </button>
+                <span>/</span>
+                <strong>
+                  {scene.collections[stack ?? folder ?? ""]?.title}
+                </strong>
+                <small>{children.get(stack ?? folder)?.length ?? 0} 项</small>
+                {scene.collections[stack ?? folder ?? ""]?.matrixType && (
+                  <button
+                    onClick={() =>
+                      setMatrixReader(
+                        scene.collections[stack ?? folder ?? ""]!.matrixType!,
+                      )
+                    }
+                  >
+                    列表核验 <ArrowRightIcon />
+                  </button>
+                )}
+              </nav>
+            )}
+            {!displayed.length && doc.hydrated && (
+              <div className="sp-empty" data-no-gesture>
+                <FolderSimpleIcon />
+                <h1>
+                  {folder || stack ? "让资料在这里相聚" : "从一份招标文件开始"}
+                </h1>
+                <p>
+                  {folder || stack
+                    ? "拖入文件，或添加一张笔记。"
+                    : "把项目资料放到画布上，逐步形成你的投标文件。"}
+                </p>
+                {!demo && !projectId ? (
+                  <Link href="/workspace?demo=1">
+                    探索示例空间 <ArrowRightIcon />
+                  </Link>
+                ) : (
+                  <button onClick={() => fileInput.current?.click()}>
+                    导入文件 <UploadIcon />
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        {viewMode === "overview" && (
+          <section
+            className="cv-overview sp-overview"
+            data-no-gesture
+            aria-label="项目概览"
+          >
+            <header className="cv-overview-heading">
+              <div>
+                <p>项目资料与编制成果</p>
+                <h1>
+                  {demo ? "智慧园区数字化建设" : projectName || "新的投标项目"}
+                </h1>
+              </div>
+              <Link href="/projects">
+                全部项目 <ArrowRightIcon />
+              </Link>
+            </header>
+            {!demo ? (
+              <div className="cv-overview-grid">
+                {MATRIX_CARD_ORDER.map((type) => (
+                  <button
+                    className="cv-overview-card"
+                    key={type}
+                    onClick={() => setMatrixReader(type)}
+                  >
+                    <span className="cv-face-head">
+                      {META[type].title}
+                      <ArrowRightIcon />
+                    </span>
+                    <CardPreview type={type} />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="sp-overview-demo">
+                {Object.values(scene.collections)
+                  .filter((c) => !scene.placements[c.id]?.parentId)
+                  .map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setViewMode("canvas");
+                        enter(c.id);
+                      }}
+                    >
+                      <LayersIcon />
+                      <strong>{c.title}</strong>
+                      <span>
+                        {c.subtitle || `${children.get(c.id)?.length ?? 0} 项`}
+                      </span>
+                      <ArrowRightIcon />
+                    </button>
+                  ))}
+              </div>
+            )}
+          </section>
+        )}
+        <div className="sp-folder-morph" ref={morph} aria-hidden="true" />
+        {dropOver && (
+          <div className="sp-drop-overlay">
+            <FolderSimpleIcon />
+            <span>{busy ? "正在导入，请稍候" : "松开，将资料放入空间"}</span>
+          </div>
+        )}
+        {!demo && <WorkspaceChrome />}
+        {viewMode === "canvas" && (
+          <>
+            <div
+              className="sp-tools"
+              role="toolbar"
+              aria-label="画布工具"
+              data-no-gesture
+            >
+              {selected.length > 0 && (
+                <>
+                  <span className="sp-selection-count">
+                    {selected.length} 项
+                  </span>
+                  <button
+                    title="打开"
+                    aria-label="打开所选内容"
+                    disabled={selected.length !== 1}
+                    onClick={() => first && enter(first.id)}
+                  >
+                    <ArrowRightIcon />
+                  </button>
+                  {selectedCollection && (
+                    <>
+                      <button
+                        title="重命名集合"
+                        aria-label="重命名集合"
+                        onClick={() => {
+                          setRenameDraft(selectedCollection.title);
+                          setRenaming(selectedCollection.id);
+                          setPalette(false);
+                        }}
+                      >
+                        <PenIcon />
+                      </button>
+                      <button
+                        className="sp-color-trigger"
+                        aria-label="文件夹颜色"
+                        onClick={() => {
+                          setPalette(!palette);
+                          setRenaming(null);
+                        }}
+                      >
+                        <span />
+                      </button>
+                      <button
+                        title="解散集合"
+                        aria-label="解散集合"
+                        onClick={() => {
+                          collectionMotion.capture();
+                          doc.update((s) =>
+                            dissolve(s, scene, selectedCollection.id),
+                          );
+                          setSelection([]);
+                        }}
+                      >
+                        <LayersIcon />
+                      </button>
+                    </>
+                  )}
+                  {selected.length > 1 && (
+                    <>
+                      <button
+                        aria-label="组成堆叠"
+                        title="组成堆叠 · G"
+                        onClick={() => groupSelection("stack")}
+                      >
+                        <LayersIcon />
+                      </button>
+                      <button
+                        aria-label="组成文件夹"
+                        title="组成文件夹 · Shift G"
+                        onClick={() => groupSelection("folder")}
+                      >
+                        <FolderSimpleIcon />
+                      </button>
+                    </>
+                  )}
+                  {first?.parentId && (
+                    <>
+                      <button
+                        title="放到主画布"
+                        aria-label="放到主画布"
+                        disabled={
+                          selected.length !== 1 || Boolean(selectedCollection)
+                        }
+                        onClick={pin}
+                      >
+                        <PlusIcon />
+                      </button>
+                      <button
+                        title="移出集合"
+                        aria-label="移出集合"
+                        onClick={moveOut}
+                      >
+                        <ArrowUpIcon />
+                      </button>
+                    </>
+                  )}
+                  {first &&
+                    !selectedCollection &&
+                    selected.length === 1 &&
+                    (scene.entities[first.entityId]?.src ||
+                      scene.entities[first.entityId]?.body) && (
+                      <button
+                        aria-label="下载所选内容"
+                        title="下载所选内容"
+                        onClick={() =>
+                          void downloadEntity(
+                            scene.entities[first.entityId]!,
+                          ).catch(() => setToast("文件暂时无法下载，请重试"))
+                        }
+                      >
+                        <DownloadIcon />
+                      </button>
+                    )}
+                  {selected.length > 1 && (
+                    <button
+                      aria-label="整理所选内容"
+                      title="整理所选内容"
+                      onClick={() => {
+                        collectionMotion.capture();
+                        const area = bounds(selected);
+                        doc.update((s) => ({
+                          ...s,
+                          placements: {
+                            ...s.placements,
+                            ...Object.fromEntries(
+                              selected.map((p, i) => [
+                                p.id,
+                                {
+                                  ...p,
+                                  x: area.x + (i % 4) * 340,
+                                  y: area.y + Math.floor(i / 4) * 430,
+                                },
+                              ]),
+                            ),
+                          },
+                        }));
+                      }}
+                    >
+                      <FrameIcon />
+                    </button>
+                  )}
+                  <button
+                    title="从画布移除"
+                    aria-label="从画布移除"
+                    onClick={removeSelection}
+                  >
+                    <XIcon />
+                  </button>
+                  <i />
+                </>
+              )}
+              <button
+                aria-label="添加笔记"
+                title="添加笔记 · N"
+                onClick={addNote}
+              >
+                <PenIcon />
+              </button>
+              <button
+                aria-label="导入文件"
+                title="导入文件"
+                disabled={busy}
+                onClick={() => fileInput.current?.click()}
+              >
+                <FileTextIcon />
+              </button>
+              <button
+                aria-label="导入图片或视频"
+                title="导入图片或视频"
+                disabled={busy}
+                onClick={() => imageInput.current?.click()}
+              >
+                <PlusIcon />
+              </button>
+              <button
+                aria-label="导入文件夹"
+                title="导入文件夹"
+                disabled={busy}
+                onClick={() => folderInput.current?.click()}
+              >
+                <FolderSimpleIcon />
+              </button>
+              <i />
+              <button
+                aria-label="撤销"
+                title="撤销 · ⌘ Z"
+                disabled={!doc.past.length}
+                onClick={() => {
+                  collectionMotion.capture();
+                  doc.undo();
+                }}
+              >
+                <RefreshCcwIcon />
+              </button>
+              <button
+                aria-label="重做"
+                title="重做 · ⇧ ⌘ Z"
+                disabled={!doc.future.length}
+                onClick={() => {
+                  collectionMotion.capture();
+                  doc.redo();
+                }}
+              >
+                <RefreshIcon />
+              </button>
+              {palette && selectedCollection && (
+                <div className="sp-palette">
+                  {COLORS.map((color, i) => (
+                    <button
+                      aria-label={COLOR_NAMES[i]}
+                      aria-pressed={selectedCollection.color === color}
+                      key={color}
+                      className={`color-${color}`}
+                      onClick={() =>
+                        doc.update((s) => ({
+                          ...s,
+                          collections: {
+                            ...s.collections,
+                            [selectedCollection.id]: {
+                              ...selectedCollection,
+                              color,
+                            },
+                          },
+                        }))
+                      }
+                    >
+                      {selectedCollection.color === color && <CheckIcon />}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {renaming && (
+                <form
+                  className="sp-rename"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    saveRename();
+                  }}
+                >
+                  <input
+                    aria-label="集合名称"
+                    autoFocus
+                    value={renameDraft}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setRenaming(null);
+                    }}
+                  />
+                  <button type="submit">保存</button>
+                </form>
+              )}
+            </div>
+            <div className="sp-zoom" data-no-gesture>
+              <button
+                aria-label="缩小画布"
+                onClick={() => gestures.zoom(1 / 1.2)}
+              >
+                <MinusIcon />
+              </button>
+              <button
+                aria-label="恢复百分之百"
+                onClick={() => gestures.zoom(1, true)}
+              >
+                {Math.round(gestures.view.z * 100)}%
+              </button>
+              <button aria-label="放大画布" onClick={() => gestures.zoom(1.2)}>
+                <PlusIcon />
+              </button>
+              <i />
+              <button aria-label="适应画布" onClick={() => gestures.fit()}>
+                <FrameIcon />
+              </button>
+            </div>
+            <button
+              className="sp-help-button"
+              aria-label="画布操作帮助"
+              data-no-gesture
+              onClick={() => setHelp(!help)}
+            >
+              ?
+            </button>
+          </>
+        )}
+        {!!relations.length && !reader && viewMode === "canvas" && (
+          <aside
+            className="sp-relation-list"
+            data-no-gesture
+            aria-label="所选内容的关联"
+          >
+            {relations.slice(0, 8).map((r) => {
+              const other = selectedEntities.has(r.from) ? r.to : r.from;
+              return (
+                <button key={r.id} onClick={() => navigateEntity(other)}>
+                  <span>
+                    {r.kind === "source"
+                      ? "原文依据"
+                      : r.kind === "response"
+                        ? "响应关联"
+                        : "引用素材"}
+                  </span>
+                  <b>{scene.entities[other]?.title}</b>
+                  <ArrowRightIcon />
+                </button>
+              );
+            })}
+          </aside>
+        )}
+        {((assets.uploads.length > 0 && assets.progressVisible) ||
+          assets.error ||
+          localBusy) && (
+          <aside
+            className="sp-upload-progress"
+            data-no-gesture
+            aria-label="导入进度"
+          >
+            <div>
+              <UploadIcon />
+              <strong>
+                {busy
+                  ? "正在导入资料"
+                  : assets.error
+                    ? "资料载入失败"
+                    : assets.uploads.some(
+                          (item) => item.status === "processing",
+                        )
+                      ? "文件已上传，等待原文就绪"
+                      : "资料导入完成"}
+              </strong>
+              {!busy && (
+                <button aria-label="关闭导入进度" onClick={assets.dismiss}>
+                  <XIcon />
+                </button>
+              )}
+            </div>
+            {assets.error && (
+              <p>
+                {assets.error}
+                <button onClick={() => void assets.reload()}>重新载入</button>
+              </p>
+            )}
+            {assets.uploads.length > 0 && (
+              <>
+                <progress
+                  max={assets.uploads.length}
+                  value={
+                    assets.uploads.filter(
+                      (u) =>
+                        u.status === "ready" ||
+                        u.status === "processing" ||
+                        u.status === "error",
+                    ).length
+                  }
+                />
+                <p>
+                  {
+                    assets.uploads.filter(
+                      (u) => u.status === "ready" || u.status === "processing",
+                    ).length
+                  }{" "}
+                  / {assets.uploads.length} 项已导入
+                </p>
+                {assets.uploads
+                  .filter(
+                    (u) =>
+                      u.status === "working" ||
+                      u.status === "processing" ||
+                      u.status === "error",
+                  )
+                  .map((u) => (
+                    <p key={u.id}>
+                      {u.file.name}
+                      <span>
+                        {u.error ||
+                          (u.status === "processing"
+                            ? "等待原文就绪"
+                            : "上传中")}
+                      </span>
+                    </p>
+                  ))}
+                {!busy && assets.uploads.some((u) => u.status === "error") && (
+                  <button
+                    onClick={() =>
+                      void assets.upload(
+                        assets.uploads
+                          .filter((u) => u.status === "error")
+                          .map((u) => ({ file: u.file, path: u.path })),
+                      )
+                    }
+                  >
+                    重试失败文件
+                  </button>
+                )}
+              </>
+            )}
+          </aside>
+        )}
+        {toast && (
+          <div className="sp-toast" role="status" data-no-gesture>
+            <CheckIcon />
+            {toast}
+          </div>
+        )}
+        {doc.storageError && (
+          <div className="sp-storage-warning" role="status">
+            浏览器存储已满，当前布局暂未保存。
+          </div>
+        )}
+        {showSearch && (
+          <div className="sp-search" data-no-gesture>
+            <div>
+              <SearchIcon />
+              <input
+                autoFocus
+                aria-label="搜索标题和正文"
+                placeholder="搜索标题或正文…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setShowSearch(false);
+                }}
+              />
+              <button
+                aria-label="关闭搜索"
+                onClick={() => setShowSearch(false)}
+              >
+                <XIcon />
+              </button>
+            </div>
+            {matchResults.map((e) => (
+              <button
+                key={e.id}
+                onClick={() => {
+                  setShowSearch(false);
+                  navigateEntity(e.id);
+                }}
+              >
+                <FileIcon />
+                {e.title}
+                <ArrowRightIcon />
+              </button>
+            ))}
+            {query && !matchResults.length && <p>没有找到相关内容</p>}
+          </div>
+        )}
+        {help && (
+          <aside className="sp-help" data-no-gesture>
+            <button aria-label="关闭帮助" onClick={() => setHelp(false)}>
+              <XIcon />
+            </button>
+            <h3>自由组织你的工作空间</h3>
+            <p>
+              单击选中，双击或 Enter 打开。
+              <br />
+              拖动空白处框选，Shift 点击多选。
+              <br />
+              空格拖动画布，滚轮平移，Ctrl / ⌘ 加滚轮缩放。
+              <br />G 组成堆叠，Shift + G 组成文件夹。
+              <br />N 添加笔记，0 适应画布，1 恢复 100%。
+              <br />
+              Escape 逐层返回，Ctrl / ⌘ + Z 撤销。
+            </p>
+          </aside>
+        )}
+        {demo && (
+          <Link className="sp-demo-exit" href="/home" data-no-gesture>
+            开始真实项目 <ArrowRightIcon />
+          </Link>
+        )}
+        {currentReader && (
+          <SpatialReader
+            key={currentReader.id}
+            entity={currentReader}
+            origin={reader?.origin}
+            entities={scene.entities}
+            relations={scene.relations.filter(
+              (r) => r.from === currentReader.id || r.to === currentReader.id,
+            )}
+            onClose={() => setReader(null)}
+            onNavigate={navigateEntity}
+            onEdit={(body, title) =>
+              doc.update((s) => ({
+                ...s,
+                entities: {
+                  ...s.entities,
+                  [currentReader.id]: {
+                    ...currentReader,
+                    body,
+                    title: title.trim() || "未命名笔记",
+                  },
+                },
+              }))
+            }
           />
         )}
+        {matrixReader && (
+          <CanvasDrawer
+            type={matrixReader}
+            cardType={matrixReader}
+            title={META[matrixReader].title}
+            spatial
+            onClose={() => setMatrixReader(null)}
+          />
+        )}
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          hidden
+          onChange={inputFiles}
+        />
+        <input
+          ref={imageInput}
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          hidden
+          onChange={inputFiles}
+        />
+        <input
+          ref={folderInput}
+          type="file"
+          multiple
+          hidden
+          {...{ webkitdirectory: "", directory: "" }}
+          onChange={inputFiles}
+        />
       </div>
     </div>
   );

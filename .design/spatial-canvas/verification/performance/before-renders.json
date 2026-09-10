@@ -1,0 +1,18 @@
+{
+  "canvasInteraction": {
+    "SpatialWorkspace": 28,
+    "MessageWindow": 28,
+    "AgentStream": 28,
+    "AgentBoard": 28,
+    "CanvasDock": 28,
+    "Composer": 28
+  },
+  "businessUpdate": {
+    "Composer": 3,
+    "SpatialWorkspace": 2,
+    "MessageWindow": 2,
+    "AgentStream": 2,
+    "AgentBoard": 2,
+    "CanvasDock": 2
+  }
+}

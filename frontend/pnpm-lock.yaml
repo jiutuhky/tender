@@ -23,9 +23,6 @@ importers:
       hast-util-to-jsx-runtime:
         specifier: ^2.3.6
         version: 2.3.6(supports-color@7.2.0)
-      hyalite:
-        specifier: https://codeload.github.com/VII-Cae/hyalite--liquid-glass/tar.gz/b0692b8aecdf264fcb49276f45d7d1d1f80f6dd0
-        version: https://codeload.github.com/VII-Cae/hyalite--liquid-glass/tar.gz/b0692b8aecdf264fcb49276f45d7d1d1f80f6dd0
       katex:
         specifier: ^0.16.47
         version: 0.16.47
@@ -1743,10 +1740,6 @@ packages:
 
   html-void-elements@3.0.0:
     resolution: {integrity: sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg==}
-
-  hyalite@https://codeload.github.com/VII-Cae/hyalite--liquid-glass/tar.gz/b0692b8aecdf264fcb49276f45d7d1d1f80f6dd0:
-    resolution: {gitHosted: true, integrity: sha512-rgfsvpDr9DkkMMjxTuFjNyvdpcIcNsjLVC8BNn/udg4lYJPOMyiv1d7eSe/BTmxuAskIwLZ2kFiqbbmz8bPyOA==, tarball: https://codeload.github.com/VII-Cae/hyalite--liquid-glass/tar.gz/b0692b8aecdf264fcb49276f45d7d1d1f80f6dd0}
-    version: 0.3.0
 
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
@@ -4693,8 +4686,6 @@ snapshots:
   html-url-attributes@3.0.1: {}
 
   html-void-elements@3.0.0: {}
-
-  hyalite@https://codeload.github.com/VII-Cae/hyalite--liquid-glass/tar.gz/b0692b8aecdf264fcb49276f45d7d1d1f80f6dd0: {}
 
   iconv-lite@0.6.3:
     dependencies:

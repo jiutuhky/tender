@@ -75,9 +75,11 @@ export interface ProjectUploadResult {
   path: string;
   size: number;
   /** 上传形成的 workspace commit sha */
-  revision: string;
+  revision: string | null;
   /** 租约活跃时是否已同步注入 VM(无租约为 false,由下一轮追平) */
   sandbox_synced: boolean;
+  /** PDF 上传后异步解析，原件不位于 workspace files。 */
+  parsing?: { pages: number };
 }
 
 /** 项目下 session 摘要(嵌在 GET /projects/{pid} 的 sessions 数组里)。 */
@@ -169,13 +171,26 @@ export async function uploadProjectSample(pid: string, filename: string): Promis
 }
 
 /** 用户上传本地 PDF 或 Markdown 到项目 workspace(落 sources/ 并形成提交)。 */
-export async function uploadProjectFile(pid: string, file: File): Promise<ProjectUploadResult> {
+export async function uploadProjectFile(pid: string, file: File, relativePath = file.name, signal?: AbortSignal): Promise<ProjectUploadResult> {
   const fd = new FormData();
   fd.append("file", file);
-  fd.append("path", `sources/${file.name}`);
-  const r = await fetch(`${BASE}/projects/${pid}/files`, { method: "POST", body: fd });
+  fd.append("path", `sources/${relativePath}`);
+  const r = await fetch(`${BASE}/projects/${pid}/files`, { method: "POST", body: fd, signal });
   if (!r.ok) throw apiError("uploadProjectFile", r.status);
   return r.json();
+}
+
+export interface WorkspaceFile { path: string; size: number }
+
+/** 全部素材清单独立于仅包含已注册原文的 documents。 */
+export async function listWorkspaceFiles(pid: string, signal?: AbortSignal): Promise<WorkspaceFile[]> {
+  const response = await fetch(`${BASE}/projects/${encodeURIComponent(pid)}/workspace/files`, { cache: "no-store", signal });
+  if (!response.ok) throw new Error("文件列表载入失败，请重试。");
+  return response.json();
+}
+
+export function workspaceFileUrl(pid: string, path: string): string {
+  return `${BASE}/projects/${encodeURIComponent(pid)}/workspace/files/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 /* ---------- 结构化资产(应答矩阵)REST 端点,契约见 hagent assets/router.py ---------- */
@@ -258,26 +273,28 @@ export interface DocumentsPage {
 export async function listDocuments(
   pid: string,
   params: { limit?: number; offset?: number } = {},
+  signal?: AbortSignal,
 ): Promise<DocumentsPage> {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined) qs.set(k, String(v));
   }
   const search = qs.size ? `?${qs}` : "";
-  const r = await fetch(`${BASE}/projects/${pid}/documents${search}`);
+  const r = await fetch(`${BASE}/projects/${pid}/documents${search}`, { signal });
   if (!r.ok) throw apiError("listDocuments", r.status);
   return r.json();
 }
 
 /** 拉取项目全部注册文档(按服务端上限逐页翻完,护栏同 fetchAllMatrixItems)。 */
-export async function fetchAllDocuments(pid: string): Promise<DocumentRecord[]> {
+export async function fetchAllDocuments(pid: string, signal?: AbortSignal): Promise<DocumentRecord[]> {
   const records: DocumentRecord[] = [];
   let offset: number | null = 0;
   for (let page = 0; offset !== null && page < PAGE_CAP; page++) {
+    signal?.throwIfAborted();
     const batch: DocumentsPage = await listDocuments(pid, {
       limit: PAGE_LIMIT,
       offset,
-    });
+    }, signal);
     records.push(...batch.documents);
     offset = batch.has_more ? batch.next_offset : null;
   }

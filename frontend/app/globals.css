@@ -2874,12 +2874,12 @@ body {
 .cv-msgwin[data-state="open"] {
   width: 404px;
   height: min(552px, var(--cv-msgwin-max-h));
-  /* 圆角与 MessageWindow 的 GLASS.cornerRadius 同步，给透镜边缘留出连续曲面。 */
+  /* 圆角与 MessageWindow 的 GLASS.cornerRadius 同步。 */
   border-radius: 28px;
 }
 
-/* ---- 玻璃面：Hyalite 按窗口尺寸生成 SDF 透镜 ----
-   玻璃祖先保持正常合成，开合时只淡入淡出内容层，让透镜始终能够采样画布。 */
+/* ---- 玻璃面：中央散射、高光与分层投影 ----
+   玻璃祖先保持正常合成，开合时只淡入淡出内容层。 */
 .cv-msgwin-glass {
   position: absolute;
   inset: 0;
@@ -2950,11 +2950,6 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .cv-msgwin-lg .lg-sheen { transform: none; transition: none; }
-}
-/* 开合期间先使用相同模糊量；Hyalite 在尺寸稳定后恢复折射。 */
-.cv-msgwin[data-tweening="1"] .lg-warp {
-  backdrop-filter: var(--lg-plain) !important;
-  -webkit-backdrop-filter: var(--lg-plain) !important;
 }
 
 /* ---- 边框光束（运行中，仅 open 档）----
@@ -3750,12 +3745,10 @@ body {
 
 /* ---- 降级：减少透明度时实底化玻璃 ----
    .cv-toolbar / .cv-dock-chip / .cv-viewport-hint / .cv-actbar 已改用 .frost-glass 工具类，
-   其兜底由 frost-materials.css 统一提供，此处不再重复。消息浮窗的 LiquidGlass 需要单独撤：
-   它的滤镜写在 JSX 内联（构建期会剥离样式表里的无前缀属性），媒体查询够不到。 */
+   其兜底由 frost-materials.css 统一提供。消息浮窗在此切换主题实底并隐藏装饰层。 */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  /* 液态玻璃整套撤掉：折射与高光边都以「看得见背后」为前提，实底之后它们只剩噪点 */
+  /* 实底模式以主题底色和清晰轮廓承托正文。 */
   .cv-msgwin-lg > .lg-glass { background: var(--surface); outline: 1px solid var(--label-2); }
-  .cv-msgwin-lg .lg-warp { filter: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   .cv-msgwin-lg > .lg-rim { display: none; }
   .cv-msgwin-lg :is(.lg-illum, .lg-diffusion, .lg-sheen) { display: none; }
   /* 面板底一旦实心，正文那套半透明元件就失去了「不戳补丁」的理由，还回实底更清楚 */
